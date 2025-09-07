@@ -5,6 +5,7 @@ import { ExerciseManager, INITIAL_CIRCLES, INITIAL_CIRCLES_TWO, INITIAL_CIRCLES_
 import { collisionDetection } from "../../../CollisionDetection";
 import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
+import ExplodeParticles from "../../../ExplodeParticles.jsx";
 
 
 
@@ -108,6 +109,10 @@ function GalistAbstractDataType() {
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
   const [originalSubmission, setOriginalSubmission] = useState(null);
+
+  // Explosion particle system
+  const [explosions, setExplosions] = useState([]);
+  const explosionIdRef = useRef(0);
 
     // Exercise progress indicator logic
   const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
@@ -244,6 +249,24 @@ function GalistAbstractDataType() {
   const [showValidationResult, setShowValidationResult] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
+
+  // Create explosion effect at circle position
+  const createExplosion = useCallback((circle, color = '#ff6b6b') => {
+    explosionIdRef.current += 1;
+    const explosion = {
+      id: `explosion-${explosionIdRef.current}`,
+      x: circle.x, // Circle center is at circle.x (the element offset is handled in CSS)
+      y: circle.y, // Circle center is at circle.y
+      color,
+    };
+
+    setExplosions(prev => [...prev, explosion]);
+
+    // Clean up explosion after animation
+    setTimeout(() => {
+      setExplosions(prev => prev.filter(exp => exp.id !== explosion.id));
+    }, 2500);
+  }, []);
 
     // Stop portal sound when validation overlay is open
   useEffect(() => {
@@ -557,6 +580,13 @@ function GalistAbstractDataType() {
             ) {
               setTimeout(() => {
                 setCircles((prevCircles) => {
+                  // Find the current position of the circle right before deletion
+                  const currentCircle = prevCircles.find((c) => c.id === circle.id);
+                  if (currentCircle) {
+                    // Create explosion effect with current position
+                    // createExplosion(currentCircle, '#b90accff'); // Purple explosion for portal entry
+                  }
+                  
                   const newCircles = prevCircles.filter((c) => c.id !== circle.id);
                   // If last circle, validate
                   if (newCircles.length === 0 && currentExercise) {
@@ -607,7 +637,7 @@ function GalistAbstractDataType() {
 
             // Suction force
             const baseForce = 2.0;
-            const headBoost = 1.5;
+            const headBoost = 2.0;
             const suctionForce = baseForce + headBoost;
             const newVelocityX = (dx / distance) * suctionForce;
             const newVelocityY = (dy / distance) * suctionForce;
@@ -620,8 +650,6 @@ function GalistAbstractDataType() {
             };
           }
 
-          // Gentle suction if portal open
-          
           // Manual trigger for chain suction
           if (portalInfo.isVisible) {
             const portalRight = 10 + portalInfo.canvasWidth + 20;
@@ -701,6 +729,7 @@ function GalistAbstractDataType() {
     originalSubmission,
     currentEntryOrder,
     circles.length,
+    createExplosion,
   ]);
 
   // Handle connection removal when circles are sucked
@@ -949,6 +978,13 @@ function GalistAbstractDataType() {
     setTimeout(() => {
       setHighlightedCircleId(null);
       setCircles((prev) => {
+        // Find the current position of the head node right before deletion
+        const currentHead = prev.find((c) => c.id === head.id);
+        if (currentHead) {
+          // Create explosion effect with current position
+          createExplosion(currentHead, '#e9e2e1ff'); // Orange-red explosion for dequeue
+        }
+        
         // Remove the head node
         const newCircles = prev.filter((c) => c.id !== head.id);
         return newCircles;
@@ -992,6 +1028,10 @@ function GalistAbstractDataType() {
 
   const handleDeleteCircle = () => {
     if (!selectedCircle) return;
+    
+    // Create explosion effect before deleting
+
+    
     const nodeToDelete = selectedCircle.id;
     const incomingConnections = connections.filter(
       (conn) => conn.to === nodeToDelete
@@ -1346,6 +1386,11 @@ function GalistAbstractDataType() {
       {/* Portal particles for vacuum effect */}
       <PortalParticles 
         portalInfo={portalInfo} 
+      />
+      
+      {/* Explosion particles for circle deletion/destruction */}
+      <ExplodeParticles 
+        explosions={explosions}
       />
       
       <div
