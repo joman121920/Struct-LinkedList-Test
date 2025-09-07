@@ -1109,6 +1109,20 @@
   transform: translateY(-2px);
 }
 
+/* Disabled button styles */
+.disabledBtn {
+  background-color: #444444 !important;
+  color: #888888 !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+}
+
+.disabledBtn:hover {
+  background-color: #444444 !important;
+  transform: none !important;
+  cursor: not-allowed !important;
+}
+
 .optionTitle {
   font-size: 42px;
   font-weight: bold;

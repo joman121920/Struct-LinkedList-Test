@@ -6,6 +6,7 @@ import { collisionDetection } from "../../../CollisionDetection";
 import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import ExplodeParticles from "../../../ExplodeParticles.jsx";
+import Level5Instruction from "./Level5Instruction.jsx";
 
 
 
@@ -85,8 +86,6 @@ function GalistAbstractDataType() {
     };
   }, [isPortalOpen]);
 
-
-
   // Track which exercise is active
   const [exerciseKey, setExerciseKey] = useState("exercise_one");
   const [address, setAddress] = useState("");
@@ -109,19 +108,31 @@ function GalistAbstractDataType() {
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
   const [originalSubmission, setOriginalSubmission] = useState(null);
-
   // Explosion particle system
   const [explosions, setExplosions] = useState([]);
   const explosionIdRef = useRef(0);
 
+  // Energy-based brightness system for PEEK game mechanic
+  const [energy, setEnergy] = useState(50); // Start with 50 energy
+  const [screenOpacity, setScreenOpacity] = useState(1); // 1 = fully bright, 0 = completely dark
+  const energyTimerRef = useRef(null);
+  const lowEnergySoundPlayedRef = useRef(false); // Track if low energy sound has been played
+  const alarmAudioRef = useRef(null); // Track alarm audio to stop it when needed
+  
+  // Energy system constants
+  const MAX_ENERGY = 50;
+  const MIN_ENERGY = 0;
+  const DIMMING_START_ENERGY = 40; // Start dimming when energy drops to 40
+  const ENERGY_DECAY_RATE = 0.5;
+  const PEEK_ENERGY_GAIN = 15; // Gain 10 energy when using PEEK
+  const ENERGY_UPDATE_INTERVAL = 300; // Update energy every 500ms (twice as fast)
+  const LOW_ENERGY_THRESHOLD = 20; // Play warning sound when energy reaches this level
     // Exercise progress indicator logic
   const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
   const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
   const totalExercises = EXERCISE_KEYS.length;
 
   // --- Launch initial circles from the correct INITIAL_CIRCLES array ---
-  // Only launch initial circles once per exerciseKey, and always clear state synchronously before launching
-  // Prevent duplicate launches by using a launch token and clearing timeouts
   const launchTimeoutRef = useRef(null);
   const launchTokenRef = useRef(0);
   const hasLaunchedRef = useRef(false);
@@ -268,6 +279,132 @@ function GalistAbstractDataType() {
     }, 2500);
   }, []);
 
+  // Energy-based brightness management system
+  const updateBrightnessFromEnergy = useCallback(() => {
+    if (energy >= DIMMING_START_ENERGY) {
+      // Full brightness when energy is above 40
+      setScreenOpacity(1);
+    } else {
+      // Gradual dimming from energy 40 to 0
+      const energyRange = DIMMING_START_ENERGY - MIN_ENERGY; // 40
+      const currentEnergyInRange = energy - MIN_ENERGY; // How much energy above minimum
+      const brightnessRatio = currentEnergyInRange / energyRange; // 0 to 1 scale
+      const opacity = Math.max(0.05, brightnessRatio); // Never go completely black
+      setScreenOpacity(opacity);
+    }
+  }, [energy, DIMMING_START_ENERGY, MIN_ENERGY]);
+
+  // Energy decay system
+  const startEnergyDecay = useCallback(() => {
+    // Clear existing timer
+    if (energyTimerRef.current) {
+      clearInterval(energyTimerRef.current);
+    }
+
+    // Start energy decay timer
+    energyTimerRef.current = setInterval(() => {
+      setEnergy(prevEnergy => {
+        const newEnergy = Math.max(MIN_ENERGY, prevEnergy - ENERGY_DECAY_RATE);
+        
+        // Play warning sound when energy drops to low threshold (only once)
+        if (newEnergy <= LOW_ENERGY_THRESHOLD && !lowEnergySoundPlayedRef.current) {
+          lowEnergySoundPlayedRef.current = true;
+          try {
+            const audio = new window.Audio('/sounds/alarm.mp3');
+            audio.loop = true; // Loop the alarm while energy is low
+            audio.volume = 0.4;
+            alarmAudioRef.current = audio; // Store reference to stop later
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(() => {/* Ignore play errors */});
+            }
+          } catch {
+            // Ignore audio errors
+          }
+        }
+        
+        // Stop alarm when energy goes above threshold
+        if (newEnergy > LOW_ENERGY_THRESHOLD && alarmAudioRef.current) {
+          alarmAudioRef.current.pause();
+          alarmAudioRef.current.currentTime = 0;
+          alarmAudioRef.current = null;
+          lowEnergySoundPlayedRef.current = false;
+        }
+        
+        return newEnergy;
+      });
+    }, ENERGY_UPDATE_INTERVAL);
+  }, [MIN_ENERGY, ENERGY_DECAY_RATE, ENERGY_UPDATE_INTERVAL, LOW_ENERGY_THRESHOLD]);
+
+  // Pause energy decay system
+  const pauseEnergyDecay = useCallback(() => {
+    if (energyTimerRef.current) {
+      clearInterval(energyTimerRef.current);
+      energyTimerRef.current = null;
+    }
+    // Stop alarm when pausing
+    if (alarmAudioRef.current) {
+      alarmAudioRef.current.pause();
+      alarmAudioRef.current.currentTime = 0;
+      alarmAudioRef.current = null;
+    }
+    lowEnergySoundPlayedRef.current = false;
+  }, []);
+
+  // Reset energy to maximum and restart decay
+  const resetEnergySystem = useCallback(() => {
+    setEnergy(MAX_ENERGY);
+    setScreenOpacity(1);
+    lowEnergySoundPlayedRef.current = false;
+    // Stop any existing alarm
+    if (alarmAudioRef.current) {
+      alarmAudioRef.current.pause();
+      alarmAudioRef.current.currentTime = 0;
+      alarmAudioRef.current = null;
+    }
+    // Restart energy decay
+    startEnergyDecay();
+  }, [MAX_ENERGY, startEnergyDecay]);
+
+  // PEEK energy boost function
+  const boostEnergyWithPeek = useCallback(() => {
+    setEnergy(prevEnergy => {
+      const newEnergy = Math.min(MAX_ENERGY, prevEnergy + PEEK_ENERGY_GAIN);
+      // Stop alarm and reset flag if energy is restored above threshold
+      if (newEnergy > LOW_ENERGY_THRESHOLD) {
+        if (alarmAudioRef.current) {
+          alarmAudioRef.current.pause();
+          alarmAudioRef.current.currentTime = 0;
+          alarmAudioRef.current = null;
+        }
+        lowEnergySoundPlayedRef.current = false;
+      }
+      return newEnergy;
+    });
+  }, [MAX_ENERGY, PEEK_ENERGY_GAIN, LOW_ENERGY_THRESHOLD]);
+
+  // Update screen brightness whenever energy changes
+  useEffect(() => {
+    updateBrightnessFromEnergy();
+  }, [energy, updateBrightnessFromEnergy]);
+
+  // Initialize energy system on component mount
+  useEffect(() => {
+    startEnergyDecay();
+    
+    return () => {
+      if (energyTimerRef.current) {
+        clearInterval(energyTimerRef.current);
+      }
+      // Stop alarm on cleanup
+      if (alarmAudioRef.current) {
+        alarmAudioRef.current.pause();
+        alarmAudioRef.current.currentTime = 0;
+        alarmAudioRef.current = null;
+      }
+    };
+  }, [startEnergyDecay]);
+
     // Stop portal sound when validation overlay is open
   useEffect(() => {
     if (showValidationResult && portalAudioRef.current) {
@@ -282,6 +419,19 @@ function GalistAbstractDataType() {
       setIsPortalOpen(false);
     }
   }, [showValidationResult]);
+
+  // Pause energy system and reset energy when validation modal appears
+  useEffect(() => {
+    if (showValidationResult) {
+      // Pause energy decay and reset energy to maximum
+      pauseEnergyDecay();
+      setEnergy(MAX_ENERGY);
+      setScreenOpacity(1);
+    } else {
+      // Resume energy decay when validation modal is closed
+      resetEnergySystem();
+    }
+  }, [showValidationResult, pauseEnergyDecay, resetEnergySystem, MAX_ENERGY]);
   
   //   const next = { screen: "mode", mode: null };
   //   window.history.pushState(next, "");
@@ -402,6 +552,18 @@ function GalistAbstractDataType() {
 
   const isPortalButtonEnabled =
     isPortalOpen || (hasHeadNode() && hasTailNode());
+
+  // Helper functions to determine if queue operations should be disabled
+  const isOnlyOneCircle = circles.length === 1;
+  const isSingleHeadTail = isOnlyOneCircle && circles.length > 0;
+  
+  // Disable PEEK when no head exists or only one circle (head/tail)
+  const isPeekDisabled = !hasHeadNode() || isSingleHeadTail;
+  
+  // Disable DEQUEUE when no head exists or only one circle (head/tail) 
+  const isDequeueDisabled = !hasHeadNode() || isSingleHeadTail;
+  
+  // ENQUEUE is always available when we have address and value
 
   
 
@@ -883,12 +1045,29 @@ function GalistAbstractDataType() {
   // PEEK: Highlight the value at the head/front of the queue (first node in the chain)
   const [highlightedCircleId, setHighlightedCircleId] = useState(null);
   const handlePeek = () => {
+    // Boost energy when PEEK is used
+    boostEnergyWithPeek();
+    
     // Find the head node (no incoming connections, has outgoing)
     const head = circles.find((circle) => isHeadNode(circle.id));
+   
     closeInsertModal(); // Close insert modal after clicking peek
     if (head) {
+       try {
+          const audio = new window.Audio('/sounds/charged.mp3');
+          audio.loop = false;
+          audio.volume = 1;
+          portalAudioRef.current = audio;
+          // Play with promise catch for browser compatibility
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {});
+          }
+        } catch {
+          // Ignore audio errors
+        }
       setHighlightedCircleId(head.id);
-      setTimeout(() => setHighlightedCircleId(null), 1000);
+      setTimeout(() => setHighlightedCircleId(null), 1500);
     } else {
       setHighlightedCircleId(null);
     }
@@ -975,14 +1154,37 @@ function GalistAbstractDataType() {
     }
     setHighlightedCircleId(head.id);
     closeInsertModal();
+    
+    // Prevent double explosions by using a unique identifier
+    const explosionId = `dequeue-${head.id}-${Date.now()}`;
+    
     setTimeout(() => {
       setHighlightedCircleId(null);
       setCircles((prev) => {
         // Find the current position of the head node right before deletion
         const currentHead = prev.find((c) => c.id === head.id);
         if (currentHead) {
-          // Create explosion effect with current position
-          createExplosion(currentHead, '#e9e2e1ff'); // Orange-red explosion for dequeue
+          // Create explosion effect with current position - use unique identifier
+          const explosion = {
+            id: explosionId,
+            x: currentHead.x,
+            y: currentHead.y,
+            color: '#e9e2e1ff',
+          };
+          
+          setExplosions(prevExplosions => {
+            // Check if explosion with this ID already exists
+            const alreadyExists = prevExplosions.some(exp => exp.id === explosionId);
+            if (!alreadyExists) {
+              return [...prevExplosions, explosion];
+            }
+            return prevExplosions;
+          });
+
+          // Clean up explosion after animation
+          setTimeout(() => {
+            setExplosions(prev => prev.filter(exp => exp.id !== explosionId));
+          }, 2500);
         }
         
         // Remove the head node
@@ -1268,35 +1470,15 @@ function GalistAbstractDataType() {
     };
   }, [draggedCircle, dragOffset, findConnectedCircles, circles]);
 
-  // const launchCircle = () => {
-  //   if (!address.trim() || !value.trim()) return;
-
-  //   const addressExists = circles.some(
-  //     (circle) => circle.address === address.trim()
-  //   );
-  //   if (addressExists) {
-  //     setShowDuplicateModal(true);
-  //     return;
-  //   }
-
-  //   const newCircle = {
-  //     id: Date.now(),
-  //     address: address.trim(),
-  //     value: value.trim(),
-  //     x: window.innerWidth - 10,
-  //     y: window.innerHeight - 55,
-  //     velocityX: -8 - Math.random() * 5,
-  //     velocityY: -5 - Math.random() * 3,
-  //   };
-
-  //   setCircles((prev) => [...prev, newCircle]);
-  //   setAddress("");
-  //   setValue("");
-  // };
-
   return (
     
-    <div className={styles.app}>
+    <div 
+      className={styles.app}
+      style={{
+        filter: `brightness(${screenOpacity})`,
+        transition: screenOpacity === 1 ? 'filter 0.5s ease-out' : 'none', // Smooth brighten, gradual dim
+      }}
+    >
       <video
         className={styles.videoBackground}
         autoPlay
@@ -1310,6 +1492,7 @@ function GalistAbstractDataType() {
         <source src="./video/mars.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
+
 
       <button
         className={styles.instructionButton}
@@ -1350,33 +1533,11 @@ function GalistAbstractDataType() {
         </div>
       )}
       
-      {showInstructionPopup &&
-        currentExercise &&
-        currentExercise.expectedStructure && (
-          
-          <div className={styles.instructionPopup}>
-            <div className={styles.instructionContent}>
-              <h1>{currentExercise.title}</h1>
-              <div className={styles.instructionList}>
-                {currentExercise.expectedStructure.map((node, index) => (
-                  <div key={index} className={styles.instructionItem}>
-                    <span className={styles.instructionValue}>
-                      Value: {node.value}
-                    </span>
-                    <span className={styles.instructionArrow}>→</span>
-                    <span className={styles.instructionAddress}>
-                      Address: {node.address}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <button className={styles.startButton} onClick={startExercise}>
-                Start
-              </button>
-            </div>
-          </div>
-          
-        )}
+      <Level5Instruction 
+        showInstructionPopup={showInstructionPopup}
+        currentExercise={currentExercise}
+        startExercise={startExercise}
+      />
      
       <PortalComponent
         onPortalStateChange={handlePortalStateChange}
@@ -1752,11 +1913,17 @@ function GalistAbstractDataType() {
 
             <div className={styles.insertOptions}>
               <button
-                className={`${styles.insertOptionBtn} head-btn`}
-                onClick={() => handleInsertOption("head")}
+                className={`${styles.insertOptionBtn} head-btn ${isPeekDisabled ? styles.disabledBtn : ''}`}
+                onClick={() => !isPeekDisabled && handleInsertOption("head")}
+                disabled={isPeekDisabled}
               >
                 <div className={styles.optionTitle}>PEEK</div>
-                <div className={styles.optionSubtitle}> Returns the element at the front (head) of the queue.</div>
+                <div className={styles.optionSubtitle}>
+                  {isPeekDisabled 
+                    ? "No head node available or only one circle remaining" 
+                    : "Returns the element at the front (head) of the queue."
+                  }
+                </div>
               </button>
 
               <button
@@ -1770,11 +1937,17 @@ function GalistAbstractDataType() {
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} tail-btn`}
-                onClick={() => handleInsertOption("tail")}
+                className={`${styles.insertOptionBtn} tail-btn ${isDequeueDisabled ? styles.disabledBtn : ''}`}
+                onClick={() => !isDequeueDisabled && handleInsertOption("tail")}
+                disabled={isDequeueDisabled}
               >
                 <div className={styles.optionTitle}>DEQUEUE</div>
-                <div className={styles.optionSubtitle}>Removes the element at the front of the queue.</div>
+                <div className={styles.optionSubtitle}>
+                  {isDequeueDisabled 
+                    ? "No head node available or only one circle remaining" 
+                    : "Removes the element at the front of the queue."
+                  }
+                </div>
               </button>
             </div>
           </div>
