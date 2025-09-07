@@ -209,7 +209,7 @@ function GalistAbstractDataType() {
           }
         }
         idx++;
-        launchTimeoutRef.current = setTimeout(launchNext, 200);
+        launchTimeoutRef.current = setTimeout(launchNext, 750);
       }
       launchNext();
     }, 50);

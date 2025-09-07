@@ -11,7 +11,7 @@ const PortalParticles = React.memo(({ portalInfo }) => {
         const portalCenterX = 10 + portalInfo.canvasWidth / 2;
         const portalCenterY = window.innerHeight / 2;
         const angle = Math.random() * Math.PI * 2;
-        const distance = 100 + Math.random() * 200; // Start particles further out
+        const distance = 100 + Math.random() * 300; // Start particles further out
         
         return {
           id: Date.now() + Math.random(),
@@ -37,7 +37,7 @@ const PortalParticles = React.memo(({ portalInfo }) => {
           const newParticles = prev.filter(p => p.life > 0);
           
           // Add 1-2 new particles (reduced from 2-3)
-          for (let i = 0; i < 1 + Math.random() * 2; i++) {
+          for (let i = 0; i < 3 + Math.random() * 4; i++) {
             newParticles.push(generateParticle());
           }
           

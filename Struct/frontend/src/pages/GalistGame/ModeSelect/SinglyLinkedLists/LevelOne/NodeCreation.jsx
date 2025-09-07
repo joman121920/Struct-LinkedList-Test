@@ -6,6 +6,7 @@ import styles from "./NodeCreation.module.css";
 import { ExerciseManager } from "./NodeCreationExercise";
 import { collisionDetection } from "../../../CollisionDetection";
 import PortalComponent from "../../../PortalComponent";
+import PortalParticles from "../../../Particles.jsx";
 
 function GalistNodeCreation() {
   // --- Add refs to reliably track entry order and sucked circles ---
@@ -955,6 +956,10 @@ function GalistNodeCreation() {
           </div>
         )}
 
+      {/* Portal particles for vacuum effect */}
+      <PortalParticles 
+        portalInfo={portalInfo} 
+      />
       <PortalComponent
         onPortalStateChange={handlePortalStateChange}
         isOpen={isPortalOpen}
