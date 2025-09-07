@@ -120,7 +120,7 @@ function GalistAbstractDataType() {
   const alarmAudioRef = useRef(null); // Track alarm audio to stop it when needed
   
   // Energy system constants
-  const MAX_ENERGY = 50;
+  const MAX_ENERGY = 10000;
   const MIN_ENERGY = 0;
   const DIMMING_START_ENERGY = 40; // Start dimming when energy drops to 40
   const ENERGY_DECAY_RATE = 0.5;
