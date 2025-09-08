@@ -7,21 +7,27 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import ExplodeParticles from "../../../ExplodeParticles.jsx";
 import Level5Instruction from "./Level5Instruction.jsx";
-import LoadingScreen from "../../../LoadingScreen.jsx";
-
-// Energy system constants (moved outside component to prevent recreation)
-const MAX_ENERGY = 50;
-const MIN_ENERGY = 0;
-const DIMMING_START_ENERGY = 40; // Start dimming when energy drops to 40
-const ENERGY_DECAY_RATE = 0.5;
-const PEEK_ENERGY_GAIN = 15; // Gain 15 energy when using PEEK
-const ENERGY_UPDATE_INTERVAL = 300; // Update energy every 300ms (faster decay)
-const LOW_ENERGY_THRESHOLD = 20; // Play warning sound when energy reaches this level
+import LoadingScreen from "../../../LoadingScreen/LoadingScreen.jsx";
+import { useDimming } from "../../../Dimming/Dimming.jsx";
 
 // Exercise constants
 const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
 
 function GalistAbstractDataType() {
+
+  // --- Use the dimming hook ---
+  const {
+    screenOpacity,
+    startDimming,
+    setStartDimming,
+    boostEnergyWithPeek,
+    pauseEnergyDecay,
+    resetEnergySystem,
+    setEnergy,
+    setScreenOpacity
+  } = useDimming();
+
+  // --- Loading screen state ---
 
   // --- Loading screen state ---
   const [isLoading, setIsLoading] = useState(true);
@@ -58,25 +64,17 @@ function GalistAbstractDataType() {
   const [explosions, setExplosions] = useState([]);
   const [highlightedCircleId, setHighlightedCircleId] = useState(null);
 
-  // Energy-based brightness system for PEEK game mechanic
-  const [energy, setEnergy] = useState(50); // Start with 50 energy
-  const [screenOpacity, setScreenOpacity] = useState(1); // 1 = fully bright, 0 = completely dark
-
   // Exercise system states
   const [currentExercise, setCurrentExercise] = useState(null);
   const [showValidationResult, setShowValidationResult] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [showInstructionPopup, setShowInstructionPopup] = useState(true); // Show instruction automatically on load
   const [gameStarted, setGameStarted] = useState(false); // Track if the game has been started
-  const [startDimming, setStartDimming] = useState(false); // Control when energy system and dimming begins
 
   // Refs
   const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
   const explosionIdRef = useRef(0);
-  const energyTimerRef = useRef(null);
-  const lowEnergySoundPlayedRef = useRef(false); // Track if low energy sound has been played
-  const alarmAudioRef = useRef(null); // Track alarm audio to stop it when needed
   const exerciseManagerRef = useRef(new ExerciseManager());
   const launchTimeoutRef = useRef(null);
   const launchTokenRef = useRef(0);
@@ -302,141 +300,6 @@ function GalistAbstractDataType() {
     }, 2500);
   }, []);
 
-  // Energy-based brightness management system
-  const updateBrightnessFromEnergy = useCallback(() => {
-    // Don't start dimming until the exercise has actually started
-    if (!startDimming) {
-      setScreenOpacity(1);
-      return;
-    }
-
-    if (energy >= DIMMING_START_ENERGY) {
-      // Full brightness when energy is above 40
-      setScreenOpacity(1);
-    } else {
-      // Gradual dimming from energy 40 to 0
-      const energyRange = DIMMING_START_ENERGY - MIN_ENERGY; // 40
-      const currentEnergyInRange = energy - MIN_ENERGY; // How much energy above minimum
-      const brightnessRatio = currentEnergyInRange / energyRange; // 0 to 1 scale
-      const opacity = Math.max(0.05, brightnessRatio); // Never go completely black
-      setScreenOpacity(opacity);
-    }
-  }, [energy, startDimming]); // Depend on both energy and startDimming
-
-  // Energy decay system
-  const startEnergyDecay = useCallback(() => {
-    // Clear existing timer
-    if (energyTimerRef.current) {
-      clearInterval(energyTimerRef.current);
-    }
-
-    // Start energy decay timer
-    energyTimerRef.current = setInterval(() => {
-      setEnergy(prevEnergy => {
-        const newEnergy = Math.max(MIN_ENERGY, prevEnergy - ENERGY_DECAY_RATE);
-        
-        // Play warning sound when energy drops to low threshold (only once)
-        if (newEnergy <= LOW_ENERGY_THRESHOLD && !lowEnergySoundPlayedRef.current) {
-          lowEnergySoundPlayedRef.current = true;
-          try {
-            const audio = new window.Audio('/sounds/alarm.mp3');
-            audio.loop = true; // Loop the alarm while energy is low
-            audio.volume = 0.4;
-            alarmAudioRef.current = audio; // Store reference to stop later
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-              playPromise.catch(() => {/* Ignore play errors */});
-            }
-          } catch {
-            // Ignore audio errors
-          }
-        }
-        
-        // Stop alarm when energy goes above threshold
-        if (newEnergy > LOW_ENERGY_THRESHOLD && alarmAudioRef.current) {
-          alarmAudioRef.current.pause();
-          alarmAudioRef.current.currentTime = 0;
-          alarmAudioRef.current = null;
-          lowEnergySoundPlayedRef.current = false;
-        }
-        
-        return newEnergy;
-      });
-    }, ENERGY_UPDATE_INTERVAL);
-  }, []); // No dependencies needed since constants are stable
-
-  // Pause energy decay system
-  const pauseEnergyDecay = useCallback(() => {
-    if (energyTimerRef.current) {
-      clearInterval(energyTimerRef.current);
-      energyTimerRef.current = null;
-    }
-    // Stop alarm when pausing
-    if (alarmAudioRef.current) {
-      alarmAudioRef.current.pause();
-      alarmAudioRef.current.currentTime = 0;
-      alarmAudioRef.current = null;
-    }
-    lowEnergySoundPlayedRef.current = false;
-  }, []);
-
-  // Reset energy to maximum and restart decay
-  const resetEnergySystem = useCallback(() => {
-    setEnergy(MAX_ENERGY);
-    setScreenOpacity(1);
-    lowEnergySoundPlayedRef.current = false;
-    // Stop any existing alarm
-    if (alarmAudioRef.current) {
-      alarmAudioRef.current.pause();
-      alarmAudioRef.current.currentTime = 0;
-      alarmAudioRef.current = null;
-    }
-    // Restart energy decay
-    startEnergyDecay();
-  }, [startEnergyDecay]); // Only depend on startEnergyDecay since MAX_ENERGY is stable
-
-  // PEEK energy boost function
-  const boostEnergyWithPeek = useCallback(() => {
-    setEnergy(prevEnergy => {
-      const newEnergy = Math.min(MAX_ENERGY, prevEnergy + PEEK_ENERGY_GAIN);
-      // Stop alarm and reset flag if energy is restored above threshold
-      if (newEnergy > LOW_ENERGY_THRESHOLD) {
-        if (alarmAudioRef.current) {
-          alarmAudioRef.current.pause();
-          alarmAudioRef.current.currentTime = 0;
-          alarmAudioRef.current = null;
-        }
-        lowEnergySoundPlayedRef.current = false;
-      }
-      return newEnergy;
-    });
-  }, []); // No dependencies needed since constants are stable
-
-  // Update screen brightness whenever energy changes
-  useEffect(() => {
-    updateBrightnessFromEnergy();
-  }, [energy, updateBrightnessFromEnergy]);
-
-  // Initialize energy system when dimming starts
-  useEffect(() => {
-    // Only start energy system when dimming has been enabled (not affected by instruction popup)
-    if (!startDimming) return;
-    
-    startEnergyDecay();
-    
-    return () => {
-      if (energyTimerRef.current) {
-        clearInterval(energyTimerRef.current);
-      }
-      // Stop alarm on cleanup
-      if (alarmAudioRef.current) {
-        alarmAudioRef.current.pause();
-        alarmAudioRef.current.currentTime = 0;
-        alarmAudioRef.current = null;
-      }
-    };
-  }, [startEnergyDecay, startDimming]); // Depend on startDimming instead of gameStarted
-
     // Stop portal sound when validation overlay is open
   useEffect(() => {
     if (showValidationResult && portalAudioRef.current) {
@@ -457,13 +320,13 @@ function GalistAbstractDataType() {
     if (showValidationResult) {
       // Pause energy decay and reset energy to maximum
       pauseEnergyDecay();
-      setEnergy(MAX_ENERGY);
+      setEnergy(50); // Use the MAX_ENERGY value directly since we can't import it here
       setScreenOpacity(1);
     } else if (startDimming) {
       // Only resume energy decay when validation modal is closed AND dimming is enabled
       resetEnergySystem();
     }
-  }, [showValidationResult, pauseEnergyDecay, resetEnergySystem, startDimming]); // Added startDimming dependency
+  }, [showValidationResult, pauseEnergyDecay, resetEnergySystem, startDimming, setEnergy, setScreenOpacity]); // Added missing dependencies
   
   //   const next = { screen: "mode", mode: null };
   //   window.history.pushState(next, "");
@@ -623,7 +486,7 @@ function GalistAbstractDataType() {
     if (!currentExercise) {
       loadExercise();
     }
-  }, [loadExercise, currentExercise]);
+  }, [loadExercise, currentExercise, setStartDimming]);
 
   // Initialize exercise on component mount
   useEffect(() => {
