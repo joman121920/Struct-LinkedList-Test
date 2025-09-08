@@ -7,10 +7,24 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import ExplodeParticles from "../../../ExplodeParticles.jsx";
 import Level5Instruction from "./Level5Instruction.jsx";
+import LoadingScreen from "../../../LoadingScreen.jsx";
 
+// Energy system constants (moved outside component to prevent recreation)
+const MAX_ENERGY = 50;
+const MIN_ENERGY = 0;
+const DIMMING_START_ENERGY = 40; // Start dimming when energy drops to 40
+const ENERGY_DECAY_RATE = 0.5;
+const PEEK_ENERGY_GAIN = 15; // Gain 15 energy when using PEEK
+const ENERGY_UPDATE_INTERVAL = 300; // Update energy every 300ms (faster decay)
+const LOW_ENERGY_THRESHOLD = 20; // Play warning sound when energy reaches this level
 
+// Exercise constants
+const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
 
 function GalistAbstractDataType() {
+
+  // --- Loading screen state ---
+  const [isLoading, setIsLoading] = useState(true);
 
   // --- Move all useState declarations to the top ---
   // Portal state management (move above useEffect that uses isPortalOpen)
@@ -54,6 +68,7 @@ function GalistAbstractDataType() {
   const [validationResult, setValidationResult] = useState(null);
   const [showInstructionPopup, setShowInstructionPopup] = useState(true); // Show instruction automatically on load
   const [gameStarted, setGameStarted] = useState(false); // Track if the game has been started
+  const [startDimming, setStartDimming] = useState(false); // Control when energy system and dimming begins
 
   // Refs
   const animationRef = useRef();
@@ -68,16 +83,7 @@ function GalistAbstractDataType() {
   const hasLaunchedRef = useRef(false);
   const portalAudioRef = useRef(null);
 
-  // Energy system constants
-  const MAX_ENERGY = 10000;
-  const MIN_ENERGY = 0;
-  const DIMMING_START_ENERGY = 40; // Start dimming when energy drops to 40
-  const ENERGY_DECAY_RATE = 0.5;
-  const PEEK_ENERGY_GAIN = 15; // Gain 10 energy when using PEEK
-  const ENERGY_UPDATE_INTERVAL = 300; // Update energy every 500ms (twice as fast)
-  const LOW_ENERGY_THRESHOLD = 20; // Play warning sound when energy reaches this level
-    // Exercise progress indicator logic
-  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
+  // Exercise progress indicator logic
   const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
   const totalExercises = EXERCISE_KEYS.length;
 
@@ -298,6 +304,12 @@ function GalistAbstractDataType() {
 
   // Energy-based brightness management system
   const updateBrightnessFromEnergy = useCallback(() => {
+    // Don't start dimming until the exercise has actually started
+    if (!startDimming) {
+      setScreenOpacity(1);
+      return;
+    }
+
     if (energy >= DIMMING_START_ENERGY) {
       // Full brightness when energy is above 40
       setScreenOpacity(1);
@@ -309,7 +321,7 @@ function GalistAbstractDataType() {
       const opacity = Math.max(0.05, brightnessRatio); // Never go completely black
       setScreenOpacity(opacity);
     }
-  }, [energy, DIMMING_START_ENERGY, MIN_ENERGY]);
+  }, [energy, startDimming]); // Depend on both energy and startDimming
 
   // Energy decay system
   const startEnergyDecay = useCallback(() => {
@@ -351,7 +363,7 @@ function GalistAbstractDataType() {
         return newEnergy;
       });
     }, ENERGY_UPDATE_INTERVAL);
-  }, [MIN_ENERGY, ENERGY_DECAY_RATE, ENERGY_UPDATE_INTERVAL, LOW_ENERGY_THRESHOLD]);
+  }, []); // No dependencies needed since constants are stable
 
   // Pause energy decay system
   const pauseEnergyDecay = useCallback(() => {
@@ -381,7 +393,7 @@ function GalistAbstractDataType() {
     }
     // Restart energy decay
     startEnergyDecay();
-  }, [MAX_ENERGY, startEnergyDecay]);
+  }, [startEnergyDecay]); // Only depend on startEnergyDecay since MAX_ENERGY is stable
 
   // PEEK energy boost function
   const boostEnergyWithPeek = useCallback(() => {
@@ -398,17 +410,17 @@ function GalistAbstractDataType() {
       }
       return newEnergy;
     });
-  }, [MAX_ENERGY, PEEK_ENERGY_GAIN, LOW_ENERGY_THRESHOLD]);
+  }, []); // No dependencies needed since constants are stable
 
   // Update screen brightness whenever energy changes
   useEffect(() => {
     updateBrightnessFromEnergy();
   }, [energy, updateBrightnessFromEnergy]);
 
-  // Initialize energy system when game is started
+  // Initialize energy system when dimming starts
   useEffect(() => {
-    // Only start energy system when game has been started (not affected by instruction popup during gameplay)
-    if (!gameStarted) return;
+    // Only start energy system when dimming has been enabled (not affected by instruction popup)
+    if (!startDimming) return;
     
     startEnergyDecay();
     
@@ -423,7 +435,7 @@ function GalistAbstractDataType() {
         alarmAudioRef.current = null;
       }
     };
-  }, [startEnergyDecay, gameStarted]); // Depend on gameStarted instead of showInstructionPopup
+  }, [startEnergyDecay, startDimming]); // Depend on startDimming instead of gameStarted
 
     // Stop portal sound when validation overlay is open
   useEffect(() => {
@@ -447,11 +459,11 @@ function GalistAbstractDataType() {
       pauseEnergyDecay();
       setEnergy(MAX_ENERGY);
       setScreenOpacity(1);
-    } else {
-      // Resume energy decay when validation modal is closed
+    } else if (startDimming) {
+      // Only resume energy decay when validation modal is closed AND dimming is enabled
       resetEnergySystem();
     }
-  }, [showValidationResult, pauseEnergyDecay, resetEnergySystem, MAX_ENERGY]);
+  }, [showValidationResult, pauseEnergyDecay, resetEnergySystem, startDimming]); // Added startDimming dependency
   
   //   const next = { screen: "mode", mode: null };
   //   window.history.pushState(next, "");
@@ -607,6 +619,7 @@ function GalistAbstractDataType() {
   const startExercise = useCallback(() => {
     setShowInstructionPopup(false);
     setGameStarted(true); // Mark game as started
+    setStartDimming(true); // Enable energy system and dimming effect
     if (!currentExercise) {
       loadExercise();
     }
@@ -671,6 +684,11 @@ function GalistAbstractDataType() {
     },
     [connections, isHeadNode]
   );
+
+  // Handle loading completion
+  const handleLoadingComplete = useCallback(() => {
+    setIsLoading(false);
+  }, []);
 
   // Function to start chain suction effect
   const startChainSuction = useCallback(
@@ -1489,6 +1507,11 @@ function GalistAbstractDataType() {
       document.removeEventListener("mouseup", handleMouseUpGlobal);
     };
   }, [draggedCircle, dragOffset, findConnectedCircles, circles]);
+
+  // Show loading screen first
+  if (isLoading) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
+  }
 
   return (
     
