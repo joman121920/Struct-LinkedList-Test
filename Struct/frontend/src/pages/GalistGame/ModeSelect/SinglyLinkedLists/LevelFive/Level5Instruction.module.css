@@ -16,11 +16,11 @@
 .instructionModal {
   background-color: #37353500;
   color: white;
-  width: 90%;
+  width: 85%;
   max-width: 1400px;
-  height: 90%;
+  height: 85%;
   max-height: 1000px;
-  border-radius: 10px;
+  border-radius: 20px;
   border: 2px solid #c0c0c0;
   display: flex;
   flex-direction: column;
@@ -110,7 +110,6 @@
   flex: 1;
   min-width: 400px;
   height: 100%;
-  border-left: 1px solid #ffffff;
   padding-left: 40px;
 }
 
@@ -145,7 +144,7 @@
 
 .objectiveList li:before {
   content: "•";
-  color: #4CAF50;
+  color: #d6d7d6;
   font-weight: bold;
   position: absolute;
   left: 0;
@@ -177,7 +176,7 @@
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 10px;
-  color: #4CAF50;
+  color: #ffffff;
 }
 
 .operationDetails {
@@ -198,7 +197,7 @@
 
 .operationDetails li:before {
   content: "◦";
-  color: #4CAF50;
+  color: #cecece;
   position: absolute;
   left: 0;
 }
@@ -300,8 +299,9 @@
   background-color: #333;
   color: #fff;
   border: 1px solid #555;
-  padding: 10px 25px;
-  font-size: 14px;
+  padding: 5px 15px;
+  width: 120px;
+  font-size: 12px;
   font-weight: 500;
   border-radius: 5px;
   cursor: pointer;
@@ -310,8 +310,7 @@
 }
 
 .navButton:hover:not(:disabled) {
-  background-color: #4CAF50;
-  border-color: #4CAF50;
+  background-color: hsl(0, 0%, 35%);
 }
 
 .navButton:disabled {
@@ -327,9 +326,8 @@
 
 /* Button Container */
 .buttonContainer {
-  padding: 20px 30px;
+  padding: 10px 15px;
   background-color: #00000000;
-  border-top: 1px solid #444;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -337,25 +335,6 @@
   width: 100%;
 }
 
-.startButton {
-  background: linear-gradient(45deg, #4CAF50, #45a049);
-  color: white;
-  border: none;
-  padding: 12px 40px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 25px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.startButton:hover {
-  background: linear-gradient(45deg, #45a049, #4CAF50);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -379,4 +358,28 @@
   .tabContent {
     padding: 20px;
   }
+}
+
+/* Transparent Scrollbar Styling */
+.tabContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tabContent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabContent::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.tabContent::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Firefox */
+.tabContent {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }

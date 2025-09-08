@@ -20,8 +20,72 @@ function GalistAbstractDataType() {
   });
   const [isPortalOpen, setIsPortalOpen] = useState(false);
 
-  // --- Background music effect (local to this component) ---
+  // Track which exercise is active
+  const [exerciseKey, setExerciseKey] = useState("exercise_one");
+  const [address, setAddress] = useState("");
+  const [value, setValue] = useState("");
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [showInsertButton, setShowInsertButton] = useState(false);
+  const [showInsertModal, setShowInsertModal] = useState(false);
+  const [showIndexModal, setShowIndexModal] = useState(false);
+  const [insertIndex, setInsertIndex] = useState("");
+  const [hoverTimer, setHoverTimer] = useState(null);
+  const [circles, setCircles] = useState([]);
+  const [draggedCircle, setDraggedCircle] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [selectedCircle, setSelectedCircle] = useState(null);
+  const [connectToAddress, setConnectToAddress] = useState("");
+  const [connections, setConnections] = useState([]);
+  const [suckingCircles, setSuckingCircles] = useState([]);
+  const [suckedCircles, setSuckedCircles] = useState([]);
+  const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
+  const [originalSubmission, setOriginalSubmission] = useState(null);
+  // Explosion particle system
+  const [explosions, setExplosions] = useState([]);
+  const [highlightedCircleId, setHighlightedCircleId] = useState(null);
+
+  // Energy-based brightness system for PEEK game mechanic
+  const [energy, setEnergy] = useState(50); // Start with 50 energy
+  const [screenOpacity, setScreenOpacity] = useState(1); // 1 = fully bright, 0 = completely dark
+
+  // Exercise system states
+  const [currentExercise, setCurrentExercise] = useState(null);
+  const [showValidationResult, setShowValidationResult] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+  const [showInstructionPopup, setShowInstructionPopup] = useState(true); // Show instruction automatically on load
+  const [gameStarted, setGameStarted] = useState(false); // Track if the game has been started
+
+  // Refs
+  const animationRef = useRef();
+  const mouseHistoryRef = useRef([]);
+  const explosionIdRef = useRef(0);
+  const energyTimerRef = useRef(null);
+  const lowEnergySoundPlayedRef = useRef(false); // Track if low energy sound has been played
+  const alarmAudioRef = useRef(null); // Track alarm audio to stop it when needed
+  const exerciseManagerRef = useRef(new ExerciseManager());
+  const launchTimeoutRef = useRef(null);
+  const launchTokenRef = useRef(0);
+  const hasLaunchedRef = useRef(false);
+  const portalAudioRef = useRef(null);
+
+  // Energy system constants
+  const MAX_ENERGY = 10000;
+  const MIN_ENERGY = 0;
+  const DIMMING_START_ENERGY = 40; // Start dimming when energy drops to 40
+  const ENERGY_DECAY_RATE = 0.5;
+  const PEEK_ENERGY_GAIN = 15; // Gain 10 energy when using PEEK
+  const ENERGY_UPDATE_INTERVAL = 300; // Update energy every 500ms (twice as fast)
+  const LOW_ENERGY_THRESHOLD = 20; // Play warning sound when energy reaches this level
+    // Exercise progress indicator logic
+  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
+  const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
+  const totalExercises = EXERCISE_KEYS.length;
+
+  // --- Background music effect (starts when game is started) ---
   useEffect(() => {
+    // Only start music when game has been started (not affected by instruction popup during gameplay)
+    if (!gameStarted) return;
+    
     let bgAudio;
     const playMusic = () => {
       if (bgAudio) {
@@ -33,7 +97,14 @@ function GalistAbstractDataType() {
       bgAudio = new window.Audio('/sounds/bg_music.mp3');
       bgAudio.loop = true;
       bgAudio.volume = 0.3;
-      window.addEventListener('click', playMusic);
+      // Auto-play immediately when game starts
+      const playPromise = bgAudio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // If autoplay fails, add click listener as fallback
+          window.addEventListener('click', playMusic);
+        });
+      }
     } catch {
       // Ignore audio errors
     }
@@ -44,10 +115,9 @@ function GalistAbstractDataType() {
       }
       window.removeEventListener('click', playMusic);
     };
-  }, []);
+  }, [gameStarted]); // Depend on gameStarted instead of showInstructionPopup
 
   // --- Portal sound effect (loop while portal is open) ---
-  const portalAudioRef = useRef(null);
   useEffect(() => {
     if (isPortalOpen) {
       if (!portalAudioRef.current) {
@@ -86,56 +156,7 @@ function GalistAbstractDataType() {
     };
   }, [isPortalOpen]);
 
-  // Track which exercise is active
-  const [exerciseKey, setExerciseKey] = useState("exercise_one");
-  const [address, setAddress] = useState("");
-  const [value, setValue] = useState("");
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [showInsertButton, setShowInsertButton] = useState(false);
-  const [showInsertModal, setShowInsertModal] = useState(false);
-  const [showIndexModal, setShowIndexModal] = useState(false);
-  const [insertIndex, setInsertIndex] = useState("");
-  const [hoverTimer, setHoverTimer] = useState(null);
-  const [circles, setCircles] = useState([]);
-  const [draggedCircle, setDraggedCircle] = useState(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [selectedCircle, setSelectedCircle] = useState(null);
-  const [connectToAddress, setConnectToAddress] = useState("");
-  const [connections, setConnections] = useState([]);
-  const animationRef = useRef();
-  const mouseHistoryRef = useRef([]);
-  const [suckingCircles, setSuckingCircles] = useState([]);
-  const [suckedCircles, setSuckedCircles] = useState([]);
-  const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
-  const [originalSubmission, setOriginalSubmission] = useState(null);
-  // Explosion particle system
-  const [explosions, setExplosions] = useState([]);
-  const explosionIdRef = useRef(0);
-
-  // Energy-based brightness system for PEEK game mechanic
-  const [energy, setEnergy] = useState(50); // Start with 50 energy
-  const [screenOpacity, setScreenOpacity] = useState(1); // 1 = fully bright, 0 = completely dark
-  const energyTimerRef = useRef(null);
-  const lowEnergySoundPlayedRef = useRef(false); // Track if low energy sound has been played
-  const alarmAudioRef = useRef(null); // Track alarm audio to stop it when needed
-  
-  // Energy system constants
-  const MAX_ENERGY = 10000;
-  const MIN_ENERGY = 0;
-  const DIMMING_START_ENERGY = 40; // Start dimming when energy drops to 40
-  const ENERGY_DECAY_RATE = 0.5;
-  const PEEK_ENERGY_GAIN = 15; // Gain 10 energy when using PEEK
-  const ENERGY_UPDATE_INTERVAL = 300; // Update energy every 500ms (twice as fast)
-  const LOW_ENERGY_THRESHOLD = 20; // Play warning sound when energy reaches this level
-    // Exercise progress indicator logic
-  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
-  const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
-  const totalExercises = EXERCISE_KEYS.length;
-
   // --- Launch initial circles from the correct INITIAL_CIRCLES array ---
-  const launchTimeoutRef = useRef(null);
-  const launchTokenRef = useRef(0);
-  const hasLaunchedRef = useRef(false);
   const launchInitialCircles = useCallback(() => {
     // Invalidate any previous launches
     launchTokenRef.current += 1;
@@ -232,6 +253,9 @@ function GalistAbstractDataType() {
   }, [exerciseKey]);
 
   useEffect(() => {
+    // Only launch circles when game has been started (not affected by instruction popup during gameplay)
+    if (!gameStarted) return;
+    
     hasLaunchedRef.current = false;
     launchInitialCircles();
     return () => {
@@ -240,7 +264,7 @@ function GalistAbstractDataType() {
         launchTimeoutRef.current = null;
       }
     };
-  }, [exerciseKey, launchInitialCircles]);
+  }, [exerciseKey, launchInitialCircles, gameStarted]); // Depend on gameStarted instead of showInstructionPopup
 
 
 
@@ -253,13 +277,6 @@ function GalistAbstractDataType() {
   const togglePortal = useCallback(() => {
     setIsPortalOpen(!isPortalOpen);
   }, [isPortalOpen]);
-
-  // Exercise system states
-  const exerciseManagerRef = useRef(new ExerciseManager());
-  const [currentExercise, setCurrentExercise] = useState(null);
-  const [showValidationResult, setShowValidationResult] = useState(false);
-  const [validationResult, setValidationResult] = useState(null);
-  const [showInstructionPopup, setShowInstructionPopup] = useState(false);
 
   // Create explosion effect at circle position
   const createExplosion = useCallback((circle, color = '#ff6b6b') => {
@@ -388,8 +405,11 @@ function GalistAbstractDataType() {
     updateBrightnessFromEnergy();
   }, [energy, updateBrightnessFromEnergy]);
 
-  // Initialize energy system on component mount
+  // Initialize energy system when game is started
   useEffect(() => {
+    // Only start energy system when game has been started (not affected by instruction popup during gameplay)
+    if (!gameStarted) return;
+    
     startEnergyDecay();
     
     return () => {
@@ -403,7 +423,7 @@ function GalistAbstractDataType() {
         alarmAudioRef.current = null;
       }
     };
-  }, [startEnergyDecay]);
+  }, [startEnergyDecay, gameStarted]); // Depend on gameStarted instead of showInstructionPopup
 
     // Stop portal sound when validation overlay is open
   useEffect(() => {
@@ -586,6 +606,7 @@ function GalistAbstractDataType() {
 
   const startExercise = useCallback(() => {
     setShowInstructionPopup(false);
+    setGameStarted(true); // Mark game as started
     if (!currentExercise) {
       loadExercise();
     }
@@ -598,12 +619,12 @@ function GalistAbstractDataType() {
     }
   }, [currentExercise, loadExercise]);
 
-  // Initialize with basic exercise when instruction popup is closed
+  // Initialize with basic exercise when game is started
   useEffect(() => {
-    if (!showInstructionPopup && !currentExercise) {
+    if (gameStarted && !currentExercise) {
       loadExercise();
     }
-  }, [showInstructionPopup, currentExercise, loadExercise]);
+  }, [gameStarted, currentExercise, loadExercise]);
 
   // Helper function to get the complete chain order from head to tail
   const getChainOrder = useCallback(
@@ -1043,7 +1064,6 @@ function GalistAbstractDataType() {
 
   // --- QUEUE OPERATIONS ---
   // PEEK: Highlight the value at the head/front of the queue (first node in the chain)
-  const [highlightedCircleId, setHighlightedCircleId] = useState(null);
   const handlePeek = () => {
     // Boost energy when PEEK is used
     boostEnergyWithPeek();

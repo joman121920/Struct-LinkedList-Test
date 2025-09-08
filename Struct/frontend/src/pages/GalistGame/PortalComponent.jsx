@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { Portal } from './portal.js';
 
 const PortalComponent = ({ onPortalStateChange, isOpen }) => {
@@ -32,7 +33,7 @@ const PortalComponent = ({ onPortalStateChange, isOpen }) => {
     const img = new Image();
     
     img.onload = () => {
-      console.log('Portal image loaded successfully');
+      // console.log('Portal image loaded successfully');
       imageRef.current = img;
       
       let lastTime = 0;
@@ -87,7 +88,7 @@ const PortalComponent = ({ onPortalStateChange, isOpen }) => {
     };
     
     img.src = '/images/close_portal.png';
-    console.log('Attempting to load portal image from:', img.src);
+    // console.log('Attempting to load portal image from:', img.src);
     
     return () => {
       if (animationRef.current) {
@@ -118,6 +119,11 @@ const PortalComponent = ({ onPortalStateChange, isOpen }) => {
       />
     </div>
   );
+};
+
+PortalComponent.propTypes = {
+  onPortalStateChange: PropTypes.func,
+  isOpen: PropTypes.bool.isRequired
 };
 
 export default PortalComponent;
