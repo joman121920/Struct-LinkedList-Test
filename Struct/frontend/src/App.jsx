@@ -23,6 +23,8 @@ import GalistGameInsertionNode from "./pages/GalistGame/ModeSelect/SinglyLinkedL
 import GalistLinkingNode from "./pages/GalistGame/ModeSelect/SinglyLinkedLists/LevelTwo/LinkingNode";
 import GalistAbstractDataType from "./pages/GalistGame/ModeSelect/SinglyLinkedLists/LevelFive/AbstractDataType";
 
+import CompetitiveMode from "./pages/GalistGame/ModeSelect/CompetitiveMode/Competitive";
+
 import TeacherDashboard from "./pages/TeacherDashboard";
 
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -37,23 +39,33 @@ const AppLayout = () => {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
 
-  // Define routes that should only show the Header
-  const headerOnlyRoutes = [
-    "/galist-game",
+  // Define routes that should have no navigation (full immersive game experience)
+  const noNavRoutes = [
     "/galist-game-node-creation",
     "/galist-game-linking-node",
     "/galist-game-insertion-node",
     "/galist-game-deletion",
     "/galist-game-abstract-data-type",
+    "/competitive-mode",
   ];
+
+  // Define routes that should only show the Header
+  const headerOnlyRoutes = [
+    "/galist-game",
+  ];
+
+  // Check if the current route is in the no-nav routes
+  const isNoNavRoute = noNavRoutes.some((route) =>
+    location.pathname.startsWith(route)
+  );
 
   // Check if the current route is in the header-only routes
   const isHeaderOnlyRoute = headerOnlyRoutes.some((route) =>
     location.pathname.startsWith(route)
   );
 
-  // Only show sidebar if user is authenticated and not on a header-only route
-  const showSidebar = isAuthenticated && !isHeaderOnlyRoute;
+  // Only show sidebar if user is authenticated and not on a no-nav or header-only route
+  const showSidebar = isAuthenticated && !isHeaderOnlyRoute && !isNoNavRoute;
 
   return (
     <div className="flex min-h-screen">
@@ -64,7 +76,7 @@ const AppLayout = () => {
       )}
       <div className={`flex-1 flex flex-col ${showSidebar ? "ml-0" : ""}`}>
         {isHeaderOnlyRoute && <Header />}
-        {!isHeaderOnlyRoute && <Navbar />}
+        {!isHeaderOnlyRoute && !isNoNavRoute && <Navbar />}
         <main className="flex-1">
           <Routes>
             {/* Public routes */}
@@ -162,6 +174,17 @@ const AppLayout = () => {
                 <ProtectedRoute>
                   <ClassRequiredWrapper>
                     <GalistAbstractDataType />
+                  </ClassRequiredWrapper>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/competitive-mode"
+              element={
+                <ProtectedRoute>
+                  <ClassRequiredWrapper>
+                    <CompetitiveMode />
                   </ClassRequiredWrapper>
                 </ProtectedRoute>
               }

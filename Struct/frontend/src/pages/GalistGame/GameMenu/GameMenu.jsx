@@ -1,7 +1,13 @@
 import PropTypes from "prop-types";
 import styles from "./GameMenu.module.css";
+import { useNavigate } from "react-router-dom";
 
 function GameMenu({ onStart }) {
+  const navigate = useNavigate();
+
+  const handleCompetitiveMode = () => {
+    navigate("/competitive-mode");
+  }
   return (
     <div className={styles.gameMenuOverlay} role="dialog" aria-modal="true">
       {/* Background video */}
@@ -28,7 +34,12 @@ function GameMenu({ onStart }) {
           >
             Start Game
           </button>
-          <button className={styles.menuBtn}>Tutorial</button>
+           <button
+            className={`${styles.menuBtn} ${styles.primary}`}
+            onClick={handleCompetitiveMode}
+          >
+            Competitve Mode
+          </button>
           <button className={styles.menuBtn}>Leaderboards</button>
         </div>
       </div>
