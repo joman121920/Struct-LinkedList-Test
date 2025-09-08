@@ -202,8 +202,8 @@
   left: 0;
 }
 
-/* Game Mechanics Content */
-.mechanicsContent {
+/* Game exercise Content */
+.exerciseContent {
   width: 100%;
   height: 100%;
   display: flex;
@@ -382,4 +382,122 @@
 .tabContent {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Game Mechanics - How to Play Styles */
+.mechanicsContent {
+  display: flex;
+  flex-direction: column;
+  height: 90%;
+  width: 100%;
+  margin: 20px 20px;
+  padding: 20px;
+}
+
+
+.howToPlaySection {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.howToPlayLeft {
+  flex: 1;
+}
+
+.howToPlayRight {
+  flex: 1;
+  margin-left: 100px;
+}
+
+.howToPlayTitle {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-style: italic;
+}
+
+.queueOptionsTitle {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-style: italic;
+}
+
+.howToPlaySteps {
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-left: 20px;
+  margin-bottom: 50px;
+}
+
+.howToPlaySteps p {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.howToPlayNote {
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1.5;
+  font-style: italic;
+  text-align: left;
+  margin-left: 20px;
+}
+
+.queueOptionsList {
+  color: #ffffff;
+  font-size: 14px;
+  margin-left: 20px;
+}
+
+.queueOption {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  gap: 12px;
+}
+
+.bullet {
+  color: #ffffff;
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.queueContent {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.queueOptionsList strong {
+  font-weight: bold;
+}
+
+/* Responsive design for How to Play */
+@media (max-width: 1024px) {
+  .howToPlaySection {
+    flex-direction: column;
+    gap: 30px;
+  }
+  
+  .howToPlayLeft,
+  .howToPlayRight {
+    max-width: 100%;
+  }
+  
+  .howToPlayTitle,
+  .queueOptionsTitle {
+    font-size: 24px;
+  }
+  
+  .howToPlaySteps p,
+  .queueOptionsList p {
+    font-size: 16px;
+  }
 }

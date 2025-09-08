@@ -36,7 +36,7 @@ const Level5Instruction = ({
 
   const handlePrevPortal = () => {
     setCurrentPortal((prev) => (prev - 1 + portals.length) % portals.length);
-  }; // 'learn' or 'mechanics'
+  }; // 'learn' or 'exercise'
 
   if (!showInstructionPopup) {
     return null;
@@ -63,6 +63,12 @@ const Level5Instruction = ({
             onClick={() => setActiveTab('mechanics')}
           >
             Game Mechanics
+          </button>
+          <button 
+            className={`${styles.tab} ${activeTab === 'exercise' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('exercise')}
+          >
+            Exercises
           </button>
         </div>
 
@@ -122,6 +128,51 @@ const Level5Instruction = ({
 
           {activeTab === 'mechanics' && (
             <div className={styles.mechanicsContent}>
+              <div className={styles.howToPlayContainer}>
+                <div className={styles.howToPlaySection}>
+                  <div className={styles.howToPlayLeft}>
+                    <h2 className={styles.howToPlayTitle}>How to play</h2>
+                    <div className={styles.howToPlaySteps}>
+                      <p>1. Begin by carefully entering the correct address and value for each circle you want to connect. Each circle has a unique address that you must use to properly link them together in the correct sequence.</p>
+                      <p>2. Once you have set up your circles, click the &quot;Queue Menu&quot; button to access the available queue operations (Enqueue, Dequeue, and Peek). These operations will help you manipulate and organize your linked list structure according to the queue principles.</p>
+                      <p>3. After arranging your linked list in the correct order and performing the necessary queue operations, click the &quot;Open Portal&quot; button to submit your completed solution and advance to the next challenge.</p>
+                    </div>
+                    
+                  </div>
+                  
+                  <div className={styles.howToPlayRight}>
+                    <h2 className={styles.queueOptionsTitle}>Queue Options</h2>
+                    <div className={styles.queueOptionsList}>
+                      <div className={styles.queueOption}>
+                        <span className={styles.bullet}>•</span>
+                        <div className={styles.queueContent}>
+                          <strong>Enqueue</strong> - Insert a new element at the tail (rear) of the queue. This operation adds data to the end of the linked list structure, maintaining the FIFO order where new elements wait their turn.
+                        </div>
+                      </div>
+                      <div className={styles.queueOption}>
+                        <span className={styles.bullet}>•</span>
+                        <div className={styles.queueContent}>
+                          <strong>Dequeue</strong> - Remove and return the element at the head (front) of the queue. This operation eliminates the oldest element in the queue, allowing the next element to move to the front position.
+                        </div>
+                      </div>
+                      <div className={styles.queueOption}>
+                        <span className={styles.bullet}>•</span>
+                        <div className={styles.queueContent}>
+                          <strong>Peek</strong> - View the front element without removing it from the queue, while simultaneously generating energy that brightens your screen. This operation helps you see the queue contents clearly without modifying the data structure.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p className={styles.howToPlayNote}>
+                      Remember pass the circles sequentially inorder to proceed to the next portal
+                    </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'exercise' && (
+            <div className={styles.exerciseContent}>
               <div className={styles.portalDisplay}>
                 <h1 className={styles.portalTitle}>{portals[currentPortal].name}</h1>
                 <p className={styles.portalDescription}>{portals[currentPortal].description}</p>
@@ -148,9 +199,9 @@ const Level5Instruction = ({
           )}
         </div>
 
-        {/* Navigation buttons for Game Mechanics tab */}
+        {/* Navigation buttons for Game exercise tab */}
         <div className={styles.buttonContainer}>
-          {activeTab === 'mechanics' && (
+          {activeTab === 'exercise' && (
             <>
               <button 
                 className={styles.navButton} 
