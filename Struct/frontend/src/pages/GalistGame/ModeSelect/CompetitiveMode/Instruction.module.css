@@ -59,6 +59,25 @@
   background-color: #2a2a2a00;
 }
 
+/* Tab Header for single tab */
+.tabHeader {
+  display: flex;
+  border-bottom: 2px solid #ffffff;
+  background-color: #2a2a2a00;
+  justify-content: center;
+}
+
+.tabButton {
+  padding: 15px 20px;
+  background: #1a1a1a;
+  border: 1px solid white;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  flex: 1;
+  text-align: center;
+}
+
 .tab {
   flex: 1;
   padding: 15px 20px;
@@ -99,6 +118,7 @@
   height: 90%;
   width: 100%;
   margin: 20px 20px;
+  margin-top: -30px;
   padding: 20px;
 }
 
@@ -132,6 +152,14 @@
   font-style: italic;
 }
 
+.gameButtonsTitle {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-style: italic;
+}
+
 .queueOptionsTitle {
   color: #ffffff;
   font-size: 28px;
@@ -153,13 +181,26 @@
   text-align: left;
 }
 
+.gameButtonsSteps {
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-left: 20px;
+  margin-bottom: 50px;
+}
+
+.gameButtonsSteps p {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
 .howToPlayNote {
   color: #ffffff;
   font-size: 18px;
   line-height: 1.5;
   font-style: italic;
-  text-align: left;
-  margin-left: 20px;
+  text-align: center;
+  margin-top: -20px;
 }
 
 .queueOptionsList {
@@ -205,23 +246,23 @@
 
 /* Start Button */
 .startButton {
-  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
-  color: #000;
+  background-color: #2a2a2a00;
+  color: #d2d2d2;
   border: none;
-  padding: 15px 40px;
+  padding: 8px 20px;
   border-radius: 10px;
-  font-size: 1.2rem;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
   letter-spacing: 1px;
   text-transform: uppercase;
+  border: 3px solid #505050;
 }
 
 .startButton:hover {
-  background: linear-gradient(135deg, #00cc66 0%, #00aa55 100%);
+  background: linear-gradient(135deg, #646464 0%, #5e5e5e 100%);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
 }
 
 /* Responsive design for How to Play */

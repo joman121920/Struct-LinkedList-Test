@@ -497,21 +497,7 @@ function CompetitiveMode(){
             };
           }
 
-          // Gentle suction if portal open
-          if (portalInfo.isVisible && !suckingCircles.includes(circle.id)) {
-            const portalCenter = {
-              x: 10 + portalInfo.canvasWidth / 2,
-              y: window.innerHeight / 2,
-            };
-            const dx = portalCenter.x - circle.x;
-            const dy = portalCenter.y - circle.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance > 80) {
-              const suctionForce = 0.1;
-              circle.velocityX = (circle.velocityX || 0) + (dx / distance) * suctionForce;
-              circle.velocityY = (circle.velocityY || 0) + (dy / distance) * suctionForce;
-            }
-          }
+          
 
           // Manual trigger for chain suction
           if (portalInfo.isVisible) {
@@ -1433,18 +1419,17 @@ function CompetitiveMode(){
         i
       </button>
 
-      {/* Exercise progress indicator (top right) */}
-      <div className={styles.timerAndProgress}>
-        <div className={styles.timer}>
-          <span className={styles.timerLabel}>TIME:</span>
-          <span className={`${styles.timerValue} ${timeLeft <= 30 ? styles.timerDanger : ''}`}>
-            {formatTime(timeLeft)}
-          </span>
-        </div>
-        <div className={styles.exerciseProgress}>
-          <span className={styles.progressLabel}>COMPLETED:</span>
-          <span className={styles.progressValue}>{completedExercises}</span>
-        </div>
+      {/* Timer (top right) */}
+      <div className={styles.timer}>
+        <span className={`${styles.timerValue} ${timeLeft <= 30 ? styles.timerDanger : ''}`}>
+          {formatTime(timeLeft)}
+        </span>
+      </div>
+
+      {/* Score (top left) */}
+      <div className={styles.scoreDisplay}>
+        <span className={styles.progressLabel}>SCORE:</span>
+        <span className={styles.progressValue}>{completedExercises * 100}</span>
       </div>
 
       {/* Expected results bar */}
@@ -1556,15 +1541,32 @@ function CompetitiveMode(){
         const hasOutgoing = connections.some(conn => conn.from === circle.id);
         const hasIncoming = connections.some(conn => conn.to === circle.id);
         const isConnected = hasOutgoing || hasIncoming;
+        
+        // Special case: if there's only one circle, it should be labeled as "Head/Tail"
+        const isSingleCircle = circles.length === 1;
+        
+        // Check if this circle is unconnected (not part of any connection)
+        const isUnconnected = !hasOutgoing && !hasIncoming;
+        
+        // Find the first unconnected circle (should be the only one with Head/Tail label)
+        const unconnectedCircles = circles.filter(c => {
+          const out = connections.some(conn => conn.from === c.id);
+          const inc = connections.some(conn => conn.to === c.id);
+          return !out && !inc;
+        });
+        const isFirstUnconnected = isUnconnected && unconnectedCircles.length > 0 && unconnectedCircles[0].id === circle.id;
+        
         // Find all possible heads (connected, has outgoing, no incoming)
         const possibleHeads = circles.filter(c => {
           const out = connections.some(conn => conn.from === c.id);
           const inc = connections.some(conn => conn.to === c.id);
           return (out && !inc && (out || inc));
         });
-        // Only one node should be labeled as head: the first in possibleHeads
+        
+        // Logic for head/tail labeling
         const isHead = isConnected && hasOutgoing && !hasIncoming && possibleHeads.length > 0 && possibleHeads[0].id === circle.id;
         const isTail = isConnected && hasIncoming && !hasOutgoing;
+        const isHeadTail = isSingleCircle || isFirstUnconnected;
 
         return (
           
@@ -1586,9 +1588,9 @@ function CompetitiveMode(){
             onMouseDown={(e) => handleMouseDown(e, circle)}
             onDoubleClick={() => handleDoubleClick(circle)}
           >
-            {(isHead || isTail) && (
+            {(isHead || isTail || isHeadTail) && (
               <span className={styles.nodeTypeLabel}>
-                {isHead ? "Head" : "Tail"}
+                {isHeadTail ? "Head/Tail" : (isHead ? "Head" : "Tail")}
               </span>
             )}
             <span className={styles.circleValue}>{circle.value}</span>

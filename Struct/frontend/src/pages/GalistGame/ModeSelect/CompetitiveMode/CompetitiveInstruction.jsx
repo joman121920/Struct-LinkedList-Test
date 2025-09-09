@@ -18,25 +18,47 @@ const CompetitiveInstruction = ({
           ×
         </button>
 
+        {/* Header */}
+        <div className={styles.tabHeader}>
+          <div className={styles.tabButton}>
+            Competitive Mode
+          </div>
+        </div>
+
         {/* Tab content - Only Game Mechanics */}
         <div className={styles.tabContent}>
           <div className={styles.mechanicsContent}>
             <div className={styles.howToPlayContainer}>
               <div className={styles.howToPlaySection}>
                 <div className={styles.howToPlayLeft}>
-                  <h2 className={styles.howToPlayTitle}>How to play Competitive Mode</h2>
+                  <h2 className={styles.howToPlayTitle}>How to play</h2>
                   <div className={styles.howToPlaySteps}>
-                    <p><strong>⏱️ Time Pressure:</strong> You have exactly 3 minutes to complete as many exercises as possible.</p>
-                    <p><strong>🎯 Perfect Score Required:</strong> Each exercise requires a score of 100 points to advance to the next random challenge.</p>
-                    <p><strong>🔀 Random Generation:</strong> Every exercise is randomly generated with different node values and memory addresses.</p>
-                    <p><strong>🏆 Competitive Goal:</strong> Complete as many linked list exercises as possible before time runs out!</p>
-                    <p><strong>🌀 Portal Submission:</strong> After creating your linked list, open the portal to submit and validate your solution.</p>
+                    <p>1. Input the address and the value of the node</p>
+                    <p>2. Click launch to create a node</p>
+                    <p>3. Double click to open up the circle</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Input the address of the circle inorder to connect them</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Click delete if you want to delete the circle/node</p>
+                    <p>4. Click open portal to open the portal. This is where you submit your answers.</p>
                   </div>
                 </div>
-               
+                <div className={styles.howToPlayRight}>
+                  <h2 className={styles.gameButtonsTitle}>Game buttons</h2>
+                  <div className={styles.gameButtonsSteps}>
+                    <p>1. Launch Button - To create a circle or a node</p>
+                    <p>2. Open portal - To open the portal or to submit your answers</p>
+                    <p>3. Insert Button - To open insert options. (Hover the launch button)</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Head - Insert in the head of the linked lists</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Specific - Insert circle into a specific index</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;c. Tail - Insert in the tail of the linked lists</p>
+                    <p>4. Queue Menu - To open queue options. (Hover the launch button)</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Peek - To get the head of the linked lists. To generate energy</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Enqueue - Insert at the last index of the linked lists</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;c. Dequeue - Remove the first index which is the head</p>
+                  </div>
+                </div>
               </div>
               <p className={styles.howToPlayNote}>
-                Remember to pass the circles sequentially through the portal to proceed to the next exercise!
+                <em>Remember to always enter the circles sequentially</em>
               </p>
             </div>
           </div>
@@ -45,7 +67,7 @@ const CompetitiveInstruction = ({
         {/* Start button */}
         <div className={styles.buttonContainer}>
           <button className={styles.startButton} onClick={startExercise}>
-            START COMPETITIVE MODE
+            Start Game
           </button>
         </div>
       </div>
