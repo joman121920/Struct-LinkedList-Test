@@ -15,7 +15,12 @@ function CompetitiveMode(){
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   
 
-  
+  const [showInsertButton, setShowInsertButton] = useState(false);
+  const [showInsertModal, setShowInsertModal] = useState(false);
+  const [showQueueModal, setShowQueueModal] = useState(false);
+  const [showIndexModal, setShowIndexModal] = useState(false);
+  const [insertIndex, setInsertIndex] = useState("");
+  const [hoverTimer, setHoverTimer] = useState(null);
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -24,10 +29,15 @@ function CompetitiveMode(){
   const [connections, setConnections] = useState([]);
   const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
+  const explosionIdRef = useRef(0);
   const [suckingCircles, setSuckingCircles] = useState([]);
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
   const [originalSubmission, setOriginalSubmission] = useState(null);
+  
+  // Explosion particle system and highlighting
+  const [explosions, setExplosions] = useState([]);
+  const [highlightedCircleId, setHighlightedCircleId] = useState(null);
 
     // Exercise progress indicator logic
   const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
@@ -64,6 +74,24 @@ function CompetitiveMode(){
   const togglePortal = useCallback(() => {
     setIsPortalOpen(!isPortalOpen);
   }, [isPortalOpen]);
+
+  // Create explosion effect at circle position
+  const createExplosion = useCallback((circle, color = '#ff6b6b') => {
+    explosionIdRef.current += 1;
+    const explosion = {
+      id: `explosion-${explosionIdRef.current}`,
+      x: circle.x, // Circle center is at circle.x (the element offset is handled in CSS)
+      y: circle.y, // Circle center is at circle.y
+      color,
+    };
+
+    setExplosions(prev => [...prev, explosion]);
+
+    // Clean up explosion after animation
+    setTimeout(() => {
+      setExplosions(prev => prev.filter(exp => exp.id !== explosion.id));
+    }, 2500);
+  }, []);
 
   // Exercise system states
   const exerciseManagerRef = useRef(new ExerciseManager());
@@ -191,6 +219,18 @@ function CompetitiveMode(){
 
   const isPortalButtonEnabled =
     isPortalOpen || (hasHeadNode() && hasTailNode());
+
+  // Helper functions to determine if queue operations should be disabled
+  const isOnlyOneCircle = circles.length === 1;
+  const isSingleHeadTail = isOnlyOneCircle && circles.length > 0;
+  
+  // Disable PEEK when no head exists or only one circle (head/tail)
+  const isPeekDisabled = !hasHeadNode() || isSingleHeadTail;
+  
+  // Disable DEQUEUE when no head exists or only one circle (head/tail) 
+  const isDequeueDisabled = !hasHeadNode() || isSingleHeadTail;
+  
+  // ENQUEUE is always available when we have address and value
 
   
 
@@ -504,6 +544,7 @@ function CompetitiveMode(){
     suckedCircles,
     originalSubmission,
     currentEntryOrder,
+    createExplosion,
   ]);
 
   // Handle connection removal when circles are sucked
@@ -588,6 +629,428 @@ function CompetitiveMode(){
   const handleDoubleClick = (circle) => {
     setSelectedCircle(circle);
     setConnectToAddress("");
+  };
+  const handleLunchHoverStart = () => {
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      setHoverTimer(null);
+    }
+    const timer = setTimeout(() => {
+      setShowInsertButton(true);
+    }, 2000);
+    setHoverTimer(timer);
+  };
+
+  const handleLunchHoverEnd = () => {
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      setHoverTimer(null);
+    }
+
+    // Only hide if not hovering over the insert/queue buttons
+    const hideTimer = setTimeout(() => {
+      setShowInsertButton(false);
+    }, 200);
+    setHoverTimer(hideTimer);
+  };
+
+  const handleInsertHover = () => {
+    // Keep buttons visible when hovering over them
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      setHoverTimer(null);
+    }
+  };
+
+  const handleInsertLeave = () => {
+    // Only hide after a delay to allow moving between buttons
+    const hideTimer = setTimeout(() => {
+      setShowInsertButton(false);
+    }, 200);
+    setHoverTimer(hideTimer);
+  };
+
+  const handleInsert = () => {
+    setShowInsertButton(false);
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      setHoverTimer(null);
+    }
+    setShowInsertModal(true);
+  };
+
+  const handleQueue = () => {
+    setShowInsertButton(false);
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      setHoverTimer(null);
+    }
+    setShowQueueModal(true);
+  };
+
+  // --- QUEUE OPERATIONS ---
+  // PEEK: Highlight the value at the head/front of the queue (first node in the chain)
+  const handlePeek = () => {
+    // Find the head node (no incoming connections, has outgoing)
+    const head = circles.find((circle) => isHeadNode(circle.id));
+   
+    closeQueueModal(); // Close queue modal after clicking peek
+    if (head) {
+       try {
+          const audio = new window.Audio('/sounds/charged.mp3');
+          audio.loop = false;
+          audio.volume = 1;
+          // Play with promise catch for browser compatibility
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {});
+          }
+        } catch {
+          // Ignore audio errors
+        }
+      setHighlightedCircleId(head.id);
+      setTimeout(() => setHighlightedCircleId(null), 1500);
+    } else {
+      setHighlightedCircleId(null);
+    }
+  };
+
+  // ENQUEUE: Add a new node to the tail/end of the queue
+  const handleEnqueue = () => {
+    // Play audio effect for enqueue
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
+    if (!address.trim() || !value.trim()) {
+      alert("Please enter both address and value before enqueueing");
+      return;
+    }
+    const addressExists = circles.some((circle) => circle.address === address.trim());
+    if (addressExists) {
+      setShowDuplicateModal(true);
+      closeQueueModal();
+      return;
+    }
+
+    // Find the current tail node (has incoming but no outgoing connection)
+    let tail = circles.find((circle) => isTailNode(circle.id));
+
+    // If only one node exists, treat it as both head and tail
+    if (circles.length === 1) {
+      tail = circles[0];
+    }
+
+    // Create new circle
+    const newCircle = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    setCircles((prev) => [...prev, newCircle]);
+
+    // If there is a tail, connect it to the new node
+    if (tail) {
+      setConnections((prev) => [
+        ...prev,
+        {
+          id: `conn-${tail.id}-${newCircle.id}`,
+          from: tail.id,
+          to: newCircle.id,
+        },
+      ]);
+    }
+
+    setAddress("");
+    setValue("");
+    closeQueueModal();
+  };
+
+  // DEQUEUE: Remove the node at the head/front of the queue
+  const handleDequeue = () => {
+    try{
+      const audio = new window.Audio('/sounds/dequeue_sound.mp3');
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {/* Ignore play errors */});
+      }
+    } catch {
+      // Ignore audio errors
+    }
+    // Find the head node (no incoming connections, has outgoing)
+    const head = circles.find((circle) => isHeadNode(circle.id));
+    if (!head) {
+      setHighlightedCircleId(null);
+      closeQueueModal();
+      return;
+    }
+    setHighlightedCircleId(head.id);
+    closeQueueModal();
+    
+    // Prevent double explosions by using a unique identifier
+    const explosionId = `dequeue-${head.id}-${Date.now()}`;
+    
+    setTimeout(() => {
+      setHighlightedCircleId(null);
+      setCircles((prev) => {
+        // Find the current position of the head node right before deletion
+        const currentHead = prev.find((c) => c.id === head.id);
+        if (currentHead) {
+          // Create explosion effect with current position - use unique identifier
+          const explosion = {
+            id: explosionId,
+            x: currentHead.x,
+            y: currentHead.y,
+            color: '#e9e2e1ff',
+          };
+          
+          setExplosions(prevExplosions => {
+            // Check if explosion with this ID already exists
+            const alreadyExists = prevExplosions.some(exp => exp.id === explosionId);
+            if (!alreadyExists) {
+              return [...prevExplosions, explosion];
+            }
+            return prevExplosions;
+          });
+
+          // Clean up explosion after animation
+          setTimeout(() => {
+            setExplosions(prev => prev.filter(exp => exp.id !== explosionId));
+          }, 2500);
+        }
+        
+        // Remove the head node
+        const newCircles = prev.filter((c) => c.id !== head.id);
+        return newCircles;
+      });
+      setConnections((prev) => {
+        // Remove all connections to/from head
+        let updated = prev.filter((conn) => conn.from !== head.id && conn.to !== head.id);
+        return updated;
+      });
+    }, 1000);
+  };
+
+  const handleQueueHover = () => {
+    // Keep buttons visible when hovering over them
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      setHoverTimer(null);
+    }
+  };
+
+  const closeInsertModal = () => {
+    setShowInsertModal(false);
+  };
+
+  const closeQueueModal = () => {
+    setShowQueueModal(false);
+  };
+
+  const closeIndexModal = () => {
+    setShowIndexModal(false);
+    setInsertIndex("");
+  };
+
+    const handleIndexSubmit = () => {
+    const index = parseInt(insertIndex.trim());
+    if (isNaN(index) || index < 1) {
+      alert("Please enter a valid index (must be >= 1)");
+      return;
+    }
+    const maxIndex = circles.length;
+    if (index > maxIndex) {
+      alert(`Index too large. Maximum index is ${maxIndex}`);
+      return;
+    }
+    handleSpecificInsertion(index);
+    closeIndexModal();
+    closeInsertModal();
+  };
+
+  const handleSpecificInsertion = (index) => {
+    const targetIndex = parseInt(index);
+    if (isNaN(targetIndex) || targetIndex < 0) {
+      alert("Please enter a valid index.");
+      return;
+    }
+
+    const newNode = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    const headNodes = circles.filter((circle) => isHeadNode(circle.id));
+
+    if (headNodes.length === 0) {
+      // If no head exists, just add the new node
+      setCircles((prev) => [...prev, newNode]);
+    } else {
+      // Handle specific insertion logic here
+      const head = headNodes[0];
+      const chainOrder = getChainOrder(head.id);
+      
+      if (targetIndex === 1) {
+        // Insert at head
+        handleHeadInsertion();
+        return;
+      } else if (targetIndex > chainOrder.length) {
+        // Insert at tail
+        handleTailInsertion();
+        return;
+      } else {
+        // Insert at specific position
+        setCircles((prev) => [...prev, newNode]);
+        
+        // Update connections for specific insertion
+        const actualIndex = targetIndex - 1; // Convert to 0-based
+        if (actualIndex > 0 && actualIndex < chainOrder.length) {
+          const prevNodeId = chainOrder[actualIndex - 1];
+          const nextNodeId = chainOrder[actualIndex];
+          
+          // Remove connection between prev and next
+          setConnections((prev) =>
+            prev.filter(
+              (conn) => !(conn.from === prevNodeId && conn.to === nextNodeId)
+            )
+          );
+          
+          // Add connections prev -> new and new -> next
+          setTimeout(() => {
+            setConnections((prev) => [
+              ...prev,
+              { id: `${prevNodeId}-${newNode.id}`, from: prevNodeId, to: newNode.id },
+              { id: `${newNode.id}-${nextNodeId}`, from: newNode.id, to: nextNodeId },
+            ]);
+          }, 100);
+        }
+      }
+    }
+
+    setAddress("");
+    setValue("");
+    setInsertIndex("");
+  };
+
+  const handleInsertOption = (option) => {
+    if (!address.trim() || !value.trim()) {
+      alert("Please enter both address and value before inserting");
+      return;
+    }
+
+    const addressExists = circles.some(
+      (circle) => circle.address === address.trim()
+    );
+    if (addressExists) {
+      setShowDuplicateModal(true);
+      closeInsertModal();
+      return;
+    }
+
+    switch (option) {
+      case "head":
+        handleHeadInsertion();
+        break;
+      case "specific":
+        setShowIndexModal(true);
+        break;
+      case "tail":
+        handleTailInsertion();
+        break;
+      default:
+        break;
+    }
+
+    closeInsertModal();
+  };
+
+  // --- QUEUE OPERATIONS ---
+  const handleQueueOption = (option) => {
+    switch (option) {
+      case "peek":
+        handlePeek();
+        break;
+      case "enqueue":
+        handleEnqueue();
+        break;
+      case "dequeue":
+        handleDequeue();
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleHeadInsertion = () => {
+    const newHead = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    const currentHeads = circles.filter((circle) => isHeadNode(circle.id));
+
+    setCircles((prev) => [...prev, newHead]);
+
+    if (currentHeads.length > 0) {
+      const newConnections = currentHeads.map((head) => ({
+        id: Date.now() + Math.random(),
+        from: newHead.id,
+        to: head.id,
+      }));
+
+      setConnections((prev) => [...prev, ...newConnections]);
+    }
+
+    setAddress("");
+    setValue("");
+  };
+
+  const handleTailInsertion = () => {
+    const newTail = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    const currentTails = circles.filter((circle) => isTailNode(circle.id));
+
+    setCircles((prev) => [...prev, newTail]);
+
+    if (currentTails.length > 0) {
+      const newConnections = currentTails.map((tail) => ({
+        id: Date.now() + Math.random(),
+        from: tail.id,
+        to: newTail.id,
+      }));
+
+      setConnections((prev) => [...prev, ...newConnections]);
+    }
+
+    setAddress("");
+    setValue("");
   };
 
   const handleConnect = () => {
@@ -1012,10 +1475,35 @@ function CompetitiveMode(){
           disabled={false}
         />
         <div className={styles.buttonContainer}>
-          
+          {showInsertButton && (
+            <div 
+              className={styles.hoverButtonsContainer}
+              onMouseEnter={handleInsertHover}
+              onMouseLeave={handleInsertLeave}
+            >
+              <button
+                onClick={handleInsert}
+                className={styles.insertButton}
+                onMouseEnter={handleInsertHover}
+                onMouseLeave={() => {}} // Prevent individual button from hiding container
+              >
+                INSERT
+              </button>
+              <button
+                onClick={handleQueue}
+                className={styles.queueButton}
+                onMouseEnter={handleQueueHover}
+                onMouseLeave={() => {}} // Prevent individual button from hiding container
+              >
+                QUEUE
+              </button>
+            </div>
+          )}
           <button
             onClick={launchCircle}
             className={styles.launchButton}
+            onMouseEnter={handleLunchHoverStart}
+            onMouseLeave={handleLunchHoverEnd}
           >
             LAUNCH
           </button>
@@ -1053,6 +1541,8 @@ function CompetitiveMode(){
             key={circle.id}
             className={`${styles.animatedCircle} ${
               suckingCircles.includes(circle.id) ? styles.beingSucked : ""
+            } ${
+              highlightedCircleId === circle.id ? styles.highlightedCircle : ""
             }`}
             style={{
               left: `${circle.x - 30}px`,
@@ -1124,6 +1614,19 @@ function CompetitiveMode(){
           </marker>
         </defs>
       </svg>
+
+      {/* Explosion particles */}
+      {explosions.map((explosion) => (
+        <div
+          key={explosion.id}
+          className={styles.explosionParticle}
+          style={{
+            left: `${explosion.x - 30}px`,
+            top: `${explosion.y - 30}px`,
+            '--explosion-color': explosion.color,
+          }}
+        />
+      ))}
 
       {showValidationResult && validationResult && (
         <div className={styles.validationOverlay}>
@@ -1384,6 +1887,127 @@ function CompetitiveMode(){
             <div className={styles.errorTitle}>Duplicate Address</div>
             <div className={styles.errorMessageText}>
               Nodes cannot have the same address
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInsertModal && (
+        <div className={styles.insertModalOverlay} onClick={closeInsertModal}>
+          <div
+            className={styles.insertModalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className={styles.insertModalCloseBtn}
+              onClick={closeInsertModal}
+            >
+              ×
+            </button>
+
+            <div className={styles.insertOptions}>
+              <button
+                className={`${styles.insertOptionBtn} head-btn`}
+                onClick={() => handleInsertOption("head")}
+              >
+                <div className={styles.optionTitle}>HEAD</div>
+                <div className={styles.optionSubtitle}>i = 0 (Head)</div>
+              </button>
+
+              <button
+                className={`${styles.insertOptionBtn} specific-btn`}
+                onClick={() => handleInsertOption("specific")}
+              >
+                <div className={styles.optionTitle}>SPECIFIC</div>
+                <div className={styles.optionSubtitle}>
+                  specify both i in [1, N-1]
+                </div>
+              </button>
+
+              <button
+                className={`${styles.insertOptionBtn} tail-btn`}
+                onClick={() => handleInsertOption("tail")}
+              >
+                <div className={styles.optionTitle}>TAIL</div>
+                <div className={styles.optionSubtitle}>i = N (After Tail)</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showQueueModal && (
+        <div className={styles.insertModalOverlay} onClick={closeQueueModal}>
+          <div
+            className={styles.insertModalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className={styles.insertModalCloseBtn}
+              onClick={closeQueueModal}
+            >
+              ×
+            </button>
+
+            <div className={styles.insertOptions}>
+              <button
+                className={`${styles.insertOptionBtn} head-btn ${isPeekDisabled ? styles.disabledBtn : ''}`}
+                onClick={() => handleQueueOption("peek")}
+                disabled={isPeekDisabled}
+              >
+                <div className={styles.optionTitle}>PEEK</div>
+                <div className={styles.optionSubtitle}>View Front/Head</div>
+              </button>
+
+              <button
+                className={`${styles.insertOptionBtn} specific-btn ${!address.trim() || !value.trim() ? styles.disabledBtn : ''}`}
+                onClick={() => handleQueueOption("enqueue")}
+                disabled={!address.trim() || !value.trim()}
+              >
+                <div className={styles.optionTitle}>ENQUEUE</div>
+                <div className={styles.optionSubtitle}>
+                  Add to Rear/Tail
+                </div>
+              </button>
+
+              <button
+                className={`${styles.insertOptionBtn} tail-btn ${isDequeueDisabled ? styles.disabledBtn : ''}`}
+                onClick={() => handleQueueOption("dequeue")}
+                disabled={isDequeueDisabled}
+              >
+                <div className={styles.optionTitle}>DEQUEUE</div>
+                <div className={styles.optionSubtitle}>Remove Front/Head</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIndexModal && (
+        <div className={styles.indexModalOverlay} onClick={closeIndexModal}>
+          <div
+            className={styles.indexModalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className={styles.indexModalCloseBtn}
+              onClick={closeIndexModal}
+            >
+              ×
+            </button>
+            <div className={styles.indexModalTitle}>Index</div>
+            <div className={styles.indexInputContainer}>
+              <input
+                type="text"
+                placeholder="Enter Index"
+                value={insertIndex}
+                onChange={(e) => setInsertIndex(e.target.value)}
+                className={styles.indexInput}
+                autoFocus
+              />
+              <button onClick={handleIndexSubmit} className={styles.indexGoBtn}>
+                Go
+              </button>
             </div>
           </div>
         </div>
