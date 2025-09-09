@@ -337,73 +337,126 @@ export class LinkedListExercise {
   }
 }
 
-// Predefined exercise templates
-export const EXERCISE_TEMPLATES = {
-  exercise_one: {
-    sequence: [5, 10, 15, 20, 25],
-    addresses: {
-      5: "aa",
-      10: "bb",
-      15: "cc",
-      20: "dd",
-      25: "ee"
-    },
-    title: "Create this Linked List",
-    description: "Create a linked list with the following values: 5 -> 10 -> 15 -> 20 -> 25"
-  },
-  exercise_two: {
-    sequence: [12, 8, 3, 25, 14, 7],
-    addresses: {
-      12: "f10",
-      8: "g20",
-      3: "h30",
-      25: "i40",
-      14: "j50",
-      7: "k60",
-    },
-    title: "Create this Linked Lists",
-    description: "Create a linked list with the following values: 12 -> 8 -> 3 -> 25 -> 14 -> 7"
-  },
-  exercise_three: {
-    sequence: [30, 28, 26, 32, 40, 42, 44],
-    addresses: {
-      30: "s101",
-      28: "t103",
-      26: "u105",
-      32: "v107",
-      40: "w109",
-      42: "x111",
-      44: "y113"
-    },
-    title: "Create this Linked Lists",
-    description: "Create a linked list with the following values: 30 -> 28 -> 26 -> 32 -> 40 -> 42 -> 44"
+// Random exercise generator
+export class RandomExerciseGenerator {
+  constructor() {
+    this.usedCombinations = new Set();
+    this.addressPools = [
+      ['aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg', 'hh'],
+      ['x10', 'y20', 'z30', 'a40', 'b50', 'c60', 'd70', 'e80'],
+      ['m1', 'n2', 'o3', 'p4', 'q5', 'r6', 's7', 't8'],
+      ['f100', 'g200', 'h300', 'i400', 'j500', 'k600', 'l700', 'm800'],
+      ['u01', 'v02', 'w03', 'x04', 'y05', 'z06', 'a07', 'b08'],
+      ['ptr1', 'ptr2', 'ptr3', 'ptr4', 'ptr5', 'ptr6', 'ptr7', 'ptr8']
+    ];
   }
-  
-};
+
+  generateRandomSequence(length = null) {
+    // Random length between 4 and 7 nodes if not specified
+    const sequenceLength = length || (Math.floor(Math.random() * 4) + 4);
+    
+    // Generate unique random values between 1 and 50
+    const values = new Set();
+    while (values.size < sequenceLength) {
+      values.add(Math.floor(Math.random() * 50) + 1);
+    }
+    
+    return Array.from(values);
+  }
+
+  generateRandomAddresses(sequence) {
+    // Pick a random address pool
+    const poolIndex = Math.floor(Math.random() * this.addressPools.length);
+    const addressPool = [...this.addressPools[poolIndex]];
+    
+    // Shuffle the address pool
+    for (let i = addressPool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [addressPool[i], addressPool[j]] = [addressPool[j], addressPool[i]];
+    }
+    
+    const addresses = {};
+    sequence.forEach((value, index) => {
+      addresses[value] = addressPool[index];
+    });
+    
+    return addresses;
+  }
+
+  generateRandomExercise() {
+    let exercise;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    do {
+      const sequence = this.generateRandomSequence();
+      const addresses = this.generateRandomAddresses(sequence);
+      
+      // Create a unique identifier for this combination
+      const combinationKey = `${sequence.sort().join(',')}-${Object.values(addresses).sort().join(',')}`;
+      
+      if (!this.usedCombinations.has(combinationKey)) {
+        this.usedCombinations.add(combinationKey);
+        
+        exercise = {
+          sequence: sequence,
+          addresses: addresses,
+          title: "Create this Linked List",
+          description: `Create a linked list with the following values: ${sequence.join(' -> ')}`,
+          id: `random_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+        };
+        break;
+      }
+      
+      attempts++;
+    } while (attempts < maxAttempts);
+
+    // If we couldn't generate a unique exercise, clear the cache and try once more
+    if (!exercise) {
+      this.usedCombinations.clear();
+      const sequence = this.generateRandomSequence();
+      const addresses = this.generateRandomAddresses(sequence);
+      
+      exercise = {
+        sequence: sequence,
+        addresses: addresses,
+        title: "Create this Linked List",
+        description: `Create a linked list with the following values: ${sequence.join(' -> ')}`,
+        id: `random_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+      };
+    }
+
+    return exercise;
+  }
+
+  // Reset used combinations (useful for long gaming sessions)
+  resetUsedCombinations() {
+    this.usedCombinations.clear();
+  }
+}
 // Exercise manager class
 export class ExerciseManager {
   constructor() {
     this.currentExercise = null;
     this.submissionData = null;
     this.isWaitingForValidation = false;
+    this.randomGenerator = new RandomExerciseGenerator();
+    this.completedExercises = 0;
   }
 
-  // Load an exercise
-  loadExercise(templateKey) {
-    const template = EXERCISE_TEMPLATES[templateKey];
-    if (!template) {
-      throw new Error(`Exercise template "${templateKey}" not found`);
-    }
+  // Load a random exercise
+  loadRandomExercise() {
+    const exerciseData = this.randomGenerator.generateRandomExercise();
     
-    this.currentExercise = new LinkedListExercise(template);
+    this.currentExercise = new LinkedListExercise(exerciseData);
     this.submissionData = null;
     this.isWaitingForValidation = false;
     
     // Build expectedStructure for UI display
-    this.currentExercise.key = templateKey;
-    this.currentExercise.expectedStructure = template.sequence.map(value => ({
+    this.currentExercise.key = exerciseData.id;
+    this.currentExercise.expectedStructure = exerciseData.sequence.map(value => ({
       value: value,
-      address: template.addresses[value],
+      address: exerciseData.addresses[value],
       next: null // Will be calculated based on sequence order
     }));
     
@@ -417,6 +470,28 @@ export class ExerciseManager {
     }
     
     return this.currentExercise;
+  }
+
+  // Load an exercise (kept for compatibility, but now generates random)
+  // eslint-disable-next-line no-unused-vars
+  loadExercise(templateKey) {
+    // Always generate a random exercise in competitive mode
+    return this.loadRandomExercise();
+  }
+
+  // Mark exercise as completed and increment counter
+  markExerciseCompleted() {
+    this.completedExercises++;
+  }
+
+  // Get completed exercises count
+  getCompletedCount() {
+    return this.completedExercises;
+  }
+
+  // Reset completed count (for new game sessions)
+  resetCompletedCount() {
+    this.completedExercises = 0;
   }
 
   // Submit answer for validation (called when user opens suction)
@@ -444,11 +519,11 @@ export class ExerciseManager {
       console.log('Using provided parameters for validation');
       
       if (!this.currentExercise) {
-        console.warn('No exercise loaded, attempting to load basic exercise...');
+        console.warn('No exercise loaded, attempting to load random exercise...');
         try {
-          this.loadExercise('exercise_one');
+          this.loadRandomExercise();
         } catch (loadError) {
-          console.error('Failed to load default exercise:', loadError);
+          console.error('Failed to load random exercise:', loadError);
           // Return a gentle error instead of throwing
           return {
             isCorrect: false,
@@ -518,5 +593,7 @@ export class ExerciseManager {
   reset() {
     this.submissionData = null;
     this.isWaitingForValidation = false;
+    this.completedExercises = 0;
+    this.randomGenerator.resetUsedCombinations();
   }
 }

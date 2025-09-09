@@ -4,11 +4,15 @@ import styles from "./Competitive.module.css";
 import { ExerciseManager } from "./CompetitiveExercise";
 import { collisionDetection } from "../../CollisionDetection";
 import PortalComponent from "../../PortalComponent";
+import CompetitiveInstruction from "./CompetitiveInstruction";
 
 function CompetitiveMode(){
-  // Track which exercise is active
-  const [exerciseKey, setExerciseKey] = useState("exercise_one");
-  // Launch initial circles from INITIAL_CIRCLES one at a time, using the same launch logic as the manual launch button
+  // Timer state - 3 minutes (180 seconds)
+  const [timeLeft, setTimeLeft] = useState(180);
+  const [isGameActive, setIsGameActive] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [completedExercises, setCompletedExercises] = useState(0);
+  
   // --- Move all useState declarations to the top ---
   const [address, setAddress] = useState("");
   const [value, setValue] = useState("");
@@ -39,10 +43,10 @@ function CompetitiveMode(){
   const [explosions, setExplosions] = useState([]);
   const [highlightedCircleId, setHighlightedCircleId] = useState(null);
 
-    // Exercise progress indicator logic
-  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
-  const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
-  const totalExercises = EXERCISE_KEYS.length;
+    // Exercise progress indicator logic - now shows completed exercises instead of current/total
+  // const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
+  // const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
+  // const totalExercises = EXERCISE_KEYS.length;
 
   // Removed initial launch logic and related refs
 
@@ -56,6 +60,42 @@ function CompetitiveMode(){
   //     }
   //   };
   // }, [exerciseKey, launchInitialCircles]);
+
+  // Timer effect - countdown from 3 minutes
+  useEffect(() => {
+    let timer;
+    if (isGameActive && timeLeft > 0 && !gameOver) {
+      timer = setInterval(() => {
+        setTimeLeft(prevTime => {
+          if (prevTime <= 1) {
+            setGameOver(true);
+            setIsGameActive(false);
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isGameActive, timeLeft, gameOver]);
+
+  // Format time display (MM:SS)
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Start the game timer
+  const startGameTimer = useCallback(() => {
+    setIsGameActive(true);
+    setGameOver(false);
+    setTimeLeft(180); // Reset to 3 minutes
+    setCompletedExercises(0);
+  }, []);
 
   // Use a unique key on the main container to force React to fully reset state on exerciseKey change
   // Portal state management
@@ -218,7 +258,7 @@ function CompetitiveMode(){
   }, [circles, isTailNode]);
 
   const isPortalButtonEnabled =
-    isPortalOpen || (hasHeadNode() && hasTailNode());
+    isGameActive && !gameOver && (isPortalOpen || (hasHeadNode() && hasTailNode()));
 
   // Helper functions to determine if queue operations should be disabled
   const isOnlyOneCircle = circles.length === 1;
@@ -234,7 +274,7 @@ function CompetitiveMode(){
 
   
 
-  const loadExercise = useCallback((key = "exercise_one") => {
+  const loadExercise = useCallback(() => {
     // Always clear circles/connections and reset launch state before loading new exercise
     setCircles([]);
     setConnections([]);
@@ -245,10 +285,9 @@ function CompetitiveMode(){
     setShowValidationResult(false);
     setValidationResult(null);
   // removed hasLaunchedRef, no longer needed
-    // Now load the new exercise
-    const exercise = exerciseManagerRef.current.loadExercise(key);
+    // Now load the new random exercise
+    const exercise = exerciseManagerRef.current.loadRandomExercise();
     setCurrentExercise(exercise);
-    setExerciseKey(key);
   }, []);
 
   const startExercise = useCallback(() => {
@@ -256,7 +295,9 @@ function CompetitiveMode(){
     if (!currentExercise) {
       loadExercise();
     }
-  }, [loadExercise, currentExercise]);
+    // Start the competitive timer when user clicks Start
+    startGameTimer();
+  }, [loadExercise, currentExercise, startGameTimer]);
 
   // Initialize exercise on component mount
   useEffect(() => {
@@ -631,31 +672,37 @@ function CompetitiveMode(){
     setConnectToAddress("");
   };
   const handleLunchHoverStart = () => {
+    // Clear any existing timer
     if (hoverTimer) {
       clearTimeout(hoverTimer);
       setHoverTimer(null);
     }
+    
+    // Set a timer to show the buttons after 2 seconds
     const timer = setTimeout(() => {
       setShowInsertButton(true);
-    }, 2000);
+    }, 1000);
     setHoverTimer(timer);
   };
 
   const handleLunchHoverEnd = () => {
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
+    // Don't immediately hide if buttons are visible - give time to move to them
+    if (showInsertButton) {
+      const hideTimer = setTimeout(() => {
+        setShowInsertButton(false);
+      }, 1000); // Give 1 full second to move to buttons
+      setHoverTimer(hideTimer);
+    } else {
+      // If buttons aren't visible yet, just clear the show timer
+      if (hoverTimer) {
+        clearTimeout(hoverTimer);
+        setHoverTimer(null);
+      }
     }
-
-    // Only hide if not hovering over the insert/queue buttons
-    const hideTimer = setTimeout(() => {
-      setShowInsertButton(false);
-    }, 200);
-    setHoverTimer(hideTimer);
   };
 
   const handleInsertHover = () => {
-    // Keep buttons visible when hovering over them
+    // Keep buttons visible - clear any hide timer
     if (hoverTimer) {
       clearTimeout(hoverTimer);
       setHoverTimer(null);
@@ -663,11 +710,12 @@ function CompetitiveMode(){
   };
 
   const handleInsertLeave = () => {
-    // Only hide after a delay to allow moving between buttons
-    const hideTimer = setTimeout(() => {
-      setShowInsertButton(false);
-    }, 200);
-    setHoverTimer(hideTimer);
+    // Hide immediately when leaving the buttons container
+    setShowInsertButton(false);
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      setHoverTimer(null);
+    }
   };
 
   const handleInsert = () => {
@@ -838,14 +886,6 @@ function CompetitiveMode(){
         return updated;
       });
     }, 1000);
-  };
-
-  const handleQueueHover = () => {
-    // Keep buttons visible when hovering over them
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
-    }
   };
 
   const closeInsertModal = () => {
@@ -1339,6 +1379,11 @@ function CompetitiveMode(){
   }, [draggedCircle, dragOffset, findConnectedCircles, circles]);
 
   const launchCircle = () => {
+    // Prevent launching when game is not active or is over
+    if (!isGameActive || gameOver) {
+      return;
+    }
+    
     if (!address.trim() || !value.trim()) return;
 
     const addressExists = circles.some(
@@ -1389,8 +1434,17 @@ function CompetitiveMode(){
       </button>
 
       {/* Exercise progress indicator (top right) */}
-      <div className={styles.exerciseProgressIndicator}>
-        {currentExerciseNumber}/{totalExercises}
+      <div className={styles.timerAndProgress}>
+        <div className={styles.timer}>
+          <span className={styles.timerLabel}>TIME:</span>
+          <span className={`${styles.timerValue} ${timeLeft <= 30 ? styles.timerDanger : ''}`}>
+            {formatTime(timeLeft)}
+          </span>
+        </div>
+        <div className={styles.exerciseProgress}>
+          <span className={styles.progressLabel}>COMPLETED:</span>
+          <span className={styles.progressValue}>{completedExercises}</span>
+        </div>
       </div>
 
       {/* Expected results bar */}
@@ -1420,33 +1474,10 @@ function CompetitiveMode(){
         </div>
       )}
       
-      {showInstructionPopup &&
-        currentExercise &&
-        currentExercise.expectedStructure && (
-          
-          <div className={styles.instructionPopup}>
-            <div className={styles.instructionContent}>
-              <h1>{currentExercise.title}</h1>
-              <div className={styles.instructionList}>
-                {currentExercise.expectedStructure.map((node, index) => (
-                  <div key={index} className={styles.instructionItem}>
-                    <span className={styles.instructionValue}>
-                      Value: {node.value}
-                    </span>
-                    <span className={styles.instructionArrow}>→</span>
-                    <span className={styles.instructionAddress}>
-                      Address: {node.address}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <button className={styles.startButton} onClick={startExercise}>
-                Start
-              </button>
-            </div>
-          </div>
-          
-        )}
+      <CompetitiveInstruction 
+        showInstructionPopup={showInstructionPopup}
+        startExercise={startExercise}
+      />
      
       <PortalComponent
         onPortalStateChange={handlePortalStateChange}
@@ -1464,7 +1495,7 @@ function CompetitiveMode(){
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           className={styles.inputField}
-          disabled={false}
+          disabled={!isGameActive || gameOver}
         />
         <input
           type="text"
@@ -1472,41 +1503,41 @@ function CompetitiveMode(){
           value={value}
           onChange={(e) => setValue(e.target.value)}
           className={styles.inputField}
-          disabled={false}
+          disabled={!isGameActive || gameOver}
         />
         <div className={styles.buttonContainer}>
-          {showInsertButton && (
-            <div 
-              className={styles.hoverButtonsContainer}
-              onMouseEnter={handleInsertHover}
-              onMouseLeave={handleInsertLeave}
-            >
-              <button
-                onClick={handleInsert}
-                className={styles.insertButton}
-                onMouseEnter={handleInsertHover}
-                onMouseLeave={() => {}} // Prevent individual button from hiding container
-              >
-                INSERT
-              </button>
-              <button
-                onClick={handleQueue}
-                className={styles.queueButton}
-                onMouseEnter={handleQueueHover}
-                onMouseLeave={() => {}} // Prevent individual button from hiding container
-              >
-                QUEUE
-              </button>
-            </div>
-          )}
-          <button
-            onClick={launchCircle}
-            className={styles.launchButton}
+          <div
+            className={styles.launchArea}
             onMouseEnter={handleLunchHoverStart}
             onMouseLeave={handleLunchHoverEnd}
           >
-            LAUNCH
-          </button>
+            <button
+              onClick={launchCircle}
+              className={styles.launchButton}
+            >
+              LAUNCH
+            </button>
+            {showInsertButton && (
+              <div 
+                className={styles.hoverButtonsContainer}
+                onMouseEnter={handleInsertHover}
+                onMouseLeave={handleInsertLeave}
+              >
+                <button
+                  onClick={handleInsert}
+                  className={styles.insertButton}
+                >
+                  INSERT
+                </button>
+                <button
+                  onClick={handleQueue}
+                  className={styles.queueButton}
+                >
+                  QUEUE
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <button
           onClick={isPortalButtonEnabled ? togglePortal : undefined}
@@ -1778,20 +1809,57 @@ function CompetitiveMode(){
               <button
                 onClick={() => {
                   setShowValidationResult(false);
+                  setValidationResult(null);
                   // Always close the portal after submitting/validation
                   setIsPortalOpen(false);
                   setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-                  // If perfected and on exercise_one, go to exercise_two
-                  if (validationResult && validationResult.isCorrect && exerciseKey === "exercise_one") {
-                    loadExercise("exercise_two");
-                  } else if (validationResult && validationResult.isCorrect && exerciseKey === "exercise_two") {
-                    loadExercise("exercise_three");
+                  
+                  // If score is 100, load next exercise and increment counter
+                  if (validationResult && validationResult.score >= 100) {
+                    setCompletedExercises(prev => prev + 1);
+                    exerciseManagerRef.current.markExerciseCompleted();
+                    loadExercise(); // Load new random exercise
                   }
+                  // Otherwise just continue with current exercise
                 }}
                 className={styles.continueButton}
               >
-                {validationResult && validationResult.isCorrect && exerciseKey === "exercise_one" ? "NEXT EXERCISE" :
-                 validationResult && validationResult.isCorrect && exerciseKey === "exercise_two" ? "NEXT EXERCISE" : "CONTINUE"}
+                {validationResult && validationResult.score >= 100 ? "NEXT EXERCISE" : "CONTINUE"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {gameOver && (
+        <div className={styles.gameOverOverlay}>
+          <div className={styles.gameOverContent}>
+            <div className={styles.gameOverHeader}>
+              <h1 className={styles.gameOverTitle}>TIME&apos;S UP!</h1>
+            </div>
+            <div className={styles.gameOverStats}>
+              <div className={styles.gameOverStat}>
+                <span className={styles.statLabel}>Exercises Completed:</span>
+                <span className={styles.statValue}>{completedExercises}</span>
+              </div>
+              <div className={styles.gameOverStat}>
+                <span className={styles.statLabel}>Final Score:</span>
+                <span className={styles.statValue}>{completedExercises * 100}</span>
+              </div>
+            </div>
+            <div className={styles.gameOverButtons}>
+              <button 
+                onClick={() => {
+                  setGameOver(false);
+                  setTimeLeft(180);
+                  setCompletedExercises(0);
+                  setIsGameActive(false);
+                  exerciseManagerRef.current.reset();
+                  loadExercise();
+                }}
+                className={styles.playAgainButton}
+              >
+                PLAY AGAIN
               </button>
             </div>
           </div>
