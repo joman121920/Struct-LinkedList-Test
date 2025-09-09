@@ -427,6 +427,13 @@
   opacity: 0.3;
 }
 
+.buttonDisabled {
+  background-color: #444 !important;
+  color: #aaa !important;
+  cursor: not-allowed !important;
+  opacity: 0.3 !important;
+}
+
 .launchButton:hover {
   background-color: #bbb;
 }

@@ -28,7 +28,31 @@ function CompetitiveMode(){
   const [showInsertModal, setShowInsertModal] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [showIndexModal, setShowIndexModal] = useState(false);
+  
+  // Game mechanics: Launch button and operation limits
+  const [launchButtonUses, setLaunchButtonUses] = useState(3);
+  
+  // Individual insert operation limits
+  const [headInsertUses, setHeadInsertUses] = useState(3);
+  const [tailInsertUses, setTailInsertUses] = useState(3);
+  const [specificInsertUses, setSpecificInsertUses] = useState(3);
+  
+  // Individual queue operation limits
+  const [enqueueUses, setEnqueueUses] = useState(3);
+  const [dequeueUses, setDequeueUses] = useState(3);
+  
   const [insertIndex, setInsertIndex] = useState("");
+  
+  // Use refs to track reset counters to avoid state management issues
+  const resetCountersRef = useRef({
+    launch: 0,
+    headInsert: 0,
+    tailInsert: 0,
+    specificInsert: 0,
+    enqueue: 0,
+    dequeue: 0
+  });
+  
   const [hoverTimer, setHoverTimer] = useState(null);
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
@@ -289,6 +313,25 @@ function CompetitiveMode(){
     setShowValidationResult(false);
     setValidationResult(null);
   // removed hasLaunchedRef, no longer needed
+    
+    // Reset game mechanics for new exercise
+    setLaunchButtonUses(3);
+    setHeadInsertUses(3);
+    setTailInsertUses(3);
+    setSpecificInsertUses(3);
+    setEnqueueUses(3);
+    setDequeueUses(3);
+    
+    // Reset all individual counters
+    resetCountersRef.current = {
+      launch: 0,
+      headInsert: 0,
+      tailInsert: 0,
+      specificInsert: 0,
+      enqueue: 0,
+      dequeue: 0
+    };
+    
     // Now load the new random exercise
     const exercise = exerciseManagerRef.current.loadRandomExercise();
     setCurrentExercise(exercise);
@@ -997,15 +1040,37 @@ function CompetitiveMode(){
       return;
     }
 
+    // Check individual operation limits
     switch (option) {
       case "head":
+        if (headInsertUses <= 0) {
+          alert("HEAD insert operations exhausted! Use other operations to reset.");
+          return;
+        }
+        setHeadInsertUses(prev => prev - 1);
         handleHeadInsertion();
+        // Track operation usage with specific type
+        handleOperationUsage('headInsert');
         break;
       case "specific":
+        if (specificInsertUses <= 0) {
+          alert("SPECIFIC insert operations exhausted! Use other operations to reset.");
+          return;
+        }
+        setSpecificInsertUses(prev => prev - 1);
         setShowIndexModal(true);
+        // Track operation usage with specific type
+        handleOperationUsage('specificInsert');
         break;
       case "tail":
+        if (tailInsertUses <= 0) {
+          alert("TAIL insert operations exhausted! Use other operations to reset.");
+          return;
+        }
+        setTailInsertUses(prev => prev - 1);
         handleTailInsertion();
+        // Track operation usage with specific type
+        handleOperationUsage('tailInsert');
         break;
       default:
         break;
@@ -1018,13 +1083,28 @@ function CompetitiveMode(){
   const handleQueueOption = (option) => {
     switch (option) {
       case "peek":
+        // PEEK doesn't use up any operations and has no usage limits
         handlePeek();
         break;
       case "enqueue":
+        if (enqueueUses <= 0) {
+          alert("ENQUEUE operations exhausted! Use other operations to reset.");
+          return;
+        }
+        setEnqueueUses(prev => prev - 1);
         handleEnqueue();
+        // Track operation usage with specific type
+        handleOperationUsage('enqueue');
         break;
       case "dequeue":
+        if (dequeueUses <= 0) {
+          alert("DEQUEUE operations exhausted! Use other operations to reset.");
+          return;
+        }
+        setDequeueUses(prev => prev - 1);
         handleDequeue();
+        // Track operation usage with specific type
+        handleOperationUsage('dequeue');
         break;
       default:
         break;
@@ -1116,15 +1196,6 @@ function CompetitiveMode(){
   const closeDuplicateModal = () => {
     setShowDuplicateModal(false);
   };
-
-  
-
-  
-
-  
-  
-
-  
   const optimizeConnectionsAfterDeletion = (connections) => {
     const connectionMap = new Map();
     connections.forEach((conn) => {
@@ -1374,9 +1445,73 @@ function CompetitiveMode(){
     };
   }, [draggedCircle, dragOffset, findConnectedCircles, circles]);
 
+  // Helper function to handle operation usage and reset logic
+  const handleOperationUsage = useCallback((operationType) => {
+    // Update counters for all buttons that are at 0 (except the one being used)
+    
+    // Launch button: needs 10 other operations to reset
+    if (operationType !== 'launch' && launchButtonUses === 0) {
+      resetCountersRef.current.launch += 1;
+      if (resetCountersRef.current.launch >= 10) {
+        setLaunchButtonUses(3);
+        resetCountersRef.current.launch = 0; // Reset counter
+      }
+    }
+    
+    // Head Insert: needs 5 other operations to reset
+    if (operationType !== 'headInsert' && headInsertUses === 0) {
+      resetCountersRef.current.headInsert += 1;
+      if (resetCountersRef.current.headInsert >= 5) {
+        setHeadInsertUses(3);
+        resetCountersRef.current.headInsert = 0; // Reset counter
+      }
+    }
+    
+    // Tail Insert: needs 5 other operations to reset
+    if (operationType !== 'tailInsert' && tailInsertUses === 0) {
+      resetCountersRef.current.tailInsert += 1;
+      if (resetCountersRef.current.tailInsert >= 5) {
+        setTailInsertUses(3);
+        resetCountersRef.current.tailInsert = 0; // Reset counter
+      }
+    }
+    
+    // Specific Insert: needs 5 other operations to reset
+    if (operationType !== 'specificInsert' && specificInsertUses === 0) {
+      resetCountersRef.current.specificInsert += 1;
+      if (resetCountersRef.current.specificInsert >= 5) {
+        setSpecificInsertUses(3);
+        resetCountersRef.current.specificInsert = 0; // Reset counter
+      }
+    }
+    
+    // Enqueue: needs 5 other operations to reset
+    if (operationType !== 'enqueue' && enqueueUses === 0) {
+      resetCountersRef.current.enqueue += 1;
+      if (resetCountersRef.current.enqueue >= 5) {
+        setEnqueueUses(3);
+        resetCountersRef.current.enqueue = 0; // Reset counter
+      }
+    }
+    
+    // Dequeue: needs 5 other operations to reset
+    if (operationType !== 'dequeue' && dequeueUses === 0) {
+      resetCountersRef.current.dequeue += 1;
+      if (resetCountersRef.current.dequeue >= 5) {
+        setDequeueUses(3);
+        resetCountersRef.current.dequeue = 0; // Reset counter
+      }
+    }
+  }, [launchButtonUses, headInsertUses, tailInsertUses, specificInsertUses, enqueueUses, dequeueUses]);
+
   const launchCircle = () => {
     // Prevent launching when game is not active or is over
     if (!isGameActive || gameOver) {
+      return;
+    }
+    
+    // Check if launch button uses are exhausted
+    if (launchButtonUses <= 0) {
       return;
     }
     
@@ -1401,6 +1536,11 @@ function CompetitiveMode(){
     };
 
     setCircles((prev) => [...prev, newCircle]);
+    setLaunchButtonUses(prev => prev - 1); // Decrease launch button uses
+    
+    // Reset any other buttons that are at 0
+    handleOperationUsage('launch');
+    
     setAddress("");
     setValue("");
   };
@@ -1513,9 +1653,13 @@ function CompetitiveMode(){
           >
             <button
               onClick={launchCircle}
-              className={styles.launchButton}
+              className={`${styles.launchButton} ${launchButtonUses <= 0 ? styles.buttonDisabled : ''}`}
+              disabled={launchButtonUses <= 0}
             >
-              LAUNCH
+              {launchButtonUses > 0 
+                ? `LAUNCH (${launchButtonUses})` 
+                : `LAUNCH (${resetCountersRef.current.launch}/10)`
+              }
             </button>
             {showInsertButton && (
               <div 
@@ -1525,15 +1669,17 @@ function CompetitiveMode(){
               >
                 <button
                   onClick={handleInsert}
-                  className={styles.insertButton}
+                  className={`${styles.insertButton} ${(headInsertUses <= 0 && tailInsertUses <= 0 && specificInsertUses <= 0) ? styles.buttonDisabled : ''}`}
+                  disabled={headInsertUses <= 0 && tailInsertUses <= 0 && specificInsertUses <= 0}
                 >
-                  INSERT
+                  INSERT 
                 </button>
                 <button
                   onClick={handleQueue}
-                  className={styles.queueButton}
+                  className={`${styles.queueButton} ${(enqueueUses <= 0 && dequeueUses <= 0) ? styles.buttonDisabled : ''}`}
+                  disabled={enqueueUses <= 0 && dequeueUses <= 0}
                 >
-                  QUEUE
+                  QUEUE 
                 </button>
               </div>
             )}
@@ -1992,28 +2138,46 @@ function CompetitiveMode(){
 
             <div className={styles.insertOptions}>
               <button
-                className={`${styles.insertOptionBtn} head-btn`}
+                className={`${styles.insertOptionBtn} head-btn ${headInsertUses <= 0 ? styles.buttonDisabled : ''}`}
                 onClick={() => handleInsertOption("head")}
+                disabled={headInsertUses <= 0}
               >
-                <div className={styles.optionTitle}>HEAD</div>
+                <div className={styles.optionTitle}>
+                  {headInsertUses > 0 
+                    ? `HEAD (${headInsertUses})` 
+                    : `HEAD (${resetCountersRef.current.headInsert}/5)`
+                  }
+                </div>
                 <div className={styles.optionSubtitle}>i = 0 (Head)</div>
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} specific-btn`}
+                className={`${styles.insertOptionBtn} specific-btn ${specificInsertUses <= 0 ? styles.buttonDisabled : ''}`}
                 onClick={() => handleInsertOption("specific")}
+                disabled={specificInsertUses <= 0}
               >
-                <div className={styles.optionTitle}>SPECIFIC</div>
+                <div className={styles.optionTitle}>
+                  {specificInsertUses > 0 
+                    ? `SPECIFIC (${specificInsertUses})` 
+                    : `SPECIFIC (${resetCountersRef.current.specificInsert}/5)`
+                  }
+                </div>
                 <div className={styles.optionSubtitle}>
                   specify both i in [1, N-1]
                 </div>
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} tail-btn`}
+                className={`${styles.insertOptionBtn} tail-btn ${tailInsertUses <= 0 ? styles.buttonDisabled : ''}`}
                 onClick={() => handleInsertOption("tail")}
+                disabled={tailInsertUses <= 0}
               >
-                <div className={styles.optionTitle}>TAIL</div>
+                <div className={styles.optionTitle}>
+                  {tailInsertUses > 0 
+                    ? `TAIL (${tailInsertUses})` 
+                    : `TAIL (${resetCountersRef.current.tailInsert}/5)`
+                  }
+                </div>
                 <div className={styles.optionSubtitle}>i = N (After Tail)</div>
               </button>
             </div>
@@ -2036,7 +2200,7 @@ function CompetitiveMode(){
 
             <div className={styles.insertOptions}>
               <button
-                className={`${styles.insertOptionBtn} head-btn ${isPeekDisabled ? styles.disabledBtn : ''}`}
+                className={`${styles.insertOptionBtn} head-btn ${(isPeekDisabled) ? styles.disabledBtn : ''}`}
                 onClick={() => handleQueueOption("peek")}
                 disabled={isPeekDisabled}
               >
@@ -2045,22 +2209,32 @@ function CompetitiveMode(){
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} specific-btn ${!address.trim() || !value.trim() ? styles.disabledBtn : ''}`}
+                className={`${styles.insertOptionBtn} specific-btn ${(!address.trim() || !value.trim() || enqueueUses <= 0) ? styles.disabledBtn : ''}`}
                 onClick={() => handleQueueOption("enqueue")}
-                disabled={!address.trim() || !value.trim()}
+                disabled={!address.trim() || !value.trim() || enqueueUses <= 0}
               >
-                <div className={styles.optionTitle}>ENQUEUE</div>
+                <div className={styles.optionTitle}>
+                  {enqueueUses > 0 
+                    ? `ENQUEUE (${enqueueUses})` 
+                    : `ENQUEUE (${resetCountersRef.current.enqueue}/5)`
+                  }
+                </div>
                 <div className={styles.optionSubtitle}>
                   Add to Rear/Tail
                 </div>
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} tail-btn ${isDequeueDisabled ? styles.disabledBtn : ''}`}
+                className={`${styles.insertOptionBtn} tail-btn ${(isDequeueDisabled || dequeueUses <= 0) ? styles.disabledBtn : ''}`}
                 onClick={() => handleQueueOption("dequeue")}
-                disabled={isDequeueDisabled}
+                disabled={isDequeueDisabled || dequeueUses <= 0}
               >
-                <div className={styles.optionTitle}>DEQUEUE</div>
+                <div className={styles.optionTitle}>
+                  {dequeueUses > 0 
+                    ? `DEQUEUE (${dequeueUses})` 
+                    : `DEQUEUE (${resetCountersRef.current.dequeue}/5)`
+                  }
+                </div>
                 <div className={styles.optionSubtitle}>Remove Front/Head</div>
               </button>
             </div>
