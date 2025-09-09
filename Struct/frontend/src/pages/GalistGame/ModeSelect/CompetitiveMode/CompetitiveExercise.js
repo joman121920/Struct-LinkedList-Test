@@ -340,7 +340,8 @@ export class LinkedListExercise {
 // Random exercise generator
 export class RandomExerciseGenerator {
   constructor() {
-    this.usedCombinations = new Set();
+    this.exercisePool = [];
+    this.currentIndex = 0;
     this.addressPools = [
       ['aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg', 'hh'],
       ['x10', 'y20', 'z30', 'a40', 'b50', 'c60', 'd70', 'e80'],
@@ -349,11 +350,14 @@ export class RandomExerciseGenerator {
       ['u01', 'v02', 'w03', 'x04', 'y05', 'z06', 'a07', 'b08'],
       ['ptr1', 'ptr2', 'ptr3', 'ptr4', 'ptr5', 'ptr6', 'ptr7', 'ptr8']
     ];
+    
+    // Generate 20 exercises on initialization
+    this.generateExercisePool();
   }
 
-  generateRandomSequence(length = null) {
-    // Random length between 4 and 7 nodes if not specified
-    const sequenceLength = length || (Math.floor(Math.random() * 4) + 4);
+  generateRandomSequence() {
+    // Always generate exactly 5 nodes
+    const sequenceLength = 5;
     
     // Generate unique random values between 1 and 50
     const values = new Set();
@@ -383,55 +387,74 @@ export class RandomExerciseGenerator {
     return addresses;
   }
 
-  generateRandomExercise() {
-    let exercise;
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    do {
+  generateExercisePool() {
+    this.exercisePool = [];
+    const usedCombinations = new Set();
+    
+    // Generate 20 unique exercises
+    while (this.exercisePool.length < 20) {
       const sequence = this.generateRandomSequence();
       const addresses = this.generateRandomAddresses(sequence);
       
       // Create a unique identifier for this combination
-      const combinationKey = `${sequence.sort().join(',')}-${Object.values(addresses).sort().join(',')}`;
+      const combinationKey = `${sequence.sort((a, b) => a - b).join(',')}-${Object.values(addresses).sort().join(',')}`;
       
-      if (!this.usedCombinations.has(combinationKey)) {
-        this.usedCombinations.add(combinationKey);
+      if (!usedCombinations.has(combinationKey)) {
+        usedCombinations.add(combinationKey);
         
-        exercise = {
-          sequence: sequence,
+        const exercise = {
+          sequence: [...sequence], // Keep original order
           addresses: addresses,
           title: "Create this Linked List",
           description: `Create a linked list with the following values: ${sequence.join(' -> ')}`,
-          id: `random_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+          id: `exercise_${this.exercisePool.length + 1}_${Date.now()}`
         };
-        break;
+        
+        this.exercisePool.push(exercise);
       }
-      
-      attempts++;
-    } while (attempts < maxAttempts);
-
-    // If we couldn't generate a unique exercise, clear the cache and try once more
-    if (!exercise) {
-      this.usedCombinations.clear();
-      const sequence = this.generateRandomSequence();
-      const addresses = this.generateRandomAddresses(sequence);
-      
-      exercise = {
-        sequence: sequence,
-        addresses: addresses,
-        title: "Create this Linked List",
-        description: `Create a linked list with the following values: ${sequence.join(' -> ')}`,
-        id: `random_${Date.now()}_${Math.floor(Math.random() * 1000)}`
-      };
     }
-
-    return exercise;
+    
+    // Shuffle the exercise pool for random order
+    for (let i = this.exercisePool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.exercisePool[i], this.exercisePool[j]] = [this.exercisePool[j], this.exercisePool[i]];
+    }
   }
 
-  // Reset used combinations (useful for long gaming sessions)
+  generateRandomExercise() {
+    // Return the next exercise from the pool
+    if (this.exercisePool.length === 0) {
+      this.generateExercisePool();
+    }
+    
+    const exercise = this.exercisePool[this.currentIndex];
+    this.currentIndex = (this.currentIndex + 1) % this.exercisePool.length;
+    
+    // If we've gone through all exercises, reshuffle the pool
+    if (this.currentIndex === 0) {
+      for (let i = this.exercisePool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.exercisePool[i], this.exercisePool[j]] = [this.exercisePool[j], this.exercisePool[i]];
+      }
+    }
+    
+    return { ...exercise }; // Return a copy
+  }
+
+  // Reset to start from beginning and regenerate exercises
   resetUsedCombinations() {
-    this.usedCombinations.clear();
+    this.currentIndex = 0;
+    this.generateExercisePool();
+  }
+
+  // Get total number of exercises in pool
+  getTotalExercises() {
+    return this.exercisePool.length;
+  }
+
+  // Get current exercise index
+  getCurrentIndex() {
+    return this.currentIndex;
   }
 }
 // Exercise manager class

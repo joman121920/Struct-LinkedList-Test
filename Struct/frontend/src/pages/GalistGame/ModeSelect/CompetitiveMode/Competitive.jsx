@@ -5,8 +5,13 @@ import { ExerciseManager } from "./CompetitiveExercise";
 import { collisionDetection } from "../../CollisionDetection";
 import PortalComponent from "../../PortalComponent";
 import CompetitiveInstruction from "./CompetitiveInstruction";
+import LoadingScreen from "../../LoadingScreen/LoadingScreen";
 
 function CompetitiveMode(){
+  // Loading and initialization states
+  const [isLoading, setIsLoading] = useState(true);
+  const [showInstructionPopup, setShowInstructionPopup] = useState(false);
+  
   // Timer state - 3 minutes (180 seconds)
   const [timeLeft, setTimeLeft] = useState(180);
   const [isGameActive, setIsGameActive] = useState(false);
@@ -138,7 +143,6 @@ function CompetitiveMode(){
   const [currentExercise, setCurrentExercise] = useState(null);
   const [showValidationResult, setShowValidationResult] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
-  const [showInstructionPopup, setShowInstructionPopup] = useState(false);
 
   // Game menu actions
   // const startGame = useCallback(() => {
@@ -290,6 +294,12 @@ function CompetitiveMode(){
     setCurrentExercise(exercise);
   }, []);
 
+  // Handle loading screen completion
+  const handleLoadingComplete = useCallback(() => {
+    setIsLoading(false);
+    setShowInstructionPopup(true); // Open instruction popup after loading
+  }, []);
+
   const startExercise = useCallback(() => {
     setShowInstructionPopup(false);
     if (!currentExercise) {
@@ -299,19 +309,19 @@ function CompetitiveMode(){
     startGameTimer();
   }, [loadExercise, currentExercise, startGameTimer]);
 
-  // Initialize exercise on component mount
+  // Initialize exercise on component mount (only when loading is complete)
   useEffect(() => {
-    if (!currentExercise) {
+    if (!isLoading && !currentExercise) {
       loadExercise("exercise_one");
     }
-  }, [currentExercise, loadExercise]);
+  }, [isLoading, currentExercise, loadExercise]);
 
   // Initialize with basic exercise when instruction popup is closed
   useEffect(() => {
-    if (!showInstructionPopup && !currentExercise) {
+    if (!isLoading && !showInstructionPopup && !currentExercise) {
       loadExercise();
     }
-  }, [showInstructionPopup, currentExercise, loadExercise]);
+  }, [isLoading, showInstructionPopup, currentExercise, loadExercise]);
 
   // Helper function to get the complete chain order from head to tail
   const getChainOrder = useCallback(
@@ -1395,6 +1405,11 @@ function CompetitiveMode(){
     setValue("");
   };
 
+  // Show loading screen first
+  if (isLoading) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
+  }
+
   return (
     
     <div className={styles.app}>
@@ -1840,13 +1855,13 @@ function CompetitiveMode(){
               <h1 className={styles.gameOverTitle}>TIME&apos;S UP!</h1>
             </div>
             <div className={styles.gameOverStats}>
+               <div className={styles.gameOverStat}>
+                <span className={styles.statLabel}>Final Score:</span>
+                <span className={styles.statValue}>{completedExercises * 100}</span>
+              </div>
               <div className={styles.gameOverStat}>
                 <span className={styles.statLabel}>Exercises Completed:</span>
                 <span className={styles.statValue}>{completedExercises}</span>
-              </div>
-              <div className={styles.gameOverStat}>
-                <span className={styles.statLabel}>Final Score:</span>
-                <span className={styles.statValue}>{completedExercises * 100}</span>
               </div>
             </div>
             <div className={styles.gameOverButtons}>

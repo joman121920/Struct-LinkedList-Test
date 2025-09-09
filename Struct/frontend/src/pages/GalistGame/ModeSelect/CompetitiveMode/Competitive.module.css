@@ -1473,12 +1473,11 @@
 }
 
 .gameOverContent {
-  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  background-color: #00000000;
   border-radius: 20px;
   padding: 40px;
   text-align: center;
-  border: 3px solid #ff4444;
-  box-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
+  border: 3px solid #8a8a8a;
   max-width: 500px;
   width: 90%;
   animation: slideUp 0.5s ease-out;
@@ -1501,9 +1500,8 @@
 
 .gameOverTitle {
   font-size: 3rem;
-  color: #ff4444;
+  color: #fbfbfb;
   margin: 0;
-  text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
   font-weight: 900;
   letter-spacing: 3px;
 }
@@ -1520,9 +1518,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background-color: #00000000;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid rgb(79, 79, 79);
 }
 
 .statLabel {
@@ -1545,9 +1543,9 @@
 }
 
 .playAgainButton {
-  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
-  color: #000;
-  border: none;
+  background-color: #42424200;
+  color: #ffffff;
+  border: 2px solid #686969;
   padding: 15px 30px;
   border-radius: 10px;
   font-size: 1.2rem;
@@ -1558,9 +1556,8 @@
 }
 
 .playAgainButton:hover {
-  background: linear-gradient(135deg, #00cc66 0%, #00aa55 100%);
+  background: linear-gradient(135deg, #606060 0%, #6c6c6c 100%);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
 }
 
 /* Competitive Mode Instruction Styles */

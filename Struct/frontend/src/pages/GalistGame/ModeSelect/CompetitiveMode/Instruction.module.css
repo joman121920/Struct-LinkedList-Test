@@ -62,17 +62,17 @@
 /* Tab Header for single tab */
 .tabHeader {
   display: flex;
-  border-bottom: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff51;
   background-color: #2a2a2a00;
   justify-content: center;
 }
 
 .tabButton {
-  padding: 15px 20px;
-  background: #1a1a1a;
+  padding: 5px 10px;
+  background: #1a1a1a00;
   border: 1px solid white;
   color: white;
-  font-size: 16px;
+  font-size: 1.5rem;
   font-weight: 500;
   flex: 1;
   text-align: center;
@@ -102,11 +102,7 @@
 
 /* Tab Content */
 .tabContent {
-  flex: 1;
-  padding: 0;
-  overflow-y: auto;
   background-color: #1a1a1a00;
-  display: flex;
   justify-content: center;
   align-items: center;
 }
@@ -115,11 +111,10 @@
 .mechanicsContent {
   display: flex;
   flex-direction: column;
-  height: 90%;
+  height: 95%;
   width: 100%;
-  margin: 20px 20px;
-  margin-top: -30px;
-  padding: 20px;
+  padding: 30px 40px;
+  border-bottom: 2px solid white;
 }
 
 .howToPlayContainer {
@@ -170,7 +165,7 @@
 
 .howToPlaySteps {
   color: #ffffff;
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1.6;
   margin-left: 20px;
   margin-bottom: 50px;
@@ -258,6 +253,7 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   border: 3px solid #505050;
+  margin-top: -22px;
 }
 
 .startButton:hover {
