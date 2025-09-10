@@ -386,6 +386,68 @@ function CompetitiveMode(){
     }
   }, [isLoading, showInstructionPopup, currentExercise, loadExercise]);
 
+  // Auto-close portal when validation modal opens
+  useEffect(() => {
+    if (showValidationResult) {
+      setIsPortalOpen(false);
+    }
+  }, [showValidationResult]);
+
+  // Helper functions to find circles by their displayed labels
+  const findHeadTailLabeledCircle = useCallback(() => {
+    return circles.find(circle => {
+      const hasOutgoing = connections.some(conn => conn.from === circle.id);
+      const hasIncoming = connections.some(conn => conn.to === circle.id);
+      const isSingleCircle = circles.length === 1;
+      const isUnconnected = !hasOutgoing && !hasIncoming;
+      
+      const unconnectedCircles = circles.filter(c => {
+        const out = connections.some(conn => conn.from === c.id);
+        const inc = connections.some(conn => conn.to === c.id);
+        return !out && !inc;
+      });
+      const isFirstUnconnected = isUnconnected && unconnectedCircles.length > 0 && unconnectedCircles[0].id === circle.id;
+      
+      const hasProperHeadTailConnection = circles.some(c => {
+        const out = connections.some(conn => conn.from === c.id);
+        const inc = connections.some(conn => conn.to === c.id);
+        return out && !inc;
+      }) && circles.some(c => {
+        const out = connections.some(conn => conn.from === c.id);
+        const inc = connections.some(conn => conn.to === c.id);
+        return !out && inc;
+      });
+      
+      return isSingleCircle || (isFirstUnconnected && !hasProperHeadTailConnection);
+    });
+  }, [circles, connections]);
+
+  const findHeadLabeledCircle = useCallback(() => {
+    return circles.find(circle => {
+      const hasOutgoing = connections.some(conn => conn.from === circle.id);
+      const hasIncoming = connections.some(conn => conn.to === circle.id);
+      const isConnected = hasOutgoing || hasIncoming;
+      
+      const possibleHeads = circles.filter(c => {
+        const out = connections.some(conn => conn.from === c.id);
+        const inc = connections.some(conn => conn.to === c.id);
+        return (out && !inc && (out || inc));
+      });
+      
+      return isConnected && hasOutgoing && !hasIncoming && possibleHeads.length > 0 && possibleHeads[0].id === circle.id;
+    });
+  }, [circles, connections]);
+
+  const findTailLabeledCircle = useCallback(() => {
+    return circles.find(circle => {
+      const hasOutgoing = connections.some(conn => conn.from === circle.id);
+      const hasIncoming = connections.some(conn => conn.to === circle.id);
+      const isConnected = hasOutgoing || hasIncoming;
+      
+      return isConnected && hasIncoming && !hasOutgoing;
+    });
+  }, [circles, connections]);
+
   // Helper function to get the complete chain order from head to tail
   const getChainOrder = useCallback(
     (startCircleId) => {
@@ -556,8 +618,8 @@ function CompetitiveMode(){
             }
 
             // Suction force
-            const baseForce = 2.0;
-            const headBoost = 1.5;
+            const baseForce = 1.0;
+            const headBoost = 1.0;
             const suctionForce = baseForce + headBoost;
             const newVelocityX = (dx / distance) * suctionForce;
             const newVelocityY = (dy / distance) * suctionForce;
@@ -843,6 +905,10 @@ function CompetitiveMode(){
       return;
     }
 
+    // Check for labeled circles for auto-connection
+    const headTailNode = findHeadTailLabeledCircle();
+    const tailNode = findTailLabeledCircle();
+
     // Find the current tail node (has incoming but no outgoing connection)
     let tail = circles.find((circle) => isTailNode(circle.id));
 
@@ -864,8 +930,27 @@ function CompetitiveMode(){
 
     setCircles((prev) => [...prev, newCircle]);
 
-    // If there is a tail, connect it to the new node
-    if (tail) {
+    // Auto-connect to labeled circles: priority is Head/Tail, then Tail, then normal logic
+    if (headTailNode) {
+      setConnections((prev) => [
+        ...prev,
+        {
+          id: `conn-${headTailNode.id}-${newCircle.id}`,
+          from: headTailNode.id,
+          to: newCircle.id,
+        },
+      ]);
+    } else if (tailNode) {
+      setConnections((prev) => [
+        ...prev,
+        {
+          id: `conn-${tailNode.id}-${newCircle.id}`,
+          from: tailNode.id,
+          to: newCircle.id,
+        },
+      ]);
+    } else if (tail) {
+      // Normal enqueue logic
       setConnections((prev) => [
         ...prev,
         {
@@ -1069,36 +1154,66 @@ function CompetitiveMode(){
 
     // Check individual operation limits
     switch (option) {
-      case "head":
+      case "head": {
         if (headInsertUses <= 0) {
           alert("HEAD insert operations exhausted! Use other operations to reset.");
           return;
         }
         setHeadInsertUses(prev => prev - 1);
-        handleHeadInsertion();
-        // Track operation usage with specific type
+        
+        // Auto-insertion: check for Head/Tail labeled circle first, then Head labeled circle
+        const headTailForHead = findHeadTailLabeledCircle();
+        const headLabeled = findHeadLabeledCircle();
+        
+        if (headTailForHead) {
+          handleHeadInsertionWithHeadTail(headTailForHead);
+        } else if (headLabeled) {
+          handleHeadInsertionWithHead(headLabeled);
+        } else {
+          handleHeadInsertion();
+        }
         handleOperationUsage('headInsert');
         break;
-      case "specific":
+      }
+      case "specific": {
         if (specificInsertUses <= 0) {
           alert("SPECIFIC insert operations exhausted! Use other operations to reset.");
           return;
         }
         setSpecificInsertUses(prev => prev - 1);
-        setShowIndexModal(true);
-        // Track operation usage with specific type
+        
+        // Auto-insertion for Head/Tail labeled circle
+        const headTailForSpecific = findHeadTailLabeledCircle();
+        
+        if (headTailForSpecific) {
+          handleSpecificInsertionWithHeadTail(headTailForSpecific, parseInt(insertIndex));
+        } else {
+          setShowIndexModal(true);
+        }
         handleOperationUsage('specificInsert');
         break;
-      case "tail":
+      }
+      case "tail": {
         if (tailInsertUses <= 0) {
           alert("TAIL insert operations exhausted! Use other operations to reset.");
           return;
         }
         setTailInsertUses(prev => prev - 1);
-        handleTailInsertion();
-        // Track operation usage with specific type
+        
+        // Auto-insertion: check for Head/Tail labeled circle first, then Tail labeled circle
+        const headTailForTail = findHeadTailLabeledCircle();
+        const tailLabeled = findTailLabeledCircle();
+        
+        if (headTailForTail) {
+          handleTailInsertionWithHeadTail(headTailForTail);
+        } else if (tailLabeled) {
+          handleTailInsertionWithTail(tailLabeled);
+        } else {
+          handleTailInsertion();
+        }
         handleOperationUsage('tailInsert');
         break;
+      }
       default:
         break;
     }
@@ -1205,6 +1320,170 @@ function CompetitiveMode(){
 
       setConnections((prev) => [...prev, ...newConnections]);
     }
+
+    setAddress("");
+    setValue("");
+  };
+
+  // Auto-insertion handlers for Head/Tail nodes
+  const handleHeadInsertionWithHeadTail = (headTailNode) => {
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
+    
+    const newHead = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    setCircles((prev) => [...prev, newHead]);
+
+    // Connect new head to the Head/Tail node (replace head)
+    setConnections((prev) => [...prev, {
+      id: Date.now() + Math.random(),
+      from: newHead.id,
+      to: headTailNode.id,
+    }]);
+
+    setAddress("");
+    setValue("");
+  };
+
+  const handleTailInsertionWithHeadTail = (headTailNode) => {
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
+    
+    const newTail = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    setCircles((prev) => [...prev, newTail]);
+
+    // Connect Head/Tail node to new tail (insert at tail)
+    setConnections((prev) => [...prev, {
+      id: Date.now() + Math.random(),
+      from: headTailNode.id,
+      to: newTail.id,
+    }]);
+
+    setAddress("");
+    setValue("");
+  };
+
+  const handleSpecificInsertionWithHeadTail = (headTailNode, index) => {
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
+    
+    const newNode = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    setCircles((prev) => [...prev, newNode]);
+
+    // For index 1 with Head/Tail node, insert as head (new node -> Head/Tail)
+    if (index === 1) {
+      setConnections((prev) => [...prev, {
+        id: Date.now() + Math.random(),
+        from: newNode.id,
+        to: headTailNode.id,
+      }]);
+    }
+
+    setAddress("");
+    setValue("");
+  };
+
+  // Additional auto-insertion handlers for Head and Tail labeled circles
+  const handleHeadInsertionWithHead = (headNode) => {
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
+    
+    const newHead = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    setCircles((prev) => [...prev, newHead]);
+
+    // Connect new node as head (new node -> existing head)
+    setConnections((prev) => [...prev, {
+      id: Date.now() + Math.random(),
+      from: newHead.id,
+      to: headNode.id,
+    }]);
+
+    setAddress("");
+    setValue("");
+  };
+
+  const handleTailInsertionWithTail = (tailNode) => {
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
+    
+    const newTail = {
+      id: Date.now(),
+      address: address.trim(),
+      value: value.trim(),
+      x: window.innerWidth - 10,
+      y: window.innerHeight - 55,
+      velocityX: -8 - Math.random() * 5,
+      velocityY: -5 - Math.random() * 3,
+    };
+
+    setCircles((prev) => [...prev, newTail]);
+
+    // Connect existing tail to new tail (existing tail -> new tail)
+    setConnections((prev) => [...prev, {
+      id: Date.now() + Math.random(),
+      from: tailNode.id,
+      to: newTail.id,
+    }]);
 
     setAddress("");
     setValue("");
@@ -1611,7 +1890,7 @@ function CompetitiveMode(){
         // onError={(e) => console.error("Video error:", e)}
         // onLoadedData={() => console.log("Video loaded successfully")}
       >
-        <source src="./video/compe_bg.mp4" type="video/mp4" />
+        <source src="./video/compe_bg1.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
@@ -2220,9 +2499,9 @@ function CompetitiveMode(){
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} specific-btn ${specificInsertUses <= 0 ? styles.buttonDisabled : ''}`}
+                className={`${styles.insertOptionBtn} specific-btn ${(specificInsertUses <= 0 || connections.length === 0) ? styles.buttonDisabled : ''}`}
                 onClick={() => handleInsertOption("specific")}
-                disabled={specificInsertUses <= 0}
+                disabled={specificInsertUses <= 0 || connections.length === 0}
               >
                 <div className={styles.optionTitle}>
                   {specificInsertUses > 0 
