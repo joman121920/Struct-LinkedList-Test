@@ -47,6 +47,10 @@ function CompetitiveMode(){
   
   const [insertIndex, setInsertIndex] = useState("");
   
+  // Input validation error states
+  const [addressError, setAddressError] = useState(false);
+  const [valueError, setValueError] = useState(false);
+  
   // Use refs to track reset counters to avoid state management issues
   const resetCountersRef = useRef({
     launch: 0,
@@ -447,6 +451,37 @@ function CompetitiveMode(){
       return isConnected && hasIncoming && !hasOutgoing;
     });
   }, [circles, connections]);
+
+  // Helper function to validate inputs and highlight errors
+  const validateInputs = useCallback(() => {
+    const isAddressEmpty = !address.trim();
+    const isValueEmpty = !value.trim();
+    
+    // If there are errors, force animation restart by clearing and re-applying error states
+    if (isAddressEmpty || isValueEmpty) {
+      // Clear errors first to reset animation
+      setAddressError(false);
+      setValueError(false);
+      
+      // Use setTimeout to re-apply errors after a brief moment, triggering new animation
+      setTimeout(() => {
+        setAddressError(isAddressEmpty);
+        setValueError(isValueEmpty);
+      }, 10);
+    } else {
+      // No errors, just clear them normally
+      setAddressError(false);
+      setValueError(false);
+    }
+    
+    return !isAddressEmpty && !isValueEmpty;
+  }, [address, value]);
+
+  // Helper function to clear input errors
+  const clearInputErrors = useCallback(() => {
+    setAddressError(false);
+    setValueError(false);
+  }, []);
 
   // Helper function to get the complete chain order from head to tail
   const getChainOrder = useCallback(
@@ -894,13 +929,22 @@ function CompetitiveMode(){
     } catch {
       // Ignore audio errors
     }
-    if (!address.trim() || !value.trim()) {
-      alert("Please enter both address and value before enqueueing");
+    
+    // Validate inputs and highlight errors
+    if (!validateInputs()) {
       return;
     }
+    
     const addressExists = circles.some((circle) => circle.address === address.trim());
     if (addressExists) {
       setShowDuplicateModal(true);
+      try {
+        const audio = new window.Audio('/sounds/dup_error.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(() => {/* Ignore play errors */});
+      } catch {
+        // Ignore audio errors
+      }
       closeQueueModal();
       return;
     }
@@ -1138,8 +1182,32 @@ function CompetitiveMode(){
   };
 
   const handleInsertOption = (option) => {
-    if (!address.trim() || !value.trim()) {
-      alert("Please enter both address and value before inserting");
+    // Close the insert modal first
+    closeInsertModal();
+    
+    // Prevent insert operations when no circles are available
+    if (circles.length === 0) {
+      // Play error sound
+      try {
+        const audio = new window.Audio('/sounds/error.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(() => {/* Ignore play errors */});
+      } catch {
+        // Ignore audio errors
+      }
+      return;
+    }
+
+    // Validate inputs and highlight errors
+    if (!validateInputs()) {
+      // Play error sound for validation failure
+      try {
+        const audio = new window.Audio('/sounds/error.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(() => {/* Ignore play errors */});
+      } catch {
+        // Ignore audio errors
+      }
       return;
     }
 
@@ -1148,7 +1216,14 @@ function CompetitiveMode(){
     );
     if (addressExists) {
       setShowDuplicateModal(true);
-      closeInsertModal();
+      // Play error sound for duplicate address
+      try {
+        const audio = new window.Audio('/sounds/dup_error.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(() => {/* Ignore play errors */});
+      } catch {
+        // Ignore audio errors
+      }
       return;
     }
 
@@ -1223,12 +1298,41 @@ function CompetitiveMode(){
 
   // --- QUEUE OPERATIONS ---
   const handleQueueOption = (option) => {
+    // Close the queue modal first
+    closeQueueModal();
+    
+    // Prevent all queue operations when no circles are available
+    if (circles.length === 0) {
+      // Play error sound
+      try {
+        const audio = new window.Audio('/sounds/error.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(() => {/* Ignore play errors */});
+      } catch {
+        // Ignore audio errors
+      }
+      return;
+    }
+
     switch (option) {
       case "peek":
         // PEEK doesn't use up any operations and has no usage limits
         handlePeek();
         break;
       case "enqueue":
+        // Validate inputs for enqueue
+        if (!validateInputs()) {
+          // Play error sound for validation failure
+          try {
+            const audio = new window.Audio('/sounds/error.mp3');
+            audio.currentTime = 0;
+            audio.play().catch(() => {/* Ignore play errors */});
+          } catch {
+            // Ignore audio errors
+          }
+          return;
+        }
+        
         if (enqueueUses <= 0) {
           alert("ENQUEUE operations exhausted! Use other operations to reset.");
           return;
@@ -1826,13 +1930,6 @@ function CompetitiveMode(){
 
   const launchCircle = () => {
     // Prevent launching when game is not active or is over
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
     if (!isGameActive || gameOver) {
       return;
     }
@@ -1842,14 +1939,42 @@ function CompetitiveMode(){
       return;
     }
     
-    if (!address.trim() || !value.trim()) return;
+    // Validate inputs and highlight errors
+    if (!validateInputs()) {
+      // Play error sound for validation failure
+      try {
+        const audio = new window.Audio('/sounds/error.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(() => {/* Ignore play errors */});
+      } catch {
+        // Ignore audio errors
+      }
+      return;
+    }
 
     const addressExists = circles.some(
       (circle) => circle.address === address.trim()
     );
     if (addressExists) {
       setShowDuplicateModal(true);
+      // Play error sound for duplicate address
+      try {
+        const audio = new window.Audio('/sounds/dup_error.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(() => {/* Ignore play errors */});
+      } catch {
+        // Ignore audio errors
+      }
       return;
+    }
+
+    // Play success sound when launching successfully
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
     }
 
     const newCircle = {
@@ -1966,16 +2091,22 @@ function CompetitiveMode(){
           type="text"
           placeholder="ENTER ADDRESS"
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className={styles.inputField}
+          onChange={(e) => {
+            setAddress(e.target.value);
+            if (addressError) clearInputErrors();
+          }}
+          className={`${styles.inputField} ${addressError ? styles.inputFieldInputError : ''}`}
           disabled={!isGameActive || gameOver}
         />
         <input
           type="text"
           placeholder="ENTER VALUE"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className={styles.inputField}
+          onChange={(e) => {
+            setValue(e.target.value);
+            if (valueError) clearInputErrors();
+          }}
+          className={`${styles.inputField} ${valueError ? styles.inputFieldInputError : ''}`}
           disabled={!isGameActive || gameOver}
         />
         <div className={styles.buttonContainer}>
@@ -2485,9 +2616,9 @@ function CompetitiveMode(){
 
             <div className={styles.insertOptions}>
               <button
-                className={`${styles.insertOptionBtn} head-btn ${headInsertUses <= 0 ? styles.buttonDisabled : ''}`}
+                className={`${styles.insertOptionBtn} head-btn ${(headInsertUses <= 0 || circles.length === 0) ? styles.buttonDisabled : ''}`}
                 onClick={() => handleInsertOption("head")}
-                disabled={headInsertUses <= 0}
+                disabled={headInsertUses <= 0 || circles.length === 0}
               >
                 <div className={styles.optionTitle}>
                   {headInsertUses > 0 
@@ -2515,9 +2646,9 @@ function CompetitiveMode(){
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} tail-btn ${tailInsertUses <= 0 ? styles.buttonDisabled : ''}`}
+                className={`${styles.insertOptionBtn} tail-btn ${(tailInsertUses <= 0 || circles.length === 0) ? styles.buttonDisabled : ''}`}
                 onClick={() => handleInsertOption("tail")}
-                disabled={tailInsertUses <= 0}
+                disabled={tailInsertUses <= 0 || circles.length === 0}
               >
                 <div className={styles.optionTitle}>
                   {tailInsertUses > 0 
@@ -2547,18 +2678,18 @@ function CompetitiveMode(){
 
             <div className={styles.insertOptions}>
               <button
-                className={`${styles.insertOptionBtn} head-btn ${(isPeekDisabled) ? styles.disabledBtn : ''}`}
+                className={`${styles.insertOptionBtn} head-btn ${(isPeekDisabled || circles.length === 0) ? styles.disabledBtn : ''}`}
                 onClick={() => handleQueueOption("peek")}
-                disabled={isPeekDisabled}
+                disabled={isPeekDisabled || circles.length === 0}
               >
                 <div className={styles.optionTitle}>PEEK</div>
                 <div className={styles.optionSubtitle}>View Front/Head</div>
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} specific-btn ${(!address.trim() || !value.trim() || enqueueUses <= 0) ? styles.disabledBtn : ''}`}
+                className={`${styles.insertOptionBtn} specific-btn ${(!address.trim() || !value.trim() || enqueueUses <= 0 || circles.length === 0) ? styles.disabledBtn : ''}`}
                 onClick={() => handleQueueOption("enqueue")}
-                disabled={!address.trim() || !value.trim() || enqueueUses <= 0}
+                disabled={!address.trim() || !value.trim() || enqueueUses <= 0 || circles.length === 0}
               >
                 <div className={styles.optionTitle}>
                   {enqueueUses > 0 
@@ -2572,9 +2703,9 @@ function CompetitiveMode(){
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} tail-btn ${(isDequeueDisabled || dequeueUses <= 0) ? styles.disabledBtn : ''}`}
+                className={`${styles.insertOptionBtn} tail-btn ${(isDequeueDisabled || dequeueUses <= 0 || circles.length === 0) ? styles.disabledBtn : ''}`}
                 onClick={() => handleQueueOption("dequeue")}
-                disabled={isDequeueDisabled || dequeueUses <= 0}
+                disabled={isDequeueDisabled || dequeueUses <= 0 || circles.length === 0}
               >
                 <div className={styles.optionTitle}>
                   {dequeueUses > 0 
