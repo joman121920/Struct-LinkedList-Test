@@ -1296,86 +1296,12 @@
 }
 
 /* Highlighted circle styles for PEEK operation */
-.highlightedCircle {
-  box-shadow: 0 0 20px #ffff00, 0 0 40px #ffff00, 0 0 60px #ffff00;
-  animation: highlight-pulse 1.5s ease-in-out;
-}
-
-@keyframes highlight-pulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 20px #ffff00, 0 0 40px #ffff00, 0 0 60px #ffff00;
-  }
-  50% {
-    transform: scale(1.1);
-    box-shadow: 0 0 25px #ffff00, 0 0 50px #ffff00, 0 0 75px #ffff00;
-  }
+.highlightedCircle{
+  background-color: #e8a702;
 }
 
 /* Explosion particle styles */
-.explosionParticle {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  pointer-events: none;
-  z-index: 15;
-}
 
-.explosionParticle::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 10px;
-  height: 10px;
-  background: var(--explosion-color, #ff6b6b);
-  border-radius: 50%;
-  animation: explode 2.5s ease-out forwards;
-}
-
-@keyframes explode {
-  0% {
-    width: 10px;
-    height: 10px;
-    opacity: 1;
-    box-shadow: 
-      0 0 0 0 var(--explosion-color, #ff6b6b),
-      0 0 0 0 var(--explosion-color, #ff6b6b),
-      0 0 0 0 var(--explosion-color, #ff6b6b),
-      0 0 0 0 var(--explosion-color, #ff6b6b);
-  }
-  25% {
-    width: 40px;
-    height: 40px;
-    opacity: 0.8;
-    box-shadow: 
-      20px 0 10px -5px var(--explosion-color, #ff6b6b),
-      -20px 0 10px -5px var(--explosion-color, #ff6b6b),
-      0 20px 10px -5px var(--explosion-color, #ff6b6b),
-      0 -20px 10px -5px var(--explosion-color, #ff6b6b);
-  }
-  50% {
-    width: 60px;
-    height: 60px;
-    opacity: 0.6;
-    box-shadow: 
-      40px 0 15px -10px var(--explosion-color, #ff6b6b),
-      -40px 0 15px -10px var(--explosion-color, #ff6b6b),
-      0 40px 15px -10px var(--explosion-color, #ff6b6b),
-      0 -40px 15px -10px var(--explosion-color, #ff6b6b);
-  }
-  100% {
-    width: 80px;
-    height: 80px;
-    opacity: 0;
-    box-shadow: 
-      60px 0 20px -15px transparent,
-      -60px 0 20px -15px transparent,
-      0 60px 20px -15px transparent,
-      0 -60px 20px -15px transparent;
-  }
-}
 
 /* Timer and Progress Styles */
 .timer {

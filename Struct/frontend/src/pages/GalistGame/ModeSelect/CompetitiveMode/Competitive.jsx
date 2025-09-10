@@ -5,6 +5,8 @@ import { ExerciseManager } from "./CompetitiveExercise";
 import { collisionDetection } from "../../CollisionDetection";
 import PortalComponent from "../../PortalComponent";
 import CompetitiveInstruction from "./CompetitiveInstruction";
+import PortalParticles from "../../Particles.jsx";
+import ExplodeParticles from "../../ExplodeParticles";
 import LoadingScreen from "../../LoadingScreen/LoadingScreen";
 
 function CompetitiveMode(){
@@ -23,11 +25,13 @@ function CompetitiveMode(){
   const [value, setValue] = useState("");
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   
+  // Particles
 
   const [showInsertButton, setShowInsertButton] = useState(false);
   const [showInsertModal, setShowInsertModal] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [showIndexModal, setShowIndexModal] = useState(false);
+  const [isPortalOpen, setIsPortalOpen] = useState(false);
   
   // Game mechanics: Launch button and operation limits
   const [launchButtonUses, setLaunchButtonUses] = useState(3);
@@ -63,6 +67,7 @@ function CompetitiveMode(){
   const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
   const explosionIdRef = useRef(0);
+  const portalAudioRef = useRef(null);
   const [suckingCircles, setSuckingCircles] = useState([]);
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
@@ -117,6 +122,46 @@ function CompetitiveMode(){
       // Ignore audio errors
     }
   }, [isGameActive])
+
+  // Portal audio effect
+  useEffect(() => {
+    if (isPortalOpen) {
+      if (!portalAudioRef.current) {
+        try {
+          const audio = new window.Audio('/sounds/portal.mp3');
+          audio.loop = true;
+          audio.volume = 1;
+          portalAudioRef.current = audio;
+          // Play with promise catch for browser compatibility
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {});
+          }
+        } catch {
+          // Ignore audio errors
+        }
+      } else {
+        // If already created, just play
+        portalAudioRef.current.currentTime = 0;
+        portalAudioRef.current.play().catch(() => {});
+      }
+    } else {
+      if (portalAudioRef.current) {
+        portalAudioRef.current.pause();
+        portalAudioRef.current.currentTime = 0;
+        portalAudioRef.current = null;
+      }
+    }
+    // Clean up on unmount
+    return () => {
+      if (portalAudioRef.current) {
+        portalAudioRef.current.pause();
+        portalAudioRef.current.currentTime = 0;
+        portalAudioRef.current = null;
+      }
+    };
+  }, [isPortalOpen]);
+
   // Format time display (MM:SS)
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -138,7 +183,6 @@ function CompetitiveMode(){
     isVisible: false,
     canvasWidth: 45,
   });
-  const [isPortalOpen, setIsPortalOpen] = useState(false);
 
   // Wrap setPortalInfo in useCallback to prevent unnecessary re-renders
   const handlePortalStateChange = useCallback((newPortalInfo) => {
@@ -933,6 +977,13 @@ function CompetitiveMode(){
   };
 
   const handleSpecificInsertion = (index) => {
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
     const targetIndex = parseInt(index);
     if (isNaN(targetIndex) || targetIndex < 0) {
       alert("Please enter a valid index.");
@@ -1088,6 +1139,13 @@ function CompetitiveMode(){
   };
 
   const handleHeadInsertion = () => {
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
     const newHead = {
       id: Date.now(),
       address: address.trim(),
@@ -1117,6 +1175,13 @@ function CompetitiveMode(){
   };
 
   const handleTailInsertion = () => {
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
     const newTail = {
       id: Date.now(),
       address: address.trim(),
@@ -1482,6 +1547,13 @@ function CompetitiveMode(){
 
   const launchCircle = () => {
     // Prevent launching when game is not active or is over
+    try {
+      const audio = new window.Audio('/sounds/explode.mp3');
+      audio.currentTime = 0;
+      audio.play().catch(() => {/* Ignore play errors */});
+    } catch {
+      // Ignore audio errors
+    }
     if (!isGameActive || gameOver) {
       return;
     }
@@ -1598,6 +1670,12 @@ function CompetitiveMode(){
       <PortalComponent
         onPortalStateChange={handlePortalStateChange}
         isOpen={isPortalOpen}
+      />
+      <PortalParticles
+        portalInfo={portalInfo}
+      />
+      <ExplodeParticles
+        explosions={explosions}
       />
       <div
         className={styles.rightSquare}
