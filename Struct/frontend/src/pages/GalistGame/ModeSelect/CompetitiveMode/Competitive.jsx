@@ -1703,7 +1703,21 @@ function CompetitiveMode(){
         // Logic for head/tail labeling
         const isHead = isConnected && hasOutgoing && !hasIncoming && possibleHeads.length > 0 && possibleHeads[0].id === circle.id;
         const isTail = isConnected && hasIncoming && !hasOutgoing;
-        const isHeadTail = isSingleCircle || isFirstUnconnected;
+        
+        // Head/Tail label should only appear if:
+        // 1. There's exactly one circle in total, OR
+        // 2. This is an unconnected circle AND there are no existing head-tail connections
+        const hasProperHeadTailConnection = circles.some(c => {
+          const out = connections.some(conn => conn.from === c.id);
+          const inc = connections.some(conn => conn.to === c.id);
+          return out && !inc; // There's at least one proper head
+        }) && circles.some(c => {
+          const out = connections.some(conn => conn.from === c.id);
+          const inc = connections.some(conn => conn.to === c.id);
+          return !out && inc; // There's at least one proper tail
+        });
+        
+        const isHeadTail = isSingleCircle || (isFirstUnconnected && !hasProperHeadTailConnection);
 
         return (
           
