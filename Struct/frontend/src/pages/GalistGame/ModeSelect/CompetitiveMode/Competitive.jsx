@@ -72,24 +72,6 @@ function CompetitiveMode(){
   const [explosions, setExplosions] = useState([]);
   const [highlightedCircleId, setHighlightedCircleId] = useState(null);
 
-    // Exercise progress indicator logic - now shows completed exercises instead of current/total
-  // const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
-  // const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
-  // const totalExercises = EXERCISE_KEYS.length;
-
-  // Removed initial launch logic and related refs
-
-  // useEffect(() => {
-  //   hasLaunchedRef.current = false;
-  //   launchInitialCircles();
-  //   return () => {
-  //     if (launchTimeoutRef.current) {
-  //       clearTimeout(launchTimeoutRef.current);
-  //       launchTimeoutRef.current = null;
-  //     }
-  //   };
-  // }, [exerciseKey, launchInitialCircles]);
-
   // Timer effect - countdown from 3 minutes
   useEffect(() => {
     let timer;
@@ -111,6 +93,30 @@ function CompetitiveMode(){
     };
   }, [isGameActive, timeLeft, gameOver]);
 
+  useEffect(() => {
+    if(!isGameActive) return;
+
+    let bgAudio;
+    const playMusic = () => {
+      if(bgAudio){
+        bgAudio.play().catch(() => {});
+      }
+      window.removeEventListener('click', playMusic);
+    };
+    try {
+      bgAudio = new window.Audio('/sounds/competitive_bgmusic.mp3');
+      bgAudio.loop = true;
+      bgAudio.volume = 0.3;
+      const playPromise = bgAudio.play();
+      if(playPromise !== undefined){
+        playPromise.catch(() => {
+          window.addEventListener('click', playMusic);
+        });
+      }
+    } catch{
+      // Ignore audio errors
+    }
+  }, [isGameActive])
   // Format time display (MM:SS)
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -156,7 +162,6 @@ function CompetitiveMode(){
 
     setExplosions(prev => [...prev, explosion]);
 
-    // Clean up explosion after animation
     setTimeout(() => {
       setExplosions(prev => prev.filter(exp => exp.id !== explosion.id));
     }, 2500);
@@ -167,33 +172,6 @@ function CompetitiveMode(){
   const [currentExercise, setCurrentExercise] = useState(null);
   const [showValidationResult, setShowValidationResult] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
-
-  // Game menu actions
-  // const startGame = useCallback(() => {
-  //   const next = { screen: "mode", mode: null };
-  //   window.history.pushState(next, "");
-  //   // Clear any previous game state so this session is fresh
-  //   setCircles([]);
-  //   setConnections([]);
-  //   setSuckingCircles([]);
-  //   setSuckedCircles([]);
-  //   setCurrentEntryOrder([]);
-  //   setOriginalSubmission(null);
-  //   setShowValidationResult(false);
-  //   setValidationResult(null);
-  //   setIsPortalOpen(false);
-  //   setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-  //   setAddress("");
-  //   setValue("");
-  //   setShowDuplicateModal(false);
-  //   setShowInsertButton(false);
-  //   setShowInsertModal(false);
-  //   setShowIndexModal(false);
-  //   setInsertIndex("");
-  //   setSelectedCircle(null);
-  //   setConnectToAddress("");
-  //   setShowInstructionPopup(false);
-  // }, []);
 
   // Initialize history state and handle browser back/forward
   useEffect(() => {
@@ -223,8 +201,6 @@ function CompetitiveMode(){
         setAddress("");
         setValue("");
         setShowDuplicateModal(false);
-        
-       
         setSelectedCircle(null);
         setConnectToAddress("");
         setShowInstructionPopup(false);
@@ -1563,7 +1539,7 @@ function CompetitiveMode(){
         // onError={(e) => console.error("Video error:", e)}
         // onLoadedData={() => console.log("Video loaded successfully")}
       >
-        <source src="./video/bubble_bg.mp4" type="video/mp4" />
+        <source src="./video/compe_bg.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
