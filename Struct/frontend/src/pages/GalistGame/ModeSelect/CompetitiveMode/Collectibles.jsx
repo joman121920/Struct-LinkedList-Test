@@ -50,7 +50,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
           ...generateRandomPosition(),
           velocityX: (Math.random() - 0.5) * 2, // Random floating speed
           velocityY: (Math.random() - 0.5) * 2,
-          lifespan: 18000, // 15 seconds
+          lifespan: 25000, // 15 seconds
           createdAt: Date.now(),
         };
 
@@ -60,16 +60,16 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
 
     // Independent spawn intervals for timer and bomb
     const timerSpawnInterval = setInterval(() => {
-      if (Math.random() < 0.2) { // 20% chance to spawn timer
+      if (Math.random() < 0.1) { // 10% chance to spawn timer
         spawnTimer();
       }
-    }, 4000); // Check every 4 seconds for timer
+    }, 7000); // Check every 7 seconds for timer
 
     const bombSpawnInterval = setInterval(() => {
-      if (Math.random() < 0.8) { // 80% chance to spawn bomb
+      if (Math.random() < 0.85) { // 85% chance to spawn bomb
         spawnBomb();
       }
-    }, 4000); // Check every 4 seconds for bomb
+    }, 7000); // Check every 7 seconds for bomb
 
     return () => {
       clearInterval(timerSpawnInterval);

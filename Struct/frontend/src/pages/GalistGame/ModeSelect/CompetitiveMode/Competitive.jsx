@@ -14,9 +14,9 @@ function CompetitiveMode(){
   // Loading and initialization states
   const [isLoading, setIsLoading] = useState(true);
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
-  
-  // Timer state - 5 minutes (300 seconds)
-  const [timeLeft, setTimeLeft] = useState(300);
+
+  // Timer state - 4 minutes (240 seconds)
+  const [timeLeft, setTimeLeft] = useState(240);
   const [isGameActive, setIsGameActive] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [completedExercises, setCompletedExercises] = useState(0);
@@ -178,7 +178,7 @@ function CompetitiveMode(){
   const startGameTimer = useCallback(() => {
     setIsGameActive(true);
     setGameOver(false);
-    setTimeLeft(300); // Reset to 3 minutes
+    setTimeLeft(240); // Reset to 4 minutes
     setCompletedExercises(0);
   }, []);
 
