@@ -26,6 +26,7 @@ function CompetitiveMode(){
   const [address, setAddress] = useState("");
   const [value, setValue] = useState("");
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   
   // Particles
 
@@ -75,6 +76,7 @@ function CompetitiveMode(){
   const mouseHistoryRef = useRef([]);
   const explosionIdRef = useRef(0);
   const portalAudioRef = useRef(null);
+  const bgAudioRef = useRef(null);
   const [suckingCircles, setSuckingCircles] = useState([]);
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
@@ -92,6 +94,7 @@ function CompetitiveMode(){
     boostEnergyWithPeek,
     pauseEnergyDecay,
     startEnergyDecay,
+    resetEnergySystem,
     setEnergy,
   } = useDimming();
 
@@ -119,20 +122,37 @@ function CompetitiveMode(){
   }, [isGameActive, timeLeft, gameOver, pauseEnergyDecay]);
 
   useEffect(() => {
-    if(!isGameActive) return;
+    if(!isGameActive) {
+      // Stop background music when game is not active
+      if (bgAudioRef.current) {
+        bgAudioRef.current.pause();
+        bgAudioRef.current.currentTime = 0;
+        bgAudioRef.current = null;
+      }
+      return;
+    }
 
-    let bgAudio;
+    // Start background music when game becomes active
     const playMusic = () => {
-      if(bgAudio){
-        bgAudio.play().catch(() => {});
+      if(bgAudioRef.current){
+        bgAudioRef.current.play().catch(() => {});
       }
       window.removeEventListener('click', playMusic);
     };
+    
     try {
-      bgAudio = new window.Audio('/sounds/competitive_bgmusic.mp3');
-      bgAudio.loop = true;
-      bgAudio.volume = 0.3;
-      const playPromise = bgAudio.play();
+      // Stop any existing audio first
+      if (bgAudioRef.current) {
+        bgAudioRef.current.pause();
+        bgAudioRef.current.currentTime = 0;
+      }
+      
+      // Create new audio instance
+      bgAudioRef.current = new window.Audio('/sounds/competitive_bgmusic.mp3');
+      bgAudioRef.current.loop = true;
+      bgAudioRef.current.volume = 0.3;
+      
+      const playPromise = bgAudioRef.current.play();
       if(playPromise !== undefined){
         playPromise.catch(() => {
           window.addEventListener('click', playMusic);
@@ -141,6 +161,15 @@ function CompetitiveMode(){
     } catch{
       // Ignore audio errors
     }
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('click', playMusic);
+      if (bgAudioRef.current) {
+        bgAudioRef.current.pause();
+        bgAudioRef.current.currentTime = 0;
+      }
+    };
   }, [isGameActive])
 
   // Portal audio effect
@@ -388,7 +417,96 @@ function CompetitiveMode(){
     setShowInstructionPopup(true); // Open instruction popup after loading
   }, []);
 
-  const startExercise = useCallback(() => {
+  // Comprehensive game reset function
+  const resetGame = useCallback(() => {
+    // Reset all game states
+    setGameOver(false);
+    setTimeLeft(240); // Reset to 4 minutes (same as initial timer)
+    setCompletedExercises(0);
+    setIsGameActive(false);
+    
+    // Reset circles and connections
+    setCircles([]);
+    setConnections([]);
+    setSelectedCircle(null);
+    setConnectToAddress("");
+    
+    // Reset input fields
+    setAddress("");
+    setValue("");
+    setInsertIndex("");
+    
+    // Reset modal states
+    setShowInsertModal(false);
+    setShowQueueModal(false);
+    setShowIndexModal(false);
+    setShowDuplicateModal(false);
+    setShowWarningModal(false);
+    setShowValidationResult(false);
+    setValidationResult(null);
+    
+    // Reset portal state
+    setIsPortalOpen(false);
+    setPortalInfo(prev => ({ ...prev, isVisible: false }));
+    
+    // Reset operation uses
+    setLaunchButtonUses(5);
+    setHeadInsertUses(2);
+    setTailInsertUses(2);
+    setSpecificInsertUses(3);
+    setEnqueueUses(2);
+    setDequeueUses(5);
+    
+    // Reset counters
+    resetCountersRef.current = {
+      launch: 0,
+      headInsert: 0,
+      tailInsert: 0,
+      specificInsert: 0,
+      enqueue: 0,
+      dequeue: 0
+    };
+    
+    // Reset physics and visual states
+    setDraggedCircle(null);
+    setDragOffset({ x: 0, y: 0 });
+    setSuckingCircles([]);
+    setSuckedCircles([]);
+    setHighlightedCircleId(null);
+    setExplosions([]);
+    
+    // Reset input errors
+    setAddressError(false);
+    setValueError(false);
+    
+    // Reset hover states
+    setShowInsertButton(false);
+    if (hoverTimer) {
+      clearTimeout(hoverTimer);
+      setHoverTimer(null);
+    }
+    
+    // Reset dimming system
+    setStartDimming(false);
+    
+    // Reset exercise and portal states
+    exerciseManagerRef.current.reset();
+    
+    // Clear any running timers or intervals
+    mouseHistoryRef.current = [];
+    
+    // Load a new exercise
+    loadExercise();
+  }, [loadExercise, hoverTimer, setStartDimming]);
+
+  const startExercise = useCallback((isRestart = false) => {
+    if (isRestart) {
+      // Show warning modal instead of directly restarting
+      setShowWarningModal(true);
+      return;
+    }
+    
+    // Normal start game flow
     setShowInstructionPopup(false);
     if (!currentExercise) {
       loadExercise();
@@ -398,6 +516,33 @@ function CompetitiveMode(){
     // Start the dimming effect
     setStartDimming(true);
   }, [loadExercise, currentExercise, startGameTimer, setStartDimming]);
+
+  // Function to just close the instruction popup without affecting the game
+  const closeInstructionPopup = useCallback(() => {
+    setShowInstructionPopup(false);
+  }, []);
+
+  // Function to handle confirmed restart
+  const handleConfirmedRestart = useCallback(() => {
+    setShowWarningModal(false);
+    setShowInstructionPopup(false);
+    
+    // Reset everything first, then start the game
+    resetGame();
+    
+    // After reset, start the game timer and dimming effect
+    setTimeout(() => {
+      startGameTimer();
+      setStartDimming(true);
+      // Properly reset the energy system with alarm cleanup
+      resetEnergySystem();
+    }, 100); // Small delay to ensure reset is complete
+  }, [resetGame, startGameTimer, setStartDimming, resetEnergySystem]);
+
+  // Function to close warning modal
+  const closeWarningModal = useCallback(() => {
+    setShowWarningModal(false);
+  }, []);
 
   // Initialize exercise on component mount (only when loading is complete)
   useEffect(() => {
@@ -2132,6 +2277,8 @@ function CompetitiveMode(){
       <CompetitiveInstruction 
         showInstructionPopup={showInstructionPopup}
         startExercise={startExercise}
+        closeInstructionPopup={closeInstructionPopup}
+        isGameActive={isGameActive}
       />
      
       <PortalComponent
@@ -2567,14 +2714,7 @@ function CompetitiveMode(){
             </div>
             <div className={styles.gameOverButtons}>
               <button 
-                onClick={() => {
-                  setGameOver(false);
-                  setTimeLeft(180);
-                  setCompletedExercises(0);
-                  setIsGameActive(false);
-                  exerciseManagerRef.current.reset();
-                  loadExercise();
-                }}
+                onClick={handleConfirmedRestart}
                 className={styles.playAgainButton}
               >
                 PLAY AGAIN
@@ -2673,6 +2813,43 @@ function CompetitiveMode(){
             <div className={styles.errorTitle}>Duplicate Address</div>
             <div className={styles.errorMessageText}>
               Nodes cannot have the same address
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWarningModal && (
+        <div className={styles.errorModalOverlay} onClick={closeWarningModal}>
+          <div
+            className={styles.errorModalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className={styles.errorModalCloseBtn}
+              onClick={closeWarningModal}
+            >
+              ×
+            </button>
+            <div className={styles.errorIcon}>
+              <span className={styles.exclamation}>⚠</span>
+            </div>
+            <div className={styles.errorTitle}>Restart Game</div>
+            <div className={styles.errorMessageText}>
+              Are you sure you want to restart? All progress will be lost.
+            </div>
+            <div className={styles.validationButtons}>
+              <button
+                onClick={handleConfirmedRestart}
+                className={styles.restartButton}
+              >
+                Yes
+              </button>
+              <button
+                onClick={closeWarningModal}
+                className={styles.cancelButton}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

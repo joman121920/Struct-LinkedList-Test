@@ -1618,3 +1618,37 @@
   margin: 0 0 15px 0;
   font-size: 1.2rem;
 }
+.restartButton{
+  margin-top: 20px;
+  padding: 12px 30px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: normal;
+  background-color: #3a3a3a;
+  color: white;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  width: 250px;
+}
+.restartButton:hover{
+  background-color: #888;
+}
+.cancelButton{
+  margin-top: 20px;
+  padding: 12px 30px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: normal;
+  background-color: #4545458b;
+  color: white;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  width: 250px;
+}
+.cancelButton:hover{
+  background-color: #888;
+}

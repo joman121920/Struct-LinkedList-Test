@@ -3,7 +3,9 @@ import styles from './Instruction.module.css';
 
 const CompetitiveInstruction = ({ 
   showInstructionPopup, 
-  startExercise 
+  startExercise,
+  closeInstructionPopup,
+  isGameActive = false
 }) => {
 
   if (!showInstructionPopup) {
@@ -13,10 +15,12 @@ const CompetitiveInstruction = ({
   return (
     <div className={styles.instructionOverlay}>
       <div className={styles.instructionModal}>
-        {/* Close button */}
-        <button className={styles.closeButton} onClick={startExercise}>
-          ×
-        </button>
+        {/* Close button - only show when game is active */}
+        {isGameActive && (
+          <button className={styles.closeButton} onClick={closeInstructionPopup}>
+            ×
+          </button>
+        )}
 
         {/* Header */}
         <div className={styles.tabHeader}>
@@ -66,8 +70,11 @@ const CompetitiveInstruction = ({
 
         {/* Start button */}
         <div className={styles.buttonContainer}>
-          <button className={styles.startButton} onClick={startExercise}>
-            Start Game
+          <button 
+            className={styles.startButton} 
+            onClick={() => startExercise(isGameActive)}
+          >
+            {isGameActive ? 'RESTART' : 'Start Game'}
           </button>
         </div>
       </div>
@@ -78,6 +85,8 @@ const CompetitiveInstruction = ({
 CompetitiveInstruction.propTypes = {
   showInstructionPopup: PropTypes.bool.isRequired,
   startExercise: PropTypes.func.isRequired,
+  closeInstructionPopup: PropTypes.func.isRequired,
+  isGameActive: PropTypes.bool,
 };
 
 export default CompetitiveInstruction;

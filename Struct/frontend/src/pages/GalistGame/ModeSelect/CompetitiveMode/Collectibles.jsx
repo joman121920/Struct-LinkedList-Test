@@ -177,7 +177,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
       onCollect(30); // Add 30 seconds
       // Play collection sound
       try {
-        const audio = new window.Audio('/sounds/charged.mp3');
+        const audio = new window.Audio('/sounds/clock.wav');
         audio.currentTime = 0;
         audio.play().catch(() => {/* Ignore play errors */});
       } catch {
@@ -187,7 +187,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
       onCollect(-45); // Decrease 45 seconds
       // Play bomb sound
       try {
-        const audio = new window.Audio('/sounds/explode.mp3');
+        const audio = new window.Audio('/sounds/click_bomb.mp3');
         audio.currentTime = 0;
         audio.play().catch(() => {/* Ignore play errors */});
       } catch {
