@@ -8,6 +8,7 @@ import CompetitiveInstruction from "./CompetitiveInstruction";
 import PortalParticles from "../../Particles.jsx";
 import ExplodeParticles from "../../ExplodeParticles";
 import LoadingScreen from "../../LoadingScreen/LoadingScreen";
+import { useDimming } from "../../Dimming/Dimming.jsx";
 import Collectibles from "./Collectibles";
 
 function CompetitiveMode(){
@@ -62,6 +63,7 @@ function CompetitiveMode(){
     dequeue: 0
   });
   
+  
   const [hoverTimer, setHoverTimer] = useState(null);
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
@@ -82,7 +84,18 @@ function CompetitiveMode(){
   const [explosions, setExplosions] = useState([]);
   const [highlightedCircleId, setHighlightedCircleId] = useState(null);
 
-  // Timer effect - countdown from 3 minutes
+  // Dimming system for competitive mode
+  const {
+    screenOpacity,
+    startDimming,
+    setStartDimming,
+    boostEnergyWithPeek,
+    pauseEnergyDecay,
+    startEnergyDecay,
+    setEnergy,
+  } = useDimming();
+
+  // Timer effect - countdown from 4 minutes
   useEffect(() => {
     let timer;
     if (isGameActive && timeLeft > 0 && !gameOver) {
@@ -91,6 +104,8 @@ function CompetitiveMode(){
           if (prevTime <= 1) {
             setGameOver(true);
             setIsGameActive(false);
+            // Pause energy decay when game ends
+            pauseEnergyDecay();
             return 0;
           }
           return prevTime - 1;
@@ -101,7 +116,7 @@ function CompetitiveMode(){
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isGameActive, timeLeft, gameOver]);
+  }, [isGameActive, timeLeft, gameOver, pauseEnergyDecay]);
 
   useEffect(() => {
     if(!isGameActive) return;
@@ -380,7 +395,9 @@ function CompetitiveMode(){
     }
     // Start the competitive timer when user clicks Start
     startGameTimer();
-  }, [loadExercise, currentExercise, startGameTimer]);
+    // Start the dimming effect
+    setStartDimming(true);
+  }, [loadExercise, currentExercise, startGameTimer, setStartDimming]);
 
   // Initialize exercise on component mount (only when loading is complete)
   useEffect(() => {
@@ -400,8 +417,11 @@ function CompetitiveMode(){
   useEffect(() => {
     if (showValidationResult) {
       setIsPortalOpen(false);
+      // Reset energy to 50 and pause decay when validation opens
+      setEnergy(50);
+      pauseEnergyDecay();
     }
-  }, [showValidationResult]);
+  }, [showValidationResult, setEnergy, pauseEnergyDecay]);
 
   // Helper functions to find circles by their displayed labels
   const findHeadTailLabeledCircle = useCallback(() => {
@@ -457,6 +477,14 @@ function CompetitiveMode(){
       return isConnected && hasIncoming && !hasOutgoing;
     });
   }, [circles, connections]);
+
+  // Check if there are head/tail labeled circles that allow ENQUEUE
+  const hasHeadTailLabels = useCallback(() => {
+    const headTailNode = findHeadTailLabeledCircle();
+    const headNode = findHeadLabeledCircle();
+    const tailNode = findTailLabeledCircle();
+    return !!(headTailNode || headNode || tailNode);
+  }, [findHeadTailLabeledCircle, findHeadLabeledCircle, findTailLabeledCircle]);
 
   // Helper function to validate inputs and highlight errors
   const validateInputs = useCallback(() => {
@@ -840,10 +868,10 @@ function CompetitiveMode(){
       setHoverTimer(null);
     }
     
-    // Set a timer to show the buttons after 2 seconds
+    // Set a timer to show the buttons after 0.5 seconds
     const timer = setTimeout(() => {
       setShowInsertButton(true);
-    }, 1000);
+    }, 500);
     setHoverTimer(timer);
   };
 
@@ -920,6 +948,8 @@ function CompetitiveMode(){
         }
       setHighlightedCircleId(head.id);
       setTimeout(() => setHighlightedCircleId(null), 1500);
+      // Boost energy when using PEEK
+      boostEnergyWithPeek();
     } else {
       setHighlightedCircleId(null);
     }
@@ -928,6 +958,8 @@ function CompetitiveMode(){
   // ENQUEUE: Add a new node to the tail/end of the queue
   const handleEnqueue = () => {
     // Play audio effect for enqueue
+    closeQueueModal(); // Close queue modal after clicking enqueue
+
     try {
       const audio = new window.Audio('/sounds/explode.mp3');
       audio.currentTime = 0;
@@ -938,6 +970,13 @@ function CompetitiveMode(){
     
     // Validate inputs and highlight errors
     if (!validateInputs()) {
+       try {
+        const audio = new window.Audio('/sounds/error.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(() => {/* Ignore play errors */});
+      } catch {
+        // Ignore audio errors
+      }
       return;
     }
     
@@ -1879,7 +1918,7 @@ function CompetitiveMode(){
   const handleOperationUsage = useCallback((operationType) => {
     // Update counters for all buttons that are at 0 (except the one being used)
     
-    // Launch button: needs 10 other operations to reset
+    // Launch button: needs 5 other operations to reset
     if (operationType !== 'launch' && launchButtonUses === 0) {
       resetCountersRef.current.launch += 1;
       if (resetCountersRef.current.launch >= 5) {
@@ -2025,6 +2064,24 @@ function CompetitiveMode(){
         Your browser does not support the video tag.
       </video>
 
+      {/* Dimming overlay for energy system */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'black',
+          opacity: 1 - screenOpacity,
+          pointerEvents: 'none',
+          zIndex: 15,
+          transition: 'opacity 0.3s ease',
+        }}
+      />
+
+      
+
       <button
         className={styles.instructionButton}
         onClick={() => setShowInstructionPopup(!showInstructionPopup)}
@@ -2128,7 +2185,7 @@ function CompetitiveMode(){
             >
               {launchButtonUses > 0 
                 ? `LAUNCH (${launchButtonUses})` 
-                : `LAUNCH (${resetCountersRef.current.launch}/10)`
+                : `LAUNCH (${resetCountersRef.current.launch}/5)`
               }
             </button>
             {showInsertButton && (
@@ -2470,6 +2527,11 @@ function CompetitiveMode(){
                   setIsPortalOpen(false);
                   setPortalInfo((prev) => ({ ...prev, isVisible: false }));
                   
+                  // Restart energy decay when validation modal closes
+                  if (startDimming && !gameOver) {
+                    startEnergyDecay();
+                  }
+                  
                   // If score is 100, load next exercise and increment counter
                   if (validationResult && validationResult.score >= 100) {
                     setCompletedExercises(prev => prev + 1);
@@ -2702,9 +2764,9 @@ function CompetitiveMode(){
               </button>
 
               <button
-                className={`${styles.insertOptionBtn} specific-btn ${(!address.trim() || !value.trim() || enqueueUses <= 0 || circles.length === 0) ? styles.disabledBtn : ''}`}
+                className={`${styles.insertOptionBtn} specific-btn ${(enqueueUses <= 0 || (circles.length === 0 && !hasHeadTailLabels())) ? styles.disabledBtn : ''}`}
                 onClick={() => handleQueueOption("enqueue")}
-                disabled={!address.trim() || !value.trim() || enqueueUses <= 0 || circles.length === 0}
+                disabled={enqueueUses <= 0 || (circles.length === 0 && !hasHeadTailLabels())}
               >
                 <div className={styles.optionTitle}>
                   {enqueueUses > 0 

@@ -75,7 +75,6 @@ export class LinkedListExercise {
       if (entryOrder && entryOrder.length > 0) {
         const orderCheck = this.validatePortalEntryOrder(circles, connections, entryOrder);
         if (orderCheck.isValid) {
-          result.score += 20;
           result.message = '🌟 PERFECT! Your linked list is correct AND entered the portal in proper order!';
           result.details = `✅ Correct values: [${this.sequence.join(' → ')}]\n✅ Correct addresses\n✅ Perfect structure\n✅ All connections valid\n🌀 Perfect portal entry order!`;
         } else {

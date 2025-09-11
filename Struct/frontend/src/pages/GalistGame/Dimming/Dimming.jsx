@@ -5,7 +5,7 @@ const MAX_ENERGY = 50;
 const MIN_ENERGY = 0;
 const DIMMING_START_ENERGY = 40; // Start dimming when energy drops to 40
 const ENERGY_DECAY_RATE = 0.5;
-const PEEK_ENERGY_GAIN = 15; // Gain 15 energy when using PEEK
+const PEEK_ENERGY_GAIN = 25; // Gain 25 energy when using PEEK
 const ENERGY_UPDATE_INTERVAL = 300; // Update energy every 300ms (faster decay)
 const LOW_ENERGY_THRESHOLD = 20; // Play warning sound when energy reaches this level
 
@@ -184,6 +184,7 @@ export const useDimming = () => {
     boostEnergyWithPeek,
     pauseEnergyDecay,
     resetEnergySystem,
+    startEnergyDecay,
     
     // For external control
     setEnergy,
