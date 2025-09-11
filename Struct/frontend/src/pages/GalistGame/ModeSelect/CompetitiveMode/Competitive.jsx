@@ -8,14 +8,15 @@ import CompetitiveInstruction from "./CompetitiveInstruction";
 import PortalParticles from "../../Particles.jsx";
 import ExplodeParticles from "../../ExplodeParticles";
 import LoadingScreen from "../../LoadingScreen/LoadingScreen";
+import Collectibles from "./Collectibles";
 
 function CompetitiveMode(){
   // Loading and initialization states
   const [isLoading, setIsLoading] = useState(true);
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
   
-  // Timer state - 3 minutes (180 seconds)
-  const [timeLeft, setTimeLeft] = useState(180);
+  // Timer state - 5 minutes (300 seconds)
+  const [timeLeft, setTimeLeft] = useState(300);
   const [isGameActive, setIsGameActive] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [completedExercises, setCompletedExercises] = useState(0);
@@ -34,16 +35,16 @@ function CompetitiveMode(){
   const [isPortalOpen, setIsPortalOpen] = useState(false);
   
   // Game mechanics: Launch button and operation limits
-  const [launchButtonUses, setLaunchButtonUses] = useState(3);
+  const [launchButtonUses, setLaunchButtonUses] = useState(5);
   
   // Individual insert operation limits
-  const [headInsertUses, setHeadInsertUses] = useState(3);
-  const [tailInsertUses, setTailInsertUses] = useState(3);
+  const [headInsertUses, setHeadInsertUses] = useState(2);
+  const [tailInsertUses, setTailInsertUses] = useState(2);
   const [specificInsertUses, setSpecificInsertUses] = useState(3);
   
   // Individual queue operation limits
-  const [enqueueUses, setEnqueueUses] = useState(3);
-  const [dequeueUses, setDequeueUses] = useState(3);
+  const [enqueueUses, setEnqueueUses] = useState(2);
+  const [dequeueUses, setDequeueUses] = useState(5);
   
   const [insertIndex, setInsertIndex] = useState("");
   
@@ -177,8 +178,13 @@ function CompetitiveMode(){
   const startGameTimer = useCallback(() => {
     setIsGameActive(true);
     setGameOver(false);
-    setTimeLeft(180); // Reset to 3 minutes
+    setTimeLeft(300); // Reset to 3 minutes
     setCompletedExercises(0);
+  }, []);
+
+  // Handle timer collectible collection
+  const handleCollectTimerBonus = useCallback((bonusSeconds) => {
+    setTimeLeft(prevTime => Math.min(prevTime + bonusSeconds, 300)); // Cap at 5 minutes
   }, []);
 
   // Use a unique key on the main container to force React to fully reset state on exerciseKey change
@@ -339,12 +345,12 @@ function CompetitiveMode(){
   // removed hasLaunchedRef, no longer needed
     
     // Reset game mechanics for new exercise
-    setLaunchButtonUses(3);
-    setHeadInsertUses(3);
-    setTailInsertUses(3);
+    setLaunchButtonUses(5);
+    setHeadInsertUses(2);
+    setTailInsertUses(2);
     setSpecificInsertUses(3);
-    setEnqueueUses(3);
-    setDequeueUses(3);
+    setEnqueueUses(2);
+    setDequeueUses(5);
     
     // Reset all individual counters
     resetCountersRef.current = {
@@ -1876,8 +1882,8 @@ function CompetitiveMode(){
     // Launch button: needs 10 other operations to reset
     if (operationType !== 'launch' && launchButtonUses === 0) {
       resetCountersRef.current.launch += 1;
-      if (resetCountersRef.current.launch >= 10) {
-        setLaunchButtonUses(3);
+      if (resetCountersRef.current.launch >= 5) {
+        setLaunchButtonUses(5);
         resetCountersRef.current.launch = 0; // Reset counter
       }
     }
@@ -1886,7 +1892,7 @@ function CompetitiveMode(){
     if (operationType !== 'headInsert' && headInsertUses === 0) {
       resetCountersRef.current.headInsert += 1;
       if (resetCountersRef.current.headInsert >= 5) {
-        setHeadInsertUses(3);
+        setHeadInsertUses(2);
         resetCountersRef.current.headInsert = 0; // Reset counter
       }
     }
@@ -1895,7 +1901,7 @@ function CompetitiveMode(){
     if (operationType !== 'tailInsert' && tailInsertUses === 0) {
       resetCountersRef.current.tailInsert += 1;
       if (resetCountersRef.current.tailInsert >= 5) {
-        setTailInsertUses(3);
+        setTailInsertUses(2);
         resetCountersRef.current.tailInsert = 0; // Reset counter
       }
     }
@@ -1904,7 +1910,7 @@ function CompetitiveMode(){
     if (operationType !== 'specificInsert' && specificInsertUses === 0) {
       resetCountersRef.current.specificInsert += 1;
       if (resetCountersRef.current.specificInsert >= 5) {
-        setSpecificInsertUses(3);
+        setSpecificInsertUses(2);
         resetCountersRef.current.specificInsert = 0; // Reset counter
       }
     }
@@ -1913,7 +1919,7 @@ function CompetitiveMode(){
     if (operationType !== 'enqueue' && enqueueUses === 0) {
       resetCountersRef.current.enqueue += 1;
       if (resetCountersRef.current.enqueue >= 5) {
-        setEnqueueUses(3);
+        setEnqueueUses(2);
         resetCountersRef.current.enqueue = 0; // Reset counter
       }
     }
@@ -1922,7 +1928,7 @@ function CompetitiveMode(){
     if (operationType !== 'dequeue' && dequeueUses === 0) {
       resetCountersRef.current.dequeue += 1;
       if (resetCountersRef.current.dequeue >= 5) {
-        setDequeueUses(3);
+        setDequeueUses(5);
         resetCountersRef.current.dequeue = 0; // Reset counter
       }
     }
@@ -2299,6 +2305,15 @@ function CompetitiveMode(){
           }}
         />
       ))}
+
+      {/* Collectible Timer System */}
+      {isGameActive && !gameOver && (
+        <Collectibles
+          isGameActive={isGameActive}
+          gameOver={gameOver}
+          onCollect={handleCollectTimerBonus}
+        />
+      )}
 
       {showValidationResult && validationResult && (
         <div className={styles.validationOverlay}>

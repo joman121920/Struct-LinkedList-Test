@@ -105,7 +105,7 @@
   height: 100vh;
   object-fit: cover;
   z-index: 0;
-  opacity: 0.4;
+  opacity: 0.2;
   pointer-events: none;
 }
 
@@ -1322,6 +1322,62 @@
 .highlightedCircle{
   background-color: #e8a702;
 }
+
+/* Timer Collectible Styles */
+.timerCollectible {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100000;
+  border: 3px solid #fff;
+  user-select: none;
+}
+
+.timerCollectible:hover {
+  background-color: violet;
+}
+
+.timerIcon {
+  font-size: 30px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.timerBonus {
+  font-size: 10px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  line-height: 1;
+}
+/* Bomb Collectible Styles */
+.bombCollectible {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  background-color: #00000000;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100000;
+  border: 3px solid #fff;
+  user-select: none;
+}
+
+.bombCollectible:hover {
+  background-color: red;
+}
+
+
 
 /* Explosion particle styles */
 
