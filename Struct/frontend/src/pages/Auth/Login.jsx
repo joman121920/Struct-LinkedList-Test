@@ -61,98 +61,100 @@ const Login = () => {
 
   // Rest of the component stays the same
   return (
-    <div className="bg-gradient-to-r from-teal-600 to-teal-500 min-h-screen flex items-center justify-center">
-      <div className="bg-white p-10 rounded-lg shadow-lg w-full max-w-lg relative">
-        {/* Struct Logo */}
-        <div className="absolute top-4 right-4">
-          <img src={logo} alt="Struct Academy Logo" className="h-10" />
-        </div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden text-slate-100 bg-gradient-to-b from-[#070B1A] via-[#0B1030] to-[#0E163D]">
+      {/* Cosmic background layers */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-indigo-600/20 blur-3xl" />
+        <div className="absolute -bottom-60 -right-40 w-[700px] h-[700px] rounded-full bg-fuchsia-600/20 blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06)_0%,rgba(255,255,255,0)_60%)]" />
+      </div>
 
-        {/* Header */}
-        <h2 className="text-4xl font-bold text-teal-500 text-center mb-6">
-          Welcome Back!
-        </h2>
-        <p className="text-gray-600 text-center mb-8">
-          Log in to your account to continue learning.
-        </p>
-
-        {/* Error Message */}
-        {error && (
-          <div
-            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6"
-            role="alert"
-          >
-            <span className="block sm:inline">{error}</span>
-          </div>
-        )}
-
-        {/* Login Form */}
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-teal-500 focus:border-teal-500"
-              placeholder="Enter your email"
-              value={formData.email}
-              onChange={handleChange}
-              required
+      <div className="relative z-10 w-full max-w-lg mx-auto px-6">
+        <div className="bg-white/10 backdrop-blur-md border border-white/10 p-8 rounded-2xl shadow-2xl">
+          {/* Struct Logo */}
+          <div className="flex items-center justify-center mb-2">
+            <img
+              src={logo}
+              alt="Struct Academy Logo"
+              className="h-10 opacity-90"
             />
           </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
+
+          {/* Header */}
+          <h2 className="text-3xl font-extrabold text-center mb-2 bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-fuchsia-300 to-indigo-300">
+            Welcome Back!
+          </h2>
+          <p className="text-slate-300 text-center mb-6">
+            Log in to your account to continue learning.
+          </p>
+
+          {/* Error Message */}
+          {error && (
+            <div
+              className="bg-red-500/10 border border-red-400/30 text-red-200 px-4 py-3 rounded relative mb-6"
+              role="alert"
             >
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-teal-500 focus:border-teal-500"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="flex items-center">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-xs font-medium text-slate-200"
+              >
+                Email Address
+              </label>
               <input
-                type="checkbox"
-                id="rememberMe"
-                className="h-4 w-4 text-teal-500 border-gray-300 rounded"
-                checked={formData.rememberMe}
+                type="email"
+                id="email"
+                className="mt-1 block w-full px-3 py-2 rounded-md bg-white/5 border border-white/10 text-slate-100 placeholder-slate-400 focus:ring-amber-400 focus:border-amber-400 text-sm"
+                placeholder="Enter your email"
+                value={formData.email}
                 onChange={handleChange}
+                required
               />
-              <span className="ml-2 text-sm text-gray-600">Remember me</span>
-            </label>
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-teal-500 text-white py-3 px-4 rounded-lg shadow-md hover:bg-teal-600 transition duration-300"
-            disabled={loading}
-          >
-            {loading ? "Logging in..." : "Log In"}
-          </button>
-        </form>
+            </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-xs font-medium text-slate-200"
+              >
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                className="mt-1 block w-full px-3 py-2 rounded-md bg-white/5 border border-white/10 text-slate-100 placeholder-slate-400 focus:ring-amber-400 focus:border-amber-400 text-sm"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-        {/* Footer */}
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Don&apos;t have an account?{" "}
-          <a
-            href="/signup"
-            className="text-teal-500 font-medium hover:underline"
-          >
-            Sign up
-          </a>
-        </p>
+            <button
+              type="submit"
+              className="w-full py-2 px-4 rounded-md text-sm font-semibold bg-gradient-to-r from-amber-400 to-fuchsia-500 hover:from-indigo-400 hover:to-amber-300 text-white transition-all duration-300 shadow-[0_0_20px_rgba(251,191,36,0.3)]"
+              disabled={loading}
+            >
+              {loading ? "Logging in..." : "Log In"}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <p className="mt-6 text-center text-sm text-slate-300">
+            Don&apos;t have an account?{" "}
+            <a
+              href="/signup"
+              className="text-amber-300 font-medium hover:underline"
+            >
+              Sign up
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );
