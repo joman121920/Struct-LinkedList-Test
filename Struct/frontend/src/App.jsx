@@ -28,9 +28,7 @@ import CompetitiveMode from "./pages/GalistGame/ModeSelect/CompetitiveMode/Compe
 import TeacherDashboard from "./pages/TeacherDashboard";
 
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { ClassProvider } from "./contexts/ClassContext";
 
-import ClassRequiredWrapper from "./components/ClassManagement/ClassRequiredWrapper";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import TeacherRoute from "./routes/TeacherRoute";
@@ -50,9 +48,7 @@ const AppLayout = () => {
   ];
 
   // Define routes that should only show the Header
-  const headerOnlyRoutes = [
-    "/galist-game",
-  ];
+  const headerOnlyRoutes = ["/galist-game"];
 
   // Check if the current route is in the no-nav routes
   const isNoNavRoute = noNavRoutes.some((route) =>
@@ -89,9 +85,7 @@ const AppLayout = () => {
               path="/store"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <Store />
-                  </ClassRequiredWrapper>
+                  <Store />
                 </ProtectedRoute>
               }
             />
@@ -99,9 +93,7 @@ const AppLayout = () => {
               path="/profile"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <Profile />
-                  </ClassRequiredWrapper>
+                  <Profile />
                 </ProtectedRoute>
               }
             />
@@ -109,9 +101,7 @@ const AppLayout = () => {
               path="/games"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <GameShowcase />
-                  </ClassRequiredWrapper>
+                  <GameShowcase />
                 </ProtectedRoute>
               }
             />
@@ -120,9 +110,7 @@ const AppLayout = () => {
               path="/galist-game"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <GalistGame />
-                  </ClassRequiredWrapper>
+                  <GalistGame />
                 </ProtectedRoute>
               }
             />
@@ -130,9 +118,7 @@ const AppLayout = () => {
               path="/galist-game-linking-node"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <GalistLinkingNode />
-                  </ClassRequiredWrapper>
+                  <GalistLinkingNode />
                 </ProtectedRoute>
               }
             />
@@ -140,9 +126,7 @@ const AppLayout = () => {
               path="/galist-game-insertion-node"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <GalistGameInsertionNode />
-                  </ClassRequiredWrapper>
+                  <GalistGameInsertionNode />
                 </ProtectedRoute>
               }
             />
@@ -151,19 +135,15 @@ const AppLayout = () => {
               path="/galist-game-deletion"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <GalistGameDeletion />
-                  </ClassRequiredWrapper>
+                  <GalistGameDeletion />
                 </ProtectedRoute>
               }
             />
-             <Route
+            <Route
               path="/galist-game-node-creation"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <GalistGameNodeCreation />
-                  </ClassRequiredWrapper>
+                  <GalistGameNodeCreation />
                 </ProtectedRoute>
               }
             />
@@ -172,9 +152,7 @@ const AppLayout = () => {
               path="/galist-game-abstract-data-type"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <GalistAbstractDataType />
-                  </ClassRequiredWrapper>
+                  <GalistAbstractDataType />
                 </ProtectedRoute>
               }
             />
@@ -183,9 +161,7 @@ const AppLayout = () => {
               path="/competitive-mode"
               element={
                 <ProtectedRoute>
-                  <ClassRequiredWrapper>
-                    <CompetitiveMode />
-                  </ClassRequiredWrapper>
+                  <CompetitiveMode />
                 </ProtectedRoute>
               }
             />
@@ -209,9 +185,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <ClassProvider>
-          <AppLayout />
-        </ClassProvider>
+       
+        <AppLayout />
+      
       </AuthProvider>
     </Router>
   );
