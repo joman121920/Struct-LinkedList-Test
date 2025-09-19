@@ -14,14 +14,6 @@ function GalistNodeCreation() {
   const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
   // Track which exercise is active
   const [exerciseKey, setExerciseKey] = useState("exercise_one");
-  const [address, setAddress] = useState("");
-  const [value, setValue] = useState("");
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  // const [showInsertButton, setShowInsertButton] = useState(false);
-  const [showInsertModal, setShowInsertModal] = useState(false);
-  const [showIndexModal, setShowIndexModal] = useState(false);
-  const [insertIndex, setInsertIndex] = useState("");
-  const [hoverTimer, setHoverTimer] = useState(null);
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -54,11 +46,6 @@ function GalistNodeCreation() {
   const handlePortalStateChange = useCallback((newPortalInfo) => {
     setPortalInfo(newPortalInfo);
   }, []);
-
-  // Portal toggle function
-  const togglePortal = useCallback(() => {
-    setIsPortalOpen(!isPortalOpen);
-  }, [isPortalOpen]);
 
   // Exercise system states
   const exerciseManagerRef = useRef(new ExerciseManager());
@@ -119,13 +106,6 @@ function GalistNodeCreation() {
         setValidationResult(null);
         setIsPortalOpen(false);
         setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-        setAddress("");
-        setValue("");
-        setShowDuplicateModal(false);
-        // setShowInsertButton(false);
-        setShowInsertModal(false);
-        setShowIndexModal(false);
-        setInsertIndex("");
         setSelectedCircle(null);
         setConnectToAddress("");
         setShowInstructionPopup(false);
@@ -495,151 +475,6 @@ function GalistNodeCreation() {
     setConnectToAddress("");
   };
 
-  const closeDuplicateModal = () => {
-    setShowDuplicateModal(false);
-  };
-
-  const handleLunchHoverStart = () => {
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-    }
-    const timer = setTimeout(() => {
-      // setShowInsertButton(true);
-    }, 2000);
-    setHoverTimer(timer);
-  };
-
-  const handleLunchHoverEnd = () => {
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
-    }
-
-    const hideTimer = setTimeout(() => {
-      // setShowInsertButton(false);
-    }, 100);
-    setHoverTimer(hideTimer);
-  };
-
- 
-
-  const closeInsertModal = () => {
-    setShowInsertModal(false);
-  };
-
-  const closeIndexModal = () => {
-    setShowIndexModal(false);
-    setInsertIndex("");
-  };
-
-  const handleIndexSubmit = () => {
-    const index = parseInt(insertIndex.trim());
-    if (isNaN(index) || index < 1) {
-      alert("Please enter a valid index (must be >= 1)");
-      return;
-    }
-    const maxIndex = circles.length;
-    if (index > maxIndex) {
-      alert(`Index too large. Maximum index is ${maxIndex}`);
-      return;
-    }
-    handleSpecificInsertion(index);
-    closeIndexModal();
-    closeInsertModal();
-  };
-
-  const handleInsertOption = (option) => {
-    if (!address.trim() || !value.trim()) {
-      alert("Please enter both address and value before inserting");
-      return;
-    }
-
-    const addressExists = circles.some(
-      (circle) => circle.address === address.trim()
-    );
-    if (addressExists) {
-      setShowDuplicateModal(true);
-      closeInsertModal();
-      return;
-    }
-
-    switch (option) {
-      case "head":
-        handleHeadInsertion();
-        break;
-      case "specific":
-        setShowIndexModal(true);
-        break;
-      case "tail":
-        handleTailInsertion();
-        break;
-      default:
-        break;
-    }
-
-    closeInsertModal();
-  };
-
-  const handleHeadInsertion = () => {
-    const newHead = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newHead]);
-    // Do not clear suckedCirclesRef or entryOrderRef here
-    setAddress("");
-    setValue("");
-  };
-
-  const handleTailInsertion = () => {
-    const newTail = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newTail]);
-    // Do not clear suckedCirclesRef or entryOrderRef here
-    setAddress("");
-    setValue("");
-  };
-
-
-  const handleSpecificInsertion = (index) => {
-    const targetIndex = parseInt(index);
-    if (isNaN(targetIndex) || targetIndex < 0) {
-      return;
-    }
-
-    const newNode = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newNode]);
-    // Do not clear suckedCirclesRef or entryOrderRef here
-    setAddress("");
-    setValue("");
-    setInsertIndex("");
-  };
-
- 
-
   const handleDeleteCircle = () => {
     if (!selectedCircle) return;
     const nodeToDelete = selectedCircle.id;
@@ -665,22 +500,6 @@ function GalistNodeCreation() {
           const circleRadius = 30;
 
           const isValid = (x, y) => {
-            const controlsHeight = 55;
-            const controlsWidth = 1320;
-            const controlsLeft = window.innerWidth * 0.45 - controlsWidth / 2;
-            const controlsRight = controlsLeft + controlsWidth;
-            const controlsTop = window.innerHeight - 5 - controlsHeight;
-            const controlsBottom = window.innerHeight - 10;
-
-            if (
-              x + circleRadius >= controlsLeft &&
-              x - circleRadius <= controlsRight &&
-              y + circleRadius >= controlsTop &&
-              y - circleRadius <= controlsBottom
-            ) {
-              return false;
-            }
-
             const rightSquareSize = 100;
             const rightSquareLeft = window.innerWidth - rightSquareSize;
             const rightSquareRight = window.innerWidth;
@@ -844,33 +663,6 @@ function GalistNodeCreation() {
     };
   }, [draggedCircle, dragOffset, findConnectedCircles, circles]);
 
-  const launchCircle = () => {
-    if (!address.trim() || !value.trim()) return;
-
-    const addressExists = circles.some(
-      (circle) => circle.address === address.trim()
-    );
-    if (addressExists) {
-      setShowDuplicateModal(true);
-      return;
-    }
-
-    const newCircle = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newCircle]);
-    // Do not clear suckedCirclesRef or entryOrderRef here
-    setAddress("");
-    setValue("");
-  };
-
   return (
     <div className={styles.app}>
       <video
@@ -965,43 +757,6 @@ function GalistNodeCreation() {
         isOpen={isPortalOpen}
       />
       <div className={styles.rightSquare} style={{ outlineOffset: "5px" }} />
-
-      <div className={styles.controls}>
-        <input
-          type="text"
-          placeholder="ENTER ADDRESS"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className={styles.inputField}
-        />
-        <input
-          type="text"
-          placeholder="ENTER VALUE"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className={styles.inputField}
-        />
-        <div className={styles.buttonContainer}>
-          
-          <button
-            onClick={launchCircle}
-            className={styles.launchButton}
-            onMouseEnter={handleLunchHoverStart}
-            onMouseLeave={handleLunchHoverEnd}
-          >
-            LAUNCH
-          </button>
-        </div>
-        <button
-          onClick={togglePortal}
-          className={`${styles.portalButton} ${
-            isPortalOpen ? styles.portalButtonOpen : ""
-          }`}
-          disabled={circles.length === 0}
-        >
-          {isPortalOpen ? "CLOSE PORTAL" : "OPEN PORTAL"}
-        </button>
-      </div>
 
       {circles.map((circle) => (
         <div
@@ -1293,103 +1048,6 @@ function GalistNodeCreation() {
                   DELETE
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDuplicateModal && (
-        <div className={styles.errorModalOverlay} onClick={closeDuplicateModal}>
-          <div
-            className={styles.errorModalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className={styles.errorModalCloseBtn}
-              onClick={closeDuplicateModal}
-            >
-              ×
-            </button>
-            <div className={styles.errorIcon}>
-              <span className={styles.exclamation}>!</span>
-            </div>
-            <div className={styles.errorTitle}>Duplicate Address</div>
-            <div className={styles.errorMessageText}>
-              Nodes cannot have the same address
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showInsertModal && (
-        <div className={styles.insertModalOverlay} onClick={closeInsertModal}>
-          <div
-            className={styles.insertModalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className={styles.insertModalCloseBtn}
-              onClick={closeInsertModal}
-            >
-              ×
-            </button>
-
-            <div className={styles.insertOptions}>
-              <button
-                className={`${styles.insertOptionBtn} head-btn`}
-                onClick={() => handleInsertOption("head")}
-              >
-                <div className={styles.optionTitle}>HEAD</div>
-                <div className={styles.optionSubtitle}>i = 0 (Head)</div>
-              </button>
-
-              <button
-                className={`${styles.insertOptionBtn} specific-btn`}
-                onClick={() => handleInsertOption("specific")}
-              >
-                <div className={styles.optionTitle}>SPECIFIC</div>
-                <div className={styles.optionSubtitle}>
-                  specify both i in [1, N-1]
-                </div>
-              </button>
-
-              <button
-                className={`${styles.insertOptionBtn} tail-btn`}
-                onClick={() => handleInsertOption("tail")}
-              >
-                <div className={styles.optionTitle}>TAIL</div>
-                <div className={styles.optionSubtitle}>i = N (After Tail)</div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showIndexModal && (
-        <div className={styles.indexModalOverlay} onClick={closeIndexModal}>
-          <div
-            className={styles.indexModalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className={styles.indexModalCloseBtn}
-              onClick={closeIndexModal}
-            >
-              ×
-            </button>
-            <div className={styles.indexModalTitle}>Index</div>
-            <div className={styles.indexInputContainer}>
-              <input
-                type="text"
-                placeholder="Enter Index"
-                value={insertIndex}
-                onChange={(e) => setInsertIndex(e.target.value)}
-                className={styles.indexInput}
-                autoFocus
-              />
-              <button onClick={handleIndexSubmit} className={styles.indexGoBtn}>
-                Go
-              </button>
             </div>
           </div>
         </div>
