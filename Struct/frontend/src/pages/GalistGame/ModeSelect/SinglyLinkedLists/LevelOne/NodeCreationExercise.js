@@ -1,211 +1,208 @@
-// NodeOrderExercise.js - Only validates the order of node values entered into the portal
+// NodeCreationExercise.js - Exercise definitions for Node Creation levels
 
-export class NodeOrderExercise {
-  constructor(exerciseData) {
-    this.sequence = exerciseData.sequence;
-    this.addresses = exerciseData.addresses;
-    this.title = exerciseData.title;
-    this.description = exerciseData.description;
-    this.key = exerciseData.key || null;
-    // Build expectedStructure for frontend display
-    this.expectedStructure = this.sequence.map((value) => ({
-      value,
-      address: this.addresses ? this.addresses[value] : "",
-    }));
-  }
-
-  // Validate only the order of values entered into the portal
-  // Accept either:
-  // 1) circles: array already in the user's entry order (preferred), or
-  // 2) circles + entryOrder: IDs indicating the order
-  validateSubmission(circles, _connections, entryOrder = null) {
-    const result = {
-      isCorrect: false,
-      message: "",
-      details: "",
-      score: 0,
-      totalPoints: 100,
-      userCircles: [], // Add this to store user's entered circles
-      perNodeCorrectness: [], // New: array of booleans for each node
-    };
-
-    // Determine the entered circles in order
-    let enteredCircles = [];
-    // Preferred: if circles is already in the user's order and length matches expected
-    if (Array.isArray(circles) && circles.length === this.sequence.length) {
-      enteredCircles = circles.slice();
-    } else if (
-      Array.isArray(circles) &&
-      Array.isArray(entryOrder) &&
-      entryOrder.length === this.sequence.length
-    ) {
-      // Fallback: map by IDs
-      for (let i = 0; i < entryOrder.length; i++) {
-        const id = entryOrder[i];
-        const circle = circles.find((c) => c && c.id === id);
-        if (circle) enteredCircles.push(circle);
-      }
-    }
-
-    if (
-      !Array.isArray(enteredCircles) ||
-      enteredCircles.length !== this.sequence.length
-    ) {
-      result.message = "Please enter all nodes into the portal in order.";
-      result.details = `Expected ${this.sequence.length} nodes, but got ${
-        Array.isArray(enteredCircles) ? enteredCircles.length : 0
-      }.`;
-      return result;
-    }
-
-    // Values from entered circles
-    const enteredValues = enteredCircles.map((c) =>
-      c && !isNaN(Number(c.value)) ? Number(c.value) : null
-    );
-    // Also expose for UI
-    result.userCircles = enteredCircles.slice();
-
-    // Per-node correctness
-    let correctCount = 0;
-    for (let i = 0; i < this.sequence.length; i++) {
-      if (enteredValues[i] === this.sequence[i]) {
-        result.perNodeCorrectness[i] = true;
-        correctCount++;
-      } else {
-        result.perNodeCorrectness[i] = false;
-      }
-    }
-
-    // Scoring: full correct = 100, else partial points
-    if (
-      correctCount === this.sequence.length &&
-      enteredValues.length === this.sequence.length &&
-      enteredValues.every((v, i) => v === this.sequence[i])
-    ) {
-      result.isCorrect = true;
-      result.score = 100;
-      result.message =
-        "🌟 PERFECT! All nodes entered the portal in the correct order!";
-      result.details = `✅ Correct order: [${this.sequence.join(" → ")}]`;
-    } else {
-      // Partial score: equally weighted per node
-      result.score = Math.round((correctCount / this.sequence.length) * 100);
-      result.message = "❌ Incorrect order!";
-      result.details = `Expected: [${this.sequence.join(
-        ", "
-      )}], got: [${enteredValues.join(", ")}]`;
-    }
-    return result;
-  }
-
-  arraysEqual(arr1, arr2) {
-    return (
-      arr1.length === arr2.length && arr1.every((val, i) => val === arr2[i])
-    );
-  }
-}
-
-// Predefined exercise templates (addresses are ignored)
-export const EXERCISE_TEMPLATES = {
-  exercise_one: {
-    sequence: [1, 2, 3, 4, 5],
-    addresses: {
-      1: "a",
-      2: "b",
-      3: "c",
-      4: "d",
-      5: "e",
+// Exercise data structure for three mini-levels
+const exerciseDefinitions = {
+  level_1: {
+    id: "level_1",
+    name: "Level 1: Basic Node Creation",
+    description: "Create a node with the correct value and address",
+    expectedOutput: {
+      value: "10",
+      address: "ab7"
     },
-    title: "Node Creation Order",
-    description: "Enter the nodes into the portal in the correct order.",
+    availableValues: ["10", "25", "33", "47", "89"], // 5 values including the correct one
+    availableAddresses: ["ab7", "x2c", "f9d", "e1a", "b6f"], // 5 addresses including the correct one
+    floatingCircleCount: 12, // Total floating circles (values + addresses + random)
+    difficulty: "easy"
   },
-  exercise_two: {
-    sequence: [10, 4, 2, 17, 9, 5],
-    addresses: {
-      10: "z",
-      4: "y",
-      2: "x",
-      17: "w",
-      9: "v",
-      5: "u",
+  
+  level_2: {
+    id: "level_2", 
+    name: "Level 2: Intermediate Node Creation",
+    description: "Create a node with specific value and address combination",
+    expectedOutput: {
+      value: "67",
+      address: "c4k"
     },
-    title: "Node Creation Order",
-    description: "Enter the nodes into the portal in the correct order.",
+    availableValues: ["67", "12", "98", "54", "71"], // 5 values including the correct one
+    availableAddresses: ["c4k", "m8n", "p2q", "z7y", "w3v"], // 5 addresses including the correct one
+    floatingCircleCount: 12,
+    difficulty: "medium"
   },
-  exercise_tree: {
-    sequence: [66, 65, 64, 67, 76, 77, 78],
-    addresses: {
-      66: "l",
-      65: "m",
-      64: "n",
-      67: "o",
-      76: "p",
-      77: "q",
-      78: "r",
+  
+  level_3: {
+    id: "level_3",
+    name: "Level 3: Advanced Node Creation", 
+    description: "Create a node with complex value and address",
+    expectedOutput: {
+      value: "142",
+      address: "x9z"
     },
-    title: "Node Creation Order",
-    description: "Enter the nodes into the portal in the correct order.",
-  },
+    availableValues: ["142", "203", "176", "85", "91"], // 5 values including the correct one
+    availableAddresses: ["x9z", "q1w", "r5t", "h8j", "d2s"], // 5 addresses including the correct one
+    floatingCircleCount: 12,
+    difficulty: "hard"
+  }
 };
 
-// Exercise manager class
+// Generate random content for additional floating circles
+const generateRandomContent = () => {
+  const randomValues = ["77", "39", "156", "21", "88", "104", "63", "195"];
+  const randomAddresses = ["k6l", "n4m", "u7i", "o9p", "a1s", "g3h", "j5k", "v8c"];
+  
+  return {
+    values: randomValues,
+    addresses: randomAddresses
+  };
+};
+
+// Shuffle array utility function
+const shuffleArray = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+// Exercise Manager class
 export class ExerciseManager {
   constructor() {
-    this.currentExercise = null;
-    this.submissionData = null;
-    this.isWaitingForValidation = false;
+    this.exercises = exerciseDefinitions;
+    this.currentLevel = "level_1";
   }
 
-  // Load an exercise
-  loadExercise(templateKey) {
-    const template = EXERCISE_TEMPLATES[templateKey];
-    if (!template) {
-      throw new Error(`Exercise template "${templateKey}" not found`);
+  // Load exercise by key
+  loadExercise(key = "level_1") {
+    const exercise = this.exercises[key];
+    if (!exercise) {
+      console.warn(`Exercise ${key} not found, loading level_1`);
+      return this.exercises.level_1;
     }
-    this.currentExercise = new NodeOrderExercise(template);
-    this.submissionData = null;
-    this.isWaitingForValidation = false;
-    this.currentExercise.key = templateKey;
-    return this.currentExercise;
+    
+    this.currentLevel = key;
+    return exercise;
   }
 
-  // Submit answer for validation (store for later)
-  submitAnswer(circles) {
-    if (!this.currentExercise) {
-      throw new Error("No exercise loaded");
+  // Get all available exercises
+  getAllExercises() {
+    return Object.values(this.exercises);
+  }
+
+  // Get next level
+  getNextLevel(currentLevel) {
+    const levels = ["level_1", "level_2", "level_3"];
+    const currentIndex = levels.indexOf(currentLevel);
+    
+    if (currentIndex < levels.length - 1) {
+      return levels[currentIndex + 1];
     }
-    this.submissionData = {
-      circles: JSON.parse(JSON.stringify(circles)),
+    
+    return null; // No next level
+  }
+
+  // Generate floating circles for a specific level
+  generateFloatingCircles(levelKey) {
+    const exercise = this.exercises[levelKey];
+    if (!exercise) return [];
+
+    const randomContent = generateRandomContent();
+    const circles = [];
+
+    // Add the correct value and address (must be included)
+    circles.push({
+      id: `value-correct-${Date.now()}`,
+      type: 'value',
+      content: exercise.expectedOutput.value,
+      isCorrect: true
+    });
+
+    circles.push({
+      id: `address-correct-${Date.now() + 1}`,
+      type: 'address', 
+      content: exercise.expectedOutput.address,
+      isCorrect: true
+    });
+
+    // Add other available values for this level (excluding the correct one)
+    const otherValues = exercise.availableValues.filter(v => v !== exercise.expectedOutput.value);
+    otherValues.forEach((value, index) => {
+      circles.push({
+        id: `value-${levelKey}-${index}-${Date.now()}`,
+        type: 'value',
+        content: value,
+        isCorrect: false
+      });
+    });
+
+    // Add other available addresses for this level (excluding the correct one)
+    const otherAddresses = exercise.availableAddresses.filter(a => a !== exercise.expectedOutput.address);
+    otherAddresses.forEach((address, index) => {
+      circles.push({
+        id: `address-${levelKey}-${index}-${Date.now()}`,
+        type: 'address',
+        content: address,
+        isCorrect: false
+      });
+    });
+
+    // Fill remaining slots with random content to reach floatingCircleCount
+    const targetCount = exercise.floatingCircleCount;
+    const remaining = targetCount - circles.length;
+    
+    for (let i = 0; i < remaining; i++) {
+      const isValue = i % 2 === 0;
+      const randomArray = isValue ? randomContent.values : randomContent.addresses;
+      const randomIndex = Math.floor(Math.random() * randomArray.length);
+      
+      circles.push({
+        id: `random-${isValue ? 'value' : 'address'}-${i}-${Date.now()}`,
+        type: isValue ? 'value' : 'address',
+        content: randomArray[randomIndex],
+        isCorrect: false
+      });
+    }
+
+    // Shuffle the circles so correct answers aren't always in the same position
+    return shuffleArray(circles);
+  }
+
+  // Validate if the user's selection matches expected output
+  validateLevel(levelKey, userValue, userAddress) {
+    const exercise = this.exercises[levelKey];
+    if (!exercise) return false;
+
+    const valueCorrect = userValue === exercise.expectedOutput.value;
+    const addressCorrect = userAddress === exercise.expectedOutput.address;
+
+    return {
+      isCorrect: valueCorrect && addressCorrect,
+      valueCorrect,
+      addressCorrect,
+      expectedValue: exercise.expectedOutput.value,
+      expectedAddress: exercise.expectedOutput.address,
+      score: (valueCorrect && addressCorrect) ? 100 : 0
     };
-    this.isWaitingForValidation = true;
-    return true;
   }
 
-  // Validate submission (called after all circles are entered)
-  validateSubmission(circles = null, entryOrder = null) {
-    if (!this.currentExercise) {
-      return {
-        isCorrect: false,
-        message: "System not ready",
-        details: "Please try again in a moment.",
-        score: 0,
-        totalPoints: 100,
-      };
-    }
-    // Use provided circles and entryOrder
-    return this.currentExercise.validateSubmission(circles, [], entryOrder);
+  // Check if there's a next level available
+  hasNextLevel(currentLevel) {
+    return this.getNextLevel(currentLevel) !== null;
   }
 
-  getCurrentExercise() {
-    return this.currentExercise;
-  }
-
-  isWaiting() {
-    return this.isWaitingForValidation;
-  }
-
-  reset() {
-    this.submissionData = null;
-    this.isWaitingForValidation = false;
+  // Get level progress (useful for UI indicators)
+  getLevelProgress(currentLevel) {
+    const levels = ["level_1", "level_2", "level_3"];
+    const currentIndex = levels.indexOf(currentLevel);
+    
+    return {
+      current: currentIndex + 1,
+      total: levels.length,
+      percentage: ((currentIndex + 1) / levels.length) * 100
+    };
   }
 }
+
+// Export exercise definitions for use in other files if needed
+export { exerciseDefinitions };

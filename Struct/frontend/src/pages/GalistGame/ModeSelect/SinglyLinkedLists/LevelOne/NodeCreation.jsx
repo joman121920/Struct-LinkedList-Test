@@ -13,7 +13,7 @@ function GalistNodeCreation() {
   const entryOrderRef = useRef([]);
   const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
   // Track which exercise is active
-  const [exerciseKey, setExerciseKey] = useState("exercise_one");
+  const [exerciseKey, setExerciseKey] = useState("level_1");
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -61,6 +61,10 @@ function GalistNodeCreation() {
     address: ""
   });
 
+  // Level completion states
+  const [isLevelCompleted, setIsLevelCompleted] = useState(false);
+  const [completionMessage, setCompletionMessage] = useState("");
+
   // Floating target circles - some with values, some with addresses
   // Floating circles state and ref for performance optimization
   const [floatingCircles, setFloatingCircles] = useState([]);
@@ -71,37 +75,43 @@ function GalistNodeCreation() {
     floatingCirclesRef.current = floatingCircles;
   }, [floatingCircles]);
 
-  // Expected output for reference
-  const expectedOutput = {
+  // Expected output for reference - will be dynamically set based on current level
+  const [expectedOutput, setExpectedOutput] = useState({
     value: "10",
     address: "ab7"
-  };
+  });
 
-  // Generate floating circles on mount
+  // Generate floating circles on mount and when level changes
   useEffect(() => {
     const generateFloatingCircles = () => {
-      const circles = [];
-      const numCircles = 8; // 4 value circles + 4 address circles
+      if (!currentExercise) return;
       
-      for (let i = 0; i < numCircles; i++) {
-        const isValue = i < numCircles / 2;
-        const circle = {
-          id: `floating-${i}`,
-          type: isValue ? 'value' : 'address',
-          content: isValue ? Math.floor(Math.random() * 20) + 1 : `a${Math.floor(Math.random() * 9)}${Math.floor(Math.random() * 9)}`,
+      // Use the new exercise manager to generate floating circles
+      const circleData = exerciseManagerRef.current.generateFloatingCircles(exerciseKey);
+      
+      // Convert to the format expected by the animation system
+      const circles = circleData.map((circleInfo) => {
+        const baseSpeed = 0.8;
+        const speedVariation = Math.random() * 0.4 - 0.2; // -0.2 to +0.2
+        const speed = baseSpeed + speedVariation;
+        
+        return {
+          id: circleInfo.id,
+          type: circleInfo.type,
+          content: circleInfo.content,
+          isCorrect: circleInfo.isCorrect,
           x: Math.random() * (window.innerWidth - 200) + 100,
           y: Math.random() * (window.innerHeight - 300) + 150,
-          vx: (Math.random() - 0.4), // Increased speed for more dynamic movement
-          vy: (Math.random() - 0.4), // Increased speed for more dynamic movement
+          vx: (Math.random() - 0.4) * speed,
+          vy: (Math.random() - 0.4) * speed,
         };
-        circles.push(circle);
-      }
+      });
       
       setFloatingCircles(circles);
     };
 
     generateFloatingCircles();
-  }, []);
+  }, [currentExercise, exerciseKey]);
 
   // Animate floating circles with collision detection and real-time position tracking
   useEffect(() => {
@@ -162,8 +172,6 @@ function GalistNodeCreation() {
               updatedCircles[i].vy = Math.abs(updatedCircles[i].vy) * (dy > 0 ? 1 : -1);
               updatedCircles[j].vx = Math.abs(updatedCircles[j].vx) * (dx < 0 ? 1 : -1);
               updatedCircles[j].vy = Math.abs(updatedCircles[j].vy) * (dy < 0 ? 1 : -1);
-              
-              console.log(`Floating circles ${circle1.content} and ${circle2.content} bounced apart`);
             }
           }
         }
@@ -175,8 +183,61 @@ function GalistNodeCreation() {
     return () => clearInterval(animateInterval);
   }, []);
 
-  
-  // const startGame = useCallback(() => {
+  // Check for level completion and auto-progression
+  useEffect(() => {
+    if (squareNode.value && squareNode.address && currentExercise) {
+      // Validate the current level completion
+      const validation = exerciseManagerRef.current.validateLevel(
+        exerciseKey, 
+        squareNode.value, 
+        squareNode.address
+      );
+      
+      if (validation.isCorrect) {
+        
+        // Set completion feedback
+        setIsLevelCompleted(true);
+        setCompletionMessage(`Level ${exerciseKey.split('_')[1]} Complete!`);
+        
+        // Check if there's a next level
+        const nextLevel = exerciseManagerRef.current.getNextLevel(exerciseKey);
+        
+        if (nextLevel) {
+          
+          // Add a short delay before advancing to next level for better UX
+          setTimeout(() => {
+            setIsLevelCompleted(false);
+            setCompletionMessage("");
+            // Manually load the next exercise without using loadExercise callback
+            setCircles([]);
+            setConnections([]);
+            setSuckingCircles([]);
+            setSuckedCircles([]);
+            setCurrentEntryOrder([]);
+            if (entryOrderRef) entryOrderRef.current = [];
+            if (suckedCirclesRef) suckedCirclesRef.current = [];
+            setOriginalSubmission(null);
+            setShowValidationResult(false);
+            setValidationResult(null);
+            setSquareNode({ value: "", address: "" });
+            setIsLevelCompleted(false);
+            setCompletionMessage("");
+            
+            const exercise = exerciseManagerRef.current.loadExercise(nextLevel);
+            setCurrentExercise(exercise);
+            setExerciseKey(nextLevel);
+            setExpectedOutput({
+              value: exercise.expectedOutput.value,
+              address: exercise.expectedOutput.address
+            });
+          }, 1500); // 1.5 second delay to show completion
+        } else {
+          setCompletionMessage("🏆 All Levels Complete! 🏆");
+          // Could add a completion celebration here
+        }
+      }
+    }
+  }, [squareNode, currentExercise, exerciseKey]);
   //   const next = { screen: "mode", mode: null };
   //   window.history.pushState(next, "");
   //   // Clear any previous game state so this session is fresh
@@ -260,7 +321,7 @@ function GalistNodeCreation() {
 
   // No head/tail logic needed for node creation level
 
-  const loadExercise = useCallback((key = "exercise_one") => {
+  const loadExercise = useCallback((key = "level_1") => {
     // Always clear circles/connections and reset launch state before loading new exercise
     setCircles([]);
     setConnections([]);
@@ -273,11 +334,22 @@ function GalistNodeCreation() {
     setOriginalSubmission(null);
     setShowValidationResult(false);
     setValidationResult(null);
-    // hasLaunchedRef.current = false;
+    // Reset square node when changing levels
+    setSquareNode({ value: "", address: "" });
+    // Reset completion states
+    setIsLevelCompleted(false);
+    setCompletionMessage("");
+    
     // Now load the new exercise
     const exercise = exerciseManagerRef.current.loadExercise(key);
     setCurrentExercise(exercise);
     setExerciseKey(key);
+    
+    // Update expected output for the current level
+    setExpectedOutput({
+      value: exercise.expectedOutput.value,
+      address: exercise.expectedOutput.address
+    });
   }, []);
 
   
@@ -285,7 +357,7 @@ function GalistNodeCreation() {
   // Initialize exercise on component mount
   useEffect(() => {
     if (!currentExercise) {
-      loadExercise("exercise_one");
+      loadExercise("level_1");
     }
   }, [currentExercise, loadExercise]);
 
@@ -627,8 +699,6 @@ function GalistNodeCreation() {
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
     
-    console.log('Right-click detected! Launching bullet...');
-    
     // Calculate launch position from cannon tip
     const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
     const cannonTipY = window.innerHeight - 1; // Cannon base Y
@@ -655,7 +725,6 @@ function GalistNodeCreation() {
       isLaunched: true,
     };
     
-    console.log('Launching bullet:', newBullet);
     setCircles(prev => [...prev, newBullet]);
   }, [cannonAngle]);
 
@@ -682,14 +751,12 @@ function GalistNodeCreation() {
             if (newX <= 15 || newX >= window.innerWidth - 15) {
               bounceVelocityX = -bounceVelocityX; // Reverse horizontal velocity
               finalX = newX <= 15 ? 15 : window.innerWidth - 15; // Keep within bounds
-              console.log(`Bullet ${circle.id} bounced off ${newX <= 15 ? 'left' : 'right'} wall`);
             }
             
             // Check vertical boundaries (top and bottom edges)
             if (newY <= 15 || newY >= window.innerHeight - 15) {
               bounceVelocityY = -bounceVelocityY; // Reverse vertical velocity
               finalY = newY <= 15 ? 15 : window.innerHeight - 15; // Keep within bounds
-              console.log(`Bullet ${circle.id} bounced off ${newY <= 15 ? 'top' : 'bottom'} wall`);
             }
             
             const updatedCircle = {
@@ -702,7 +769,6 @@ function GalistNodeCreation() {
 
             // Check for collisions with floating circles (balanced precision collision detection)
             let bulletHitSomething = false;
-            let hitFloatingCircle = null;
             
             // Get real-time floating circle positions with balanced accuracy
             const currentFloatingCircles = floatingCirclesRef.current;
@@ -755,23 +821,57 @@ function GalistNodeCreation() {
                 
                 if (isValidHit) {
                   bulletHitSomething = true;
-                  hitFloatingCircle = floatingCircle;
 
-                  console.log(
-                    `BALANCED COLLISION! Bullet ${updatedCircle.id} hit floating circle: ${floatingCircle.content}`
-                  );
-                  console.log(`Center distance: ${centerDistance.toFixed(2)}px (threshold: ${collisionThreshold.toFixed(2)}px)`);
-                  console.log(`Bullet speed: ${bulletSpeed.toFixed(2)} pixels/frame`);
-                  console.log(`Bullet position: (${currentBulletX.toFixed(1)}, ${currentBulletY.toFixed(1)})`);
-                  console.log(`Circle real-time position: (${currentCircleX.toFixed(1)}, ${currentCircleY.toFixed(1)})`);
-
-                  // Transfer floating circle content to square node
+                  // Transfer floating circle content to square node with smart overriding logic
                   setSquareNode(prev => {
+                    const newSquareNode = { ...prev };
+                    
                     if (floatingCircle.type === 'value') {
-                      return { ...prev, value: floatingCircle.content };
-                    } else {
-                      return { ...prev, address: floatingCircle.content };
+                      // Get the correct value for current level
+                      const correctValue = expectedOutput.value;
+                      const currentValue = prev.value;
+                      const newValue = floatingCircle.content;
+                      
+                      // Smart overriding logic for values:
+                      if (!currentValue) {
+                        // Empty slot - always accept new value
+                        newSquareNode.value = newValue;
+                      } else if (currentValue === correctValue && newValue !== correctValue) {
+                        // Have correct value, shooting incorrect - DON'T override
+                      } else if (currentValue !== correctValue && newValue === correctValue) {
+                        // Have incorrect value, shooting correct - OVERRIDE
+                        newSquareNode.value = newValue;
+                      } else if (currentValue !== correctValue && newValue !== correctValue) {
+                        // Have incorrect value, shooting another incorrect - OVERRIDE
+                        newSquareNode.value = newValue;
+                      } else {
+                        // Have correct value, shooting correct again - don't change
+                      }
+                      
+                    } else if (floatingCircle.type === 'address') {
+                      // Get the correct address for current level
+                      const correctAddress = expectedOutput.address;
+                      const currentAddress = prev.address;
+                      const newAddress = floatingCircle.content;
+                      
+                      // Smart overriding logic for addresses:
+                      if (!currentAddress) {
+                        // Empty slot - always accept new address
+                        newSquareNode.address = newAddress;
+                      } else if (currentAddress === correctAddress && newAddress !== correctAddress) {
+                        // Have correct address, shooting incorrect - DON'T override
+                      } else if (currentAddress !== correctAddress && newAddress === correctAddress) {
+                        // Have incorrect address, shooting correct - OVERRIDE
+                        newSquareNode.address = newAddress;
+                      } else if (currentAddress !== correctAddress && newAddress !== correctAddress) {
+                        // Have incorrect address, shooting another incorrect - OVERRIDE
+                        newSquareNode.address = newAddress;
+                      } else {
+                        // Have correct address, shooting correct again - don't change
+                      }
                     }
+                    
+                    return newSquareNode;
                   });
 
                   // Remove the hit floating circle immediately
@@ -789,7 +889,6 @@ function GalistNodeCreation() {
             if (!bulletHitSomething) {
               updatedCircles.push(updatedCircle);
             } else {
-              console.log(`Bullet ${updatedCircle.id} DELETED due to collision with ${hitFloatingCircle?.content || 'unknown'} - ENFORCING 1 bullet = 1 circle rule`);
               // Bullet is NOT added to updatedCircles, so it gets deleted from the game
             }
           } else {
@@ -804,7 +903,7 @@ function GalistNodeCreation() {
 
     const intervalId = setInterval(animationFrame, 8); // ~120fps for smoother movement
     return () => clearInterval(intervalId);
-  }, []); // No dependencies - animation loop runs once and stays stable
+  }, [expectedOutput.value, expectedOutput.address]); // Include expectedOutput dependencies for smart overriding logic
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
@@ -1024,12 +1123,27 @@ function GalistNodeCreation() {
       
 
       {/* Expected results bar */}
-      {currentExercise && currentExercise.expectedStructure && (
+      {currentExercise && (
         <div className={styles.expectedBarWrapper}>
           <table className={styles.expectedBarTable}>
             <tbody>
               <tr className={styles.expectedBarRow}>
-                
+                <td className={styles.expectedBarCell}>
+                  <div className={styles.expectedOutputSquare}>
+                    <div className={styles.squareSection}>
+                      <div className={styles.sectionLabel}>Value</div>
+                      <div className={styles.squareNodeField}>
+                        {expectedOutput.value}
+                      </div>
+                    </div>
+                    <div className={styles.squareSection}>
+                      <div className={styles.sectionLabel}>Address</div>
+                      <div className={styles.squareNodeField}>
+                        {expectedOutput.address}
+                      </div>
+                    </div>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -1096,7 +1210,7 @@ function GalistNodeCreation() {
           )}
         </div>
       ))}
-
+      
       <svg className={styles.connectionLines}>
         {connections.map((connection) => {
           // Only remove the line if BOTH nodes have been sucked
@@ -1146,6 +1260,7 @@ function GalistNodeCreation() {
         </defs>
       </svg>
 
+      {/* Validation Overlay */}
       {showValidationResult && validationResult && (
         <div className={styles.validationOverlay}>
           <div className={styles.validationContent}>
@@ -1156,30 +1271,6 @@ function GalistNodeCreation() {
                 </span>
               </div>
             </div>
-
-            {/* Debug: Show raw validationResult object */}
-            {/* <div
-              style={{
-                color: "#aaa",
-                fontSize: "12px",
-                marginBottom: "10px",
-                wordBreak: "break-all",
-              }}
-            >
-              <strong>Debug validationResult:</strong>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-all",
-                  background: "#222",
-                  color: "#eee",
-                  padding: "6px",
-                  borderRadius: "4px",
-                }}
-              >
-                {JSON.stringify(validationResult, null, 2)}
-              </pre>
-            </div> */}
 
             <div className={styles.expectedResultsSection}>
               <div className={styles.expectedLabel}>
@@ -1290,30 +1381,21 @@ function GalistNodeCreation() {
                   if (suckedCirclesRef) suckedCirclesRef.current = [];
                   setSuckedCircles([]);
                   setCurrentEntryOrder([]);
-                  if (
-                    validationResult &&
-                    validationResult.isCorrect &&
-                    exerciseKey === "exercise_one"
-                  ) {
-                    loadExercise("exercise_two");
-                  } else if (
-                    validationResult &&
-                    validationResult.isCorrect &&
-                    exerciseKey === "exercise_two"
-                  ) {
-                    loadExercise("exercise_tree");
+                  
+                  // Handle level progression for new system
+                  if (validationResult && validationResult.isCorrect) {
+                    const nextLevel = exerciseManagerRef.current.getNextLevel(exerciseKey);
+                    if (nextLevel) {
+                      loadExercise(nextLevel);
+                    } 
                   }
                 }}
                 className={styles.continueButton}
               >
-                {validationResult &&
-                validationResult.isCorrect &&
-                exerciseKey === "exercise_one"
-                  ? "NEXT EXERCISE"
-                  : validationResult &&
-                    validationResult.isCorrect &&
-                    exerciseKey === "exercise_two"
-                  ? "NEXT EXERCISE"
+                {validationResult && validationResult.isCorrect 
+                  ? (exerciseManagerRef.current.hasNextLevel(exerciseKey) 
+                      ? "NEXT LEVEL" 
+                      : "GAME COMPLETE") 
                   : "CONTINUE"}
               </button>
             </div>
@@ -1321,6 +1403,7 @@ function GalistNodeCreation() {
         </div>
       )}
 
+      {/* Circle Detail Popup */}
       {selectedCircle && (
         <div className={styles.popupOverlay} onClick={closePopup}>
           <div
@@ -1370,28 +1453,26 @@ function GalistNodeCreation() {
         </div>
       )}
 
-      {/* Expected Output Square (top-left) */}
-      <div className={styles.expectedWrapper}>
-        <div className={styles.expectedTitle}>Expected Output:</div>
-        <div className={styles.squareNode}>
-          <div className={styles.squareNodeField}>
-            {expectedOutput.value}
-          </div>
-          <div className={styles.squareNodeField}>
-            {expectedOutput.address}
-          </div>
-        </div>
-      </div>
-
+      
       {/* Interactive Square Node (bottom-center) */}
       <div className={styles.interactiveSquareWrapper}>
-        <div className={styles.interactiveTitle}>Target Square:</div>
-        <div className={styles.squareNode}>
-          <div className={`${styles.squareNodeField} ${!squareNode.value ? styles.empty : ''}`}>
-            {squareNode.value || "empty"}
+        {isLevelCompleted && (
+          <div className={styles.completionMessage}>
+            {completionMessage}
           </div>
-          <div className={`${styles.squareNodeField} ${!squareNode.address ? styles.empty : ''}`}>
-            {squareNode.address || "empty"}
+        )}
+        <div className={`${styles.squareNode} ${isLevelCompleted ? styles.completedSquare : ''}`}>
+          <div className={styles.squareSection}>
+            <div className={styles.sectionLabel}>Value</div>
+            <div className={`${styles.squareNodeField} ${!squareNode.value ? styles.empty : ''}`}>
+              {squareNode.value || "-"}
+            </div>
+          </div>
+          <div className={styles.squareSection}>
+            <div className={styles.sectionLabel}>Address</div>
+            <div className={`${styles.squareNodeField} ${!squareNode.address ? styles.empty : ''}`}>
+              {squareNode.address || "-"}
+            </div>
           </div>
         </div>
       </div>
