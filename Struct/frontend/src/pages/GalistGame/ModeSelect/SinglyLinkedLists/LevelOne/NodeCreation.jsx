@@ -54,6 +54,9 @@ function GalistNodeCreation() {
   const [validationResult, setValidationResult] = useState(null);
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
 
+  // Cannon angle state for dynamic cannon rotation
+  const [cannonAngle, setCannonAngle] = useState(0);
+
   
   // const startGame = useCallback(() => {
   //   const next = { screen: "mode", mode: null };
@@ -492,6 +495,41 @@ function GalistNodeCreation() {
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
+      // Always update cannon rotation regardless of dragging state
+      // Calculate cannon base position (bottom center of the cannon)
+      // CSS: right: 10px, bottom: 10px, width: 70px, height: 110px
+      // Transform origin is bottom center, so we calculate from the bottom-center of the cannon
+      const cannonBaseX = window.innerWidth - 10 - 35; // Right edge - 10px - half width (35px)
+      const cannonBaseY = window.innerHeight - 10; // Bottom edge position (bottom: 10px)
+      
+      // Calculate angle from cannon base to mouse cursor
+      const deltaX = e.clientX - cannonBaseX;
+      const deltaY = e.clientY - cannonBaseY;
+      
+      // Calculate angle in degrees (pointing towards mouse)
+      // Fix: We ADD 90 degrees instead of subtracting to correct the direction
+      let angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI) + 90;
+      
+      // For debugging - let's allow full rotation first to see if it works
+      // Then we'll add constraints back
+      
+      // Update cannon angle
+      setCannonAngle(angle);
+      
+      // Debug log to see if mouse tracking is working
+      if (Math.random() < 0.01) { // Only log 1% of the time to avoid spam
+        console.log('Mouse tracking:', { 
+          mouseX: e.clientX, 
+          mouseY: e.clientY, 
+          cannonBaseX, 
+          cannonBaseY, 
+          deltaX, 
+          deltaY, 
+          angle 
+        });
+      }
+
+      // Existing circle dragging logic
       if (draggedCircle) {
         const newX = e.clientX - dragOffset.x;
         const newY = e.clientY - dragOffset.y;
@@ -756,7 +794,14 @@ function GalistNodeCreation() {
         onPortalStateChange={handlePortalStateChange}
         isOpen={isPortalOpen}
       />
-      <div className={styles.rightSquare} style={{ outlineOffset: "5px" }} />
+      <div 
+        className={styles.rightSquare} 
+        style={{ 
+          outlineOffset: "5px",
+          transform: `rotate(${cannonAngle}deg)`,
+          transformOrigin: "bottom center"
+        }} 
+      />
 
       {circles.map((circle) => (
         <div

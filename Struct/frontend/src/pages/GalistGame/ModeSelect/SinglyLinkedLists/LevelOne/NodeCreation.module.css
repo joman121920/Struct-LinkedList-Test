@@ -325,14 +325,29 @@
 
 .rightSquare {
   position: absolute;
-  bottom: 10px;
+  bottom: 1px;
   right: -40px;
-  width: 100px;
-  height: 90px;
-  background-color: #666;
+  width: 70px;
+  height: 110px;
+  background: linear-gradient(to top, #666 0%, #888 50%, #aaa 100%);
+  border: 2px solid #fff;
   z-index: 10;
-  transform: rotate(-40deg);
-  transform-origin: bottom right;
+  transform-origin: bottom center;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  border-radius: 5px 5px 15px 15px;
+}
+
+.rightSquare::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(255, 107, 107, 0.8);
 }
 
 .controls {
