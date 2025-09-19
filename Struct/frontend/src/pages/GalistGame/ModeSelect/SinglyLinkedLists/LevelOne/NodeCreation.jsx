@@ -91,8 +91,8 @@ function GalistNodeCreation() {
           content: isValue ? Math.floor(Math.random() * 20) + 1 : `a${Math.floor(Math.random() * 9)}${Math.floor(Math.random() * 9)}`,
           x: Math.random() * (window.innerWidth - 200) + 100,
           y: Math.random() * (window.innerHeight - 300) + 150,
-          vx: (Math.random() - 0.5) * 0.5, // Slow horizontal velocity
-          vy: (Math.random() - 0.5) * 0.5, // Slow vertical velocity
+          vx: (Math.random() - 0.4), // Increased speed for more dynamic movement
+          vy: (Math.random() - 0.4), // Increased speed for more dynamic movement
         };
         circles.push(circle);
       }
@@ -103,33 +103,73 @@ function GalistNodeCreation() {
     generateFloatingCircles();
   }, []);
 
-  // Animate floating circles
+  // Animate floating circles with collision detection and real-time position tracking
   useEffect(() => {
     const animateInterval = setInterval(() => {
-      setFloatingCircles(prev => prev.map(circle => {
-        let newX = circle.x + circle.vx;
-        let newY = circle.y + circle.vy;
-        let newVx = circle.vx;
-        let newVy = circle.vy;
+      setFloatingCircles(prev => {
+        const now = performance.now();
+        const updatedCircles = prev.map(circle => {
+          let newX = circle.x + circle.vx;
+          let newY = circle.y + circle.vy;
+          let newVx = circle.vx;
+          let newVy = circle.vy;
 
-        // Bounce off walls
-        if (newX <= 60 || newX >= window.innerWidth - 120) {
-          newVx = -newVx;
-          newX = Math.max(60, Math.min(window.innerWidth - 120, newX));
-        }
-        if (newY <= 100 || newY >= window.innerHeight - 200) {
-          newVy = -newVy;
-          newY = Math.max(100, Math.min(window.innerHeight - 200, newY));
+          // Bounce off walls
+          if (newX <= 60 || newX >= window.innerWidth - 120) {
+            newVx = -newVx;
+            newX = Math.max(60, Math.min(window.innerWidth - 120, newX));
+          }
+          if (newY <= 100 || newY >= window.innerHeight - 200) {
+            newVy = -newVy;
+            newY = Math.max(100, Math.min(window.innerHeight - 200, newY));
+          }
+
+          return {
+            ...circle,
+            x: newX,
+            y: newY,
+            vx: newVx,
+            vy: newVy,
+            lastUpdateTime: now, // Track when this circle was last updated for real-time collision detection
+          };
+        });
+
+        // Add collision detection between floating circles
+        for (let i = 0; i < updatedCircles.length; i++) {
+          for (let j = i + 1; j < updatedCircles.length; j++) {
+            const circle1 = updatedCircles[i];
+            const circle2 = updatedCircles[j];
+            
+            const dx = circle1.x - circle2.x;
+            const dy = circle1.y - circle2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const minDistance = 120; // Minimum distance between circles (60px radius each)
+            
+            if (distance < minDistance) {
+              // Circles are overlapping, separate them
+              const overlap = minDistance - distance;
+              const separationX = (dx / distance) * overlap * 0.5;
+              const separationY = (dy / distance) * overlap * 0.5;
+              
+              // Move circles apart
+              updatedCircles[i].x += separationX;
+              updatedCircles[i].y += separationY;
+              updatedCircles[j].x -= separationX;
+              updatedCircles[j].y -= separationY;
+              
+              // Reverse velocities to make them bounce apart
+              updatedCircles[i].vx = Math.abs(updatedCircles[i].vx) * (dx > 0 ? 1 : -1);
+              updatedCircles[i].vy = Math.abs(updatedCircles[i].vy) * (dy > 0 ? 1 : -1);
+              updatedCircles[j].vx = Math.abs(updatedCircles[j].vx) * (dx < 0 ? 1 : -1);
+              updatedCircles[j].vy = Math.abs(updatedCircles[j].vy) * (dy < 0 ? 1 : -1);
+              
+              console.log(`Floating circles ${circle1.content} and ${circle2.content} bounced apart`);
+            }
+          }
         }
 
-        return {
-          ...circle,
-          x: newX,
-          y: newY,
-          vx: newVx,
-          vy: newVy,
-        };
-      }));
+        return updatedCircles;
+      });
     }, 16); // ~60fps
 
     return () => clearInterval(animateInterval);
@@ -600,7 +640,7 @@ function GalistNodeCreation() {
     const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
     
     // Calculate launch velocity based on cannon direction
-    const launchSpeed = 15; // Increased speed for faster bullets
+    const launchSpeed = 8; // Reduced speed for better control and accuracy
     const velocityX = Math.sin(angleRad) * launchSpeed;
     const velocityY = -Math.cos(angleRad) * launchSpeed; // Negative because Y increases downward
     
@@ -632,65 +672,125 @@ function GalistNodeCreation() {
             const newX = circle.x + circle.velocityX;
             const newY = circle.y + circle.velocityY;
             
-            // Remove circles that go off screen (bullets can go off-screen and be deleted)
-            if (newX < -100 || newX > window.innerWidth + 100 || 
-                newY < -100 || newY > window.innerHeight + 100) {
-              console.log(`Bullet ${circle.id} went off screen and was deleted`);
-              return; // Don't add to updated circles (remove it)
+            // Screen boundary collision detection - bullets bounce off edges
+            let bounceVelocityX = circle.velocityX;
+            let bounceVelocityY = circle.velocityY;
+            let finalX = newX;
+            let finalY = newY;
+            
+            // Check horizontal boundaries (left and right edges)
+            if (newX <= 15 || newX >= window.innerWidth - 15) {
+              bounceVelocityX = -bounceVelocityX; // Reverse horizontal velocity
+              finalX = newX <= 15 ? 15 : window.innerWidth - 15; // Keep within bounds
+              console.log(`Bullet ${circle.id} bounced off ${newX <= 15 ? 'left' : 'right'} wall`);
+            }
+            
+            // Check vertical boundaries (top and bottom edges)
+            if (newY <= 15 || newY >= window.innerHeight - 15) {
+              bounceVelocityY = -bounceVelocityY; // Reverse vertical velocity
+              finalY = newY <= 15 ? 15 : window.innerHeight - 15; // Keep within bounds
+              console.log(`Bullet ${circle.id} bounced off ${newY <= 15 ? 'top' : 'bottom'} wall`);
             }
             
             const updatedCircle = {
               ...circle,
-              x: newX,
-              y: newY,
-              velocityX: circle.velocityX,
-              velocityY: circle.velocityY
+              x: finalX,
+              y: finalY,
+              velocityX: bounceVelocityX,
+              velocityY: bounceVelocityY
             };
 
-            // Check for collisions with floating circles (optimized with ref)
+            // Check for collisions with floating circles (balanced precision collision detection)
             let bulletHitSomething = false;
+            let hitFloatingCircle = null;
             
-            // Use ref to get current floating circles without dependency issues
+            // Get real-time floating circle positions with balanced accuracy
             const currentFloatingCircles = floatingCirclesRef.current;
-            
             for (let i = 0; i < currentFloatingCircles.length; i++) {
               const floatingCircle = currentFloatingCircles[i];
-              const dx = updatedCircle.x - floatingCircle.x;
-              const dy = updatedCircle.y - floatingCircle.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
+
+              // Calculate REAL-TIME position of floating circle with sub-frame accuracy
+              const now = performance.now();
+              const timeSinceLastUpdate = now - (floatingCircle.lastUpdateTime || now);
+              const timeStepMs = Math.min(timeSinceLastUpdate, 16); // Cap at 16ms to prevent large jumps
               
-              if (distance < 50) { // Collision threshold
-                bulletHitSomething = true;
+              // Calculate current real-time position with velocity interpolation
+              const currentCircleX = floatingCircle.x + (floatingCircle.vx * timeStepMs / 16);
+              const currentCircleY = floatingCircle.y + (floatingCircle.vy * timeStepMs / 16);
+
+              // Calculate current bullet position (center point)
+              const currentBulletX = updatedCircle.x;
+              const currentBulletY = updatedCircle.y;
+
+              // BALANCED PRECISION: Use visual radii with more forgiving threshold
+              const bulletRadius = 15; // Bullet visual radius (30px diameter / 2)
+              const circleRadius = 30; // Floating circle visual radius (60px diameter / 2)
+              const combinedRadius = bulletRadius + circleRadius; // Total collision radius (45px)
+              
+              // Distance between centers
+              const dx = currentBulletX - currentCircleX;
+              const dy = currentBulletY - currentCircleY;
+              const centerDistance = Math.sqrt(dx * dx + dy * dy);
+
+              // FORGIVING COLLISION: Use 90% of combined radius for better hit detection
+              const collisionThreshold = combinedRadius * 0.9; // 40.5px - more forgiving than 80%
+              
+              if (centerDistance < collisionThreshold) {
+                // OPTIONAL TRAJECTORY CHECK: Only validate if bullet is moving very fast
+                const bulletSpeed = Math.sqrt(updatedCircle.velocityX * updatedCircle.velocityX + updatedCircle.velocityY * updatedCircle.velocityY);
+                let isValidHit = true;
                 
-                console.log(`COLLISION! Bullet ${updatedCircle.id} hit floating circle: ${floatingCircle.content}`);
-                console.log(`Both bullet and floating circle will be deleted. Distance: ${distance.toFixed(2)}`);
+                // Only check trajectory for fast-moving bullets to prevent edge cases
+                if (bulletSpeed > 6) {
+                  const bulletPrevX = updatedCircle.x - updatedCircle.velocityX;
+                  const bulletPrevY = updatedCircle.y - updatedCircle.velocityY;
+                  
+                  const prevDistance = Math.sqrt(
+                    Math.pow(bulletPrevX - currentCircleX, 2) + Math.pow(bulletPrevY - currentCircleY, 2)
+                  );
+                  
+                  // Allow hit if getting closer OR already very close (handles edge cases)
+                  isValidHit = (centerDistance < prevDistance) || (centerDistance < combinedRadius * 0.7);
+                }
                 
-                // Transfer floating circle content to square node immediately
-                setSquareNode(prev => {
-                  if (floatingCircle.type === 'value') {
-                    return { ...prev, value: floatingCircle.content };
-                  } else {
-                    return { ...prev, address: floatingCircle.content };
-                  }
-                });
-                
-                // Remove the hit floating circle
-                setFloatingCircles(prevFloating => {
-                  const updatedFloatingCircles = prevFloating.filter(fc => fc.id !== floatingCircle.id);
-                  console.log(`Floating circle ${floatingCircle.content} removed. Remaining circles: ${updatedFloatingCircles.length}`);
-                  return updatedFloatingCircles;
-                });
-                
-                // BREAK immediately after first collision - no more collision checks
-                break;
+                if (isValidHit) {
+                  bulletHitSomething = true;
+                  hitFloatingCircle = floatingCircle;
+
+                  console.log(
+                    `BALANCED COLLISION! Bullet ${updatedCircle.id} hit floating circle: ${floatingCircle.content}`
+                  );
+                  console.log(`Center distance: ${centerDistance.toFixed(2)}px (threshold: ${collisionThreshold.toFixed(2)}px)`);
+                  console.log(`Bullet speed: ${bulletSpeed.toFixed(2)} pixels/frame`);
+                  console.log(`Bullet position: (${currentBulletX.toFixed(1)}, ${currentBulletY.toFixed(1)})`);
+                  console.log(`Circle real-time position: (${currentCircleX.toFixed(1)}, ${currentCircleY.toFixed(1)})`);
+
+                  // Transfer floating circle content to square node
+                  setSquareNode(prev => {
+                    if (floatingCircle.type === 'value') {
+                      return { ...prev, value: floatingCircle.content };
+                    } else {
+                      return { ...prev, address: floatingCircle.content };
+                    }
+                  });
+
+                  // Remove the hit floating circle immediately
+                  setFloatingCircles(prevFloating =>
+                    prevFloating.filter(fc => fc.id !== floatingCircle.id)
+                  );
+
+                  break; // Stop after first hit - maintain 1 bullet = 1 circle rule
+                }
               }
             }
 
-            // Only add bullet to updatedCircles if it didn't hit anything
+
+            // Only add bullet to updatedCircles if it didn't hit anything (CRITICAL: 1 bullet = 1 circle rule)
             if (!bulletHitSomething) {
               updatedCircles.push(updatedCircle);
             } else {
-              console.log(`Bullet ${updatedCircle.id} DELETED due to collision - will not be added to updatedCircles`);
+              console.log(`Bullet ${updatedCircle.id} DELETED due to collision with ${hitFloatingCircle?.content || 'unknown'} - ENFORCING 1 bullet = 1 circle rule`);
+              // Bullet is NOT added to updatedCircles, so it gets deleted from the game
             }
           } else {
             // Keep non-launched circles as they are
