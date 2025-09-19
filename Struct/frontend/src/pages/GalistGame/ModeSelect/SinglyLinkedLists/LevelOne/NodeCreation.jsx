@@ -57,6 +57,12 @@ function GalistNodeCreation() {
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
 
+  // Cannon circle states - initialize with random values for testing
+  const [cannonCircle, setCannonCircle] = useState({ 
+    value: Math.floor(Math.random() * 100).toString(), 
+    address: Math.floor(Math.random() * 1000).toString() 
+  });
+
   
   // const startGame = useCallback(() => {
   //   const next = { screen: "mode", mode: null };
@@ -435,6 +441,11 @@ function GalistNodeCreation() {
 
   // Mouse event handlers for dragging
   const handleMouseDown = (e, circle) => {
+    // Prevent dragging launched circles
+    if (circle.isLaunched) {
+      return;
+    }
+    
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     setDraggedCircle(circle);
@@ -493,14 +504,100 @@ function GalistNodeCreation() {
     closePopup();
   };
 
+  // Cannon circle event handlers - removed double-click editing for testing
+
+  // Global right-click handler for launching circles
+  const handleGlobalRightClick = useCallback((e) => {
+    e.preventDefault(); // Prevent context menu
+    
+    console.log('Right-click detected! Cannon values:', cannonCircle);
+    
+    // Launch circle from cannon if values are set
+    if (cannonCircle.value && cannonCircle.address) {
+      // Calculate launch position from cannon tip
+      const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
+      const cannonTipY = window.innerHeight - 1; // Cannon base Y
+      
+      // Calculate tip position based on cannon angle
+      const tipDistance = 55; // Distance from base to tip
+      const angleRad = (cannonAngle) * (Math.PI / 180);
+      const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
+      const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
+      
+      // Calculate launch velocity based on cannon direction
+      const launchSpeed = 8; // Pixels per frame - adjust this for faster/slower launch
+      const velocityX = Math.sin(angleRad) * launchSpeed;
+      const velocityY = -Math.cos(angleRad) * launchSpeed; // Negative because Y increases downward
+      
+      // Create new circle at cannon tip with launch velocity
+      const newCircle = {
+        id: Date.now(),
+        x: tipX - 30, // Offset for circle radius
+        y: tipY - 30,
+        value: cannonCircle.value,
+        address: cannonCircle.address,
+        velocityX: velocityX,
+        velocityY: velocityY,
+        isLaunched: true, // Flag to indicate this circle was launched
+      };
+      
+      console.log('Launching circle:', newCircle);
+      setCircles(prev => [...prev, newCircle]);
+      
+      // Generate new random values for the next shot
+      const newValues = { 
+        value: Math.floor(Math.random() * 100).toString(), 
+        address: Math.floor(Math.random() * 1000).toString() 
+      };
+      console.log('New cannon values:', newValues);
+      setCannonCircle(newValues);
+    } else {
+      console.log('Cannot launch - missing values:', cannonCircle);
+    }
+  }, [cannonCircle, cannonAngle]);
+
+  // Animation loop for launched circles
+  useEffect(() => {
+    const animationFrame = () => {
+      setCircles(prevCircles => 
+        prevCircles.map(circle => {
+          if (circle.isLaunched && (circle.velocityX || circle.velocityY)) {
+            // Update position based on velocity (no gravity - straight line movement)
+            const newX = circle.x + circle.velocityX;
+            const newY = circle.y + circle.velocityY;
+            
+            // Remove circles that go off screen
+            if (newX < -100 || newX > window.innerWidth + 100 || 
+                newY < -100 || newY > window.innerHeight + 100) {
+              return null; // Mark for removal
+            }
+            
+            return {
+              ...circle,
+              x: newX,
+              y: newY,
+              // Keep velocities constant for straight-line movement
+              velocityX: circle.velocityX,
+              velocityY: circle.velocityY
+            };
+          }
+          return circle;
+        }).filter(circle => circle !== null) // Remove null circles
+      );
+    };
+
+    const intervalId = setInterval(animationFrame, 16); // ~60fps
+    return () => clearInterval(intervalId);
+  }, []);
+
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
       // Always update cannon rotation regardless of dragging state
       // Calculate cannon base position (bottom center of the cannon)
-      // CSS: right: 10px, bottom: 10px, width: 70px, height: 110px
+      // CSS: right: -40px, bottom: 1px, width: 70px, height: 110px
       // Transform origin is bottom center, so we calculate from the bottom-center of the cannon
-      const cannonBaseX = window.innerWidth - 10 - 35; // Right edge - 10px - half width (35px)
-      const cannonBaseY = window.innerHeight - 10; // Bottom edge position (bottom: 10px)
+      const cannonBaseX = window.innerWidth + 40 - 35; // Right edge + 40px offset - half width (35px)
+      const cannonBaseY = window.innerHeight - 1; // Bottom edge position (bottom: 1px)
       
       // Calculate angle from cannon base to mouse cursor
       const deltaX = e.clientX - cannonBaseX;
@@ -515,22 +612,9 @@ function GalistNodeCreation() {
       
       // Update cannon angle
       setCannonAngle(angle);
-      
-      // Debug log to see if mouse tracking is working
-      if (Math.random() < 0.01) { // Only log 1% of the time to avoid spam
-        console.log('Mouse tracking:', { 
-          mouseX: e.clientX, 
-          mouseY: e.clientY, 
-          cannonBaseX, 
-          cannonBaseY, 
-          deltaX, 
-          deltaY, 
-          angle 
-        });
-      }
 
-      // Existing circle dragging logic
-      if (draggedCircle) {
+      // Existing circle dragging logic (only for non-launched circles)
+      if (draggedCircle && !draggedCircle.isLaunched) {
         const newX = e.clientX - dragOffset.x;
         const newY = e.clientY - dragOffset.y;
 
@@ -694,12 +778,14 @@ function GalistNodeCreation() {
 
     document.addEventListener("mousemove", handleMouseMoveGlobal);
     document.addEventListener("mouseup", handleMouseUpGlobal);
+    document.addEventListener("contextmenu", handleGlobalRightClick);
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMoveGlobal);
       document.removeEventListener("mouseup", handleMouseUpGlobal);
+      document.removeEventListener("contextmenu", handleGlobalRightClick);
     };
-  }, [draggedCircle, dragOffset, findConnectedCircles, circles]);
+  }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick]);
 
   return (
     <div className={styles.app}>
@@ -801,7 +887,16 @@ function GalistNodeCreation() {
           transform: `rotate(${cannonAngle}deg)`,
           transformOrigin: "bottom center"
         }} 
-      />
+      >
+        {/* Cannon Circle */}
+        <div 
+          className={styles.cannonCircle}
+        >
+          <span style={{ fontSize: '10px' }}>
+            {cannonCircle.value}
+          </span>
+        </div>
+      </div>
 
       {circles.map((circle) => (
         <div
@@ -812,10 +907,15 @@ function GalistNodeCreation() {
           style={{
             left: `${circle.x - 30}px`,
             top: `${circle.y - 30}px`,
-            cursor:
-              draggedCircle && circle.id === draggedCircle.id
+            cursor: circle.isLaunched 
+              ? "default" 
+              : (draggedCircle && circle.id === draggedCircle.id
                 ? "grabbing"
-                : "grab",
+                : "grab"),
+            opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
+            boxShadow: circle.isLaunched 
+              ? "0 0 15px rgba(255, 255, 0, 0.6)" 
+              : "0 4px 8px rgba(0, 0, 0, 0.3)", // Yellow glow for launched circles
           }}
           onMouseDown={(e) => handleMouseDown(e, circle)}
           // Double click disabled

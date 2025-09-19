@@ -46,13 +46,6 @@ export class CollisionDetection {
       newVelocityX = rightSquareCollision.velocityX;
       newVelocityY = rightSquareCollision.velocityY;
 
-      // 3. Controls collision
-      const controlsCollision = this.checkControlsCollision(newX, newY, circle, newVelocityX, newVelocityY);
-      newX = controlsCollision.x;
-      newY = controlsCollision.y;
-      newVelocityX = controlsCollision.velocityX;
-      newVelocityY = controlsCollision.velocityY;
-
       // 4. Circle-to-circle collisions
       const circleCollision = this.checkCircleCollisions(newX, newY, newVelocityX, newVelocityY, circle, circleArray, suckingCircles);
       newX = circleCollision.x;
