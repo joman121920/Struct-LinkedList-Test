@@ -28,9 +28,7 @@ function GalistNodeCreation() {
   const [originalSubmission, setOriginalSubmission] = useState(null);
 
   // Exercise progress indicator logic
-  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
-  const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
-  const totalExercises = EXERCISE_KEYS.length;
+
 
   // --- Auto launch removed. No initial circles are launched automatically. ---
 
@@ -57,11 +55,85 @@ function GalistNodeCreation() {
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
 
-  // Cannon circle states - initialize with random values for testing
-  const [cannonCircle, setCannonCircle] = useState({ 
-    value: Math.floor(Math.random() * 100).toString(), 
-    address: Math.floor(Math.random() * 1000).toString() 
+  // Square node states for the interactive bottom square
+  const [squareNode, setSquareNode] = useState({
+    value: "",
+    address: ""
   });
+
+  // Floating target circles - some with values, some with addresses
+  // Floating circles state and ref for performance optimization
+  const [floatingCircles, setFloatingCircles] = useState([]);
+  const floatingCirclesRef = useRef([]);
+  
+  // Update ref whenever floating circles change
+  useEffect(() => {
+    floatingCirclesRef.current = floatingCircles;
+  }, [floatingCircles]);
+
+  // Expected output for reference
+  const expectedOutput = {
+    value: "10",
+    address: "ab7"
+  };
+
+  // Generate floating circles on mount
+  useEffect(() => {
+    const generateFloatingCircles = () => {
+      const circles = [];
+      const numCircles = 8; // 4 value circles + 4 address circles
+      
+      for (let i = 0; i < numCircles; i++) {
+        const isValue = i < numCircles / 2;
+        const circle = {
+          id: `floating-${i}`,
+          type: isValue ? 'value' : 'address',
+          content: isValue ? Math.floor(Math.random() * 20) + 1 : `a${Math.floor(Math.random() * 9)}${Math.floor(Math.random() * 9)}`,
+          x: Math.random() * (window.innerWidth - 200) + 100,
+          y: Math.random() * (window.innerHeight - 300) + 150,
+          vx: (Math.random() - 0.5) * 0.5, // Slow horizontal velocity
+          vy: (Math.random() - 0.5) * 0.5, // Slow vertical velocity
+        };
+        circles.push(circle);
+      }
+      
+      setFloatingCircles(circles);
+    };
+
+    generateFloatingCircles();
+  }, []);
+
+  // Animate floating circles
+  useEffect(() => {
+    const animateInterval = setInterval(() => {
+      setFloatingCircles(prev => prev.map(circle => {
+        let newX = circle.x + circle.vx;
+        let newY = circle.y + circle.vy;
+        let newVx = circle.vx;
+        let newVy = circle.vy;
+
+        // Bounce off walls
+        if (newX <= 60 || newX >= window.innerWidth - 120) {
+          newVx = -newVx;
+          newX = Math.max(60, Math.min(window.innerWidth - 120, newX));
+        }
+        if (newY <= 100 || newY >= window.innerHeight - 200) {
+          newVy = -newVy;
+          newY = Math.max(100, Math.min(window.innerHeight - 200, newY));
+        }
+
+        return {
+          ...circle,
+          x: newX,
+          y: newY,
+          vx: newVx,
+          vy: newVy,
+        };
+      }));
+    }, 16); // ~60fps
+
+    return () => clearInterval(animateInterval);
+  }, []);
 
   
   // const startGame = useCallback(() => {
@@ -168,12 +240,7 @@ function GalistNodeCreation() {
     setExerciseKey(key);
   }, []);
 
-  const startExercise = useCallback(() => {
-    setShowInstructionPopup(false);
-    if (!currentExercise) {
-      loadExercise();
-    }
-  }, [loadExercise, currentExercise]);
+  
 
   // Initialize exercise on component mount
   useEffect(() => {
@@ -203,6 +270,11 @@ function GalistNodeCreation() {
       setCircles((prevCircles) => {
 
         const circlesWithSpecialBehavior = prevCircles.map((circle) => {
+          // Skip all special behavior for bullets - they have their own animation system
+          if (circle.isBullet) {
+            return circle;
+          }
+          
           if (draggedCircle && circle.id === draggedCircle.id) {
             return circle;
           }
@@ -352,8 +424,8 @@ function GalistNodeCreation() {
           return circle;
         });
 
-        // Second pass: Apply collision detection and physics
-        const allCirclesForCollision = circlesWithSpecialBehavior;
+        // Second pass: Apply collision detection and physics (exclude bullets - they have their own system)
+        const allCirclesForCollision = circlesWithSpecialBehavior.filter(circle => !circle.isBullet);
         const draggedCircleData = draggedCircle
           ? allCirclesForCollision.find(
               (circle) => circle.id === draggedCircle.id
@@ -366,9 +438,14 @@ function GalistNodeCreation() {
                 suckingCircles
               )
             : [];
-        let finalCircles = updatedAllCircles;
+        
+        // Keep bullets separate - they're handled by their own animation loop
+        const bullets = circlesWithSpecialBehavior.filter(circle => circle.isBullet);
+        const finalCollisionCircles = [...updatedAllCircles, ...bullets];
+        
+        let finalCircles = finalCollisionCircles;
         if (draggedCircleData) {
-          finalCircles = updatedAllCircles.map((circle) => {
+          finalCircles = finalCollisionCircles.map((circle) => {
             if (circle.id === draggedCircle.id) {
               return {
                 ...draggedCircleData,
@@ -510,85 +587,124 @@ function GalistNodeCreation() {
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
     
-    console.log('Right-click detected! Cannon values:', cannonCircle);
+    console.log('Right-click detected! Launching bullet...');
     
-    // Launch circle from cannon if values are set
-    if (cannonCircle.value && cannonCircle.address) {
-      // Calculate launch position from cannon tip
-      const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
-      const cannonTipY = window.innerHeight - 1; // Cannon base Y
-      
-      // Calculate tip position based on cannon angle
-      const tipDistance = 55; // Distance from base to tip
-      const angleRad = (cannonAngle) * (Math.PI / 180);
-      const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
-      const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
-      
-      // Calculate launch velocity based on cannon direction
-      const launchSpeed = 8; // Pixels per frame - adjust this for faster/slower launch
-      const velocityX = Math.sin(angleRad) * launchSpeed;
-      const velocityY = -Math.cos(angleRad) * launchSpeed; // Negative because Y increases downward
-      
-      // Create new circle at cannon tip with launch velocity
-      const newCircle = {
-        id: Date.now(),
-        x: tipX - 30, // Offset for circle radius
-        y: tipY - 30,
-        value: cannonCircle.value,
-        address: cannonCircle.address,
-        velocityX: velocityX,
-        velocityY: velocityY,
-        isLaunched: true, // Flag to indicate this circle was launched
-      };
-      
-      console.log('Launching circle:', newCircle);
-      setCircles(prev => [...prev, newCircle]);
-      
-      // Generate new random values for the next shot
-      const newValues = { 
-        value: Math.floor(Math.random() * 100).toString(), 
-        address: Math.floor(Math.random() * 1000).toString() 
-      };
-      console.log('New cannon values:', newValues);
-      setCannonCircle(newValues);
-    } else {
-      console.log('Cannot launch - missing values:', cannonCircle);
-    }
-  }, [cannonCircle, cannonAngle]);
+    // Calculate launch position from cannon tip
+    const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
+    const cannonTipY = window.innerHeight - 1; // Cannon base Y
+    
+    // Calculate tip position based on cannon angle
+    const tipDistance = 55; // Distance from base to tip
+    const angleRad = (cannonAngle) * (Math.PI / 180);
+    const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
+    const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
+    
+    // Calculate launch velocity based on cannon direction
+    const launchSpeed = 15; // Increased speed for faster bullets
+    const velocityX = Math.sin(angleRad) * launchSpeed;
+    const velocityY = -Math.cos(angleRad) * launchSpeed; // Negative because Y increases downward
+    
+    // Create new bullet (simple circle without values)
+    const newBullet = {
+      id: Date.now(),
+      x: tipX - 15, // Offset for bullet radius (smaller than regular circles)
+      y: tipY - 15,
+      isBullet: true, // Flag to indicate this is a bullet
+      velocityX: velocityX,
+      velocityY: velocityY,
+      isLaunched: true,
+    };
+    
+    console.log('Launching bullet:', newBullet);
+    setCircles(prev => [...prev, newBullet]);
+  }, [cannonAngle]);
 
   // Animation loop for launched circles
   useEffect(() => {
     const animationFrame = () => {
-      setCircles(prevCircles => 
-        prevCircles.map(circle => {
-          if (circle.isLaunched && (circle.velocityX || circle.velocityY)) {
+      setCircles(prevCircles => {
+        const updatedCircles = [];
+        
+        prevCircles.forEach(circle => {
+          // Skip bullets that are already marked for deletion
+          if (circle.isLaunched && (circle.velocityX || circle.velocityY) && !circle.markedForDeletion) {
             // Update position based on velocity (no gravity - straight line movement)
             const newX = circle.x + circle.velocityX;
             const newY = circle.y + circle.velocityY;
             
-            // Remove circles that go off screen
+            // Remove circles that go off screen (bullets can go off-screen and be deleted)
             if (newX < -100 || newX > window.innerWidth + 100 || 
                 newY < -100 || newY > window.innerHeight + 100) {
-              return null; // Mark for removal
+              console.log(`Bullet ${circle.id} went off screen and was deleted`);
+              return; // Don't add to updated circles (remove it)
             }
             
-            return {
+            const updatedCircle = {
               ...circle,
               x: newX,
               y: newY,
-              // Keep velocities constant for straight-line movement
               velocityX: circle.velocityX,
               velocityY: circle.velocityY
             };
+
+            // Check for collisions with floating circles (optimized with ref)
+            let bulletHitSomething = false;
+            
+            // Use ref to get current floating circles without dependency issues
+            const currentFloatingCircles = floatingCirclesRef.current;
+            
+            for (let i = 0; i < currentFloatingCircles.length; i++) {
+              const floatingCircle = currentFloatingCircles[i];
+              const dx = updatedCircle.x - floatingCircle.x;
+              const dy = updatedCircle.y - floatingCircle.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
+              if (distance < 50) { // Collision threshold
+                bulletHitSomething = true;
+                
+                console.log(`COLLISION! Bullet ${updatedCircle.id} hit floating circle: ${floatingCircle.content}`);
+                console.log(`Both bullet and floating circle will be deleted. Distance: ${distance.toFixed(2)}`);
+                
+                // Transfer floating circle content to square node immediately
+                setSquareNode(prev => {
+                  if (floatingCircle.type === 'value') {
+                    return { ...prev, value: floatingCircle.content };
+                  } else {
+                    return { ...prev, address: floatingCircle.content };
+                  }
+                });
+                
+                // Remove the hit floating circle
+                setFloatingCircles(prevFloating => {
+                  const updatedFloatingCircles = prevFloating.filter(fc => fc.id !== floatingCircle.id);
+                  console.log(`Floating circle ${floatingCircle.content} removed. Remaining circles: ${updatedFloatingCircles.length}`);
+                  return updatedFloatingCircles;
+                });
+                
+                // BREAK immediately after first collision - no more collision checks
+                break;
+              }
+            }
+
+            // Only add bullet to updatedCircles if it didn't hit anything
+            if (!bulletHitSomething) {
+              updatedCircles.push(updatedCircle);
+            } else {
+              console.log(`Bullet ${updatedCircle.id} DELETED due to collision - will not be added to updatedCircles`);
+            }
+          } else {
+            // Keep non-launched circles as they are
+            updatedCircles.push(circle);
           }
-          return circle;
-        }).filter(circle => circle !== null) // Remove null circles
-      );
+        });
+        
+        return updatedCircles;
+      });
     };
 
-    const intervalId = setInterval(animationFrame, 16); // ~60fps
+    const intervalId = setInterval(animationFrame, 8); // ~120fps for smoother movement
     return () => clearInterval(intervalId);
-  }, []);
+  }, []); // No dependencies - animation loop runs once and stays stable
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
@@ -803,17 +919,9 @@ function GalistNodeCreation() {
         Your browser does not support the video tag.
       </video>
 
-      <button
-        className={styles.instructionButton}
-        onClick={() => setShowInstructionPopup(!showInstructionPopup)}
-      >
-        i
-      </button>
+      
 
-      {/* Exercise progress indicator (top right) */}
-      <div className={styles.exerciseProgressIndicator}>
-        {currentExerciseNumber}/{totalExercises}
-      </div>
+      
 
       {/* Expected results bar */}
       {currentExercise && currentExercise.expectedStructure && (
@@ -821,56 +929,14 @@ function GalistNodeCreation() {
           <table className={styles.expectedBarTable}>
             <tbody>
               <tr className={styles.expectedBarRow}>
-                {currentExercise.expectedStructure.map((node, idx) => (
-                  <React.Fragment key={node.address}>
-                    <td className={styles.expectedBarCell}>
-                      <div className={styles.expectedBarCircle}>
-                        <div className={styles.expectedBarValue}>
-                          {node.value}
-                        </div>
-                        <div className={styles.expectedBarAddress}>
-                          {node.address}
-                        </div>
-                      </div>
-                    </td>
-                    {idx < currentExercise.expectedStructure.length - 1 && (
-                      <td className={styles.expectedBarArrowCell}>
-                        <span className={styles.expectedBarArrow}>→</span>
-                      </td>
-                    )}
-                  </React.Fragment>
-                ))}
+                
               </tr>
             </tbody>
           </table>
         </div>
       )}
 
-      {showInstructionPopup &&
-        currentExercise &&
-        currentExercise.expectedStructure && (
-          <div className={styles.instructionPopup}>
-            <div className={styles.instructionContent}>
-              <h1>{currentExercise.title}</h1>
-              <div className={styles.instructionList}>
-                {currentExercise.expectedStructure.map((node, index) => (
-                  <div key={index} className={styles.instructionItem}>
-                    <span className={styles.instructionValue}>
-                      Value: {node.value}
-                    </span>
-                    <span className={styles.instructionArrow}>→</span>
-                    <span className={styles.instructionAddress}>
-                      Address: {node.address}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <button className={styles.startButton} onClick={startExercise}>
-                Start
-              </button>
-            </div>
-          </div>
-        )}
+      
 
       {/* Portal particles for vacuum effect */}
       <PortalParticles 
@@ -892,8 +958,8 @@ function GalistNodeCreation() {
         <div 
           className={styles.cannonCircle}
         >
-          <span style={{ fontSize: '10px' }}>
-            {cannonCircle.value}
+          <span style={{ fontSize: '12px', color: '#fff' }}>
+            •
           </span>
         </div>
       </div>
@@ -905,23 +971,29 @@ function GalistNodeCreation() {
             suckingCircles.includes(circle.id) ? styles.beingSucked : ""
           }`}
           style={{
-            left: `${circle.x - 30}px`,
-            top: `${circle.y - 30}px`,
+            left: `${circle.x - (circle.isBullet ? 15 : 30)}px`,
+            top: `${circle.y - (circle.isBullet ? 15 : 30)}px`,
+            width: circle.isBullet ? '30px' : '60px',
+            height: circle.isBullet ? '30px' : '60px',
+            backgroundColor: circle.isBullet ? '#ff6b6b' : '#d3d3d3',
             cursor: circle.isLaunched 
               ? "default" 
               : (draggedCircle && circle.id === draggedCircle.id
                 ? "grabbing"
                 : "grab"),
-            opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
+            opacity: circle.isLaunched ? 0.9 : 1,
             boxShadow: circle.isLaunched 
               ? "0 0 15px rgba(255, 255, 0, 0.6)" 
-              : "0 4px 8px rgba(0, 0, 0, 0.3)", // Yellow glow for launched circles
+              : "0 4px 8px rgba(0, 0, 0, 0.3)",
           }}
           onMouseDown={(e) => handleMouseDown(e, circle)}
-          // Double click disabled
         >
-          <span className={styles.circleValue}>{circle.value}</span>
-          <span className={styles.circleAddress}>{circle.address}</span>
+          {!circle.isBullet && (
+            <>
+              <span className={styles.circleValue}>{circle.value}</span>
+              <span className={styles.circleAddress}>{circle.address}</span>
+            </>
+          )}
         </div>
       ))}
 
@@ -1197,6 +1269,46 @@ function GalistNodeCreation() {
           </div>
         </div>
       )}
+
+      {/* Expected Output Square (top-left) */}
+      <div className={styles.expectedWrapper}>
+        <div className={styles.expectedTitle}>Expected Output:</div>
+        <div className={styles.squareNode}>
+          <div className={styles.squareNodeField}>
+            {expectedOutput.value}
+          </div>
+          <div className={styles.squareNodeField}>
+            {expectedOutput.address}
+          </div>
+        </div>
+      </div>
+
+      {/* Interactive Square Node (bottom-center) */}
+      <div className={styles.interactiveSquareWrapper}>
+        <div className={styles.interactiveTitle}>Target Square:</div>
+        <div className={styles.squareNode}>
+          <div className={`${styles.squareNodeField} ${!squareNode.value ? styles.empty : ''}`}>
+            {squareNode.value || "empty"}
+          </div>
+          <div className={`${styles.squareNodeField} ${!squareNode.address ? styles.empty : ''}`}>
+            {squareNode.address || "empty"}
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Circles */}
+      {floatingCircles.map(circle => (
+        <div
+          key={circle.id}
+          className={`${styles.floatingCircle} ${circle.type === 'value' ? styles.valueCircle : styles.addressCircle}`}
+          style={{
+            left: `${circle.x}px`,
+            top: `${circle.y}px`,
+          }}
+        >
+          {circle.content}
+        </div>
+      ))}
     </div>
   );
 }
