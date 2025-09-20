@@ -1,0 +1,98 @@
+/* Tutorial Styles */
+.tutorialOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.tutorialPopup {
+  background: rgba(20, 20, 30, 0.95);
+  border: 2px solid #4a90e2;
+  border-radius: 15px;
+  padding: 40px;
+  max-width: 600px;
+  min-width: 400px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.tutorialContent h2 {
+  color: #4a90e2;
+  font-size: 28px;
+  margin-bottom: 20px;
+  font-weight: 700;
+}
+
+.tutorialContent p {
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+.tutorialButton {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+
+.tutorialButton:hover {
+  background: linear-gradient(135deg, #357abd 0%, #2968a3 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+}
+
+.tutorialInstructionBar {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: white;
+  padding: 15px 30px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  z-index: 100;
+  box-shadow: 0 5px 15px rgba(74, 144, 226, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.tutorialInstructionBar h3 {
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.tutorialContinueButton {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+}
+
+.tutorialContinueButton .tutorialButton {
+  font-size: 18px;
+  padding: 15px 40px;
+  background: linear-gradient(135deg, #28a745 0%, #20692e 100%);
+}
+
+.tutorialContinueButton .tutorialButton:hover {
+  background: linear-gradient(135deg, #20692e 0%, #1e5f2a 100%);
+  box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
