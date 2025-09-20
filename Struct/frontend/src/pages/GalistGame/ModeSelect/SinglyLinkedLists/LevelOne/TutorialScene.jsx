@@ -525,8 +525,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     </div>
                   </div>
                 </div>
-                <h2>Great!</h2>
-                <p>You created your first node. Remember a node always needs both data and address.</p>
+                <h2>Perfect!</h2>
+                <p>You created your first node with both data and address. Remember a node always needs both data and address.</p>
+                <p><strong>Let&apos;s head to the game.</strong></p>
                 <button 
                   onClick={onContinue}
                   className={tutorialStyles.tutorialButton}

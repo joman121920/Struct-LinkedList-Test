@@ -51,7 +51,7 @@
   width: 350px;
   height: 60px;
   background: transparent;
-  border: 3px solid #ecf0f1;
+  border: 3px solid #f609e2;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   overflow: hidden;
@@ -1311,7 +1311,7 @@
   width: 250px;
   height: 80px;
   background: transparent;
-  border: 3px solid #ecf0f1;
+  border: 3px solid #f609e2;
   border-radius: 8px;
   position: relative;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -1326,7 +1326,7 @@
 }
 
 .squareSection:first-child {
-  border-right: 2px solid #ecf0f1;
+  border-right: 2px solid #f609e2;
 }
 
 .sectionLabel {
@@ -1336,7 +1336,7 @@
   font-weight: bold;
   text-align: center;
   padding: 4px 0;
-  border-bottom: 1px solid #ecf0f1;
+  border-bottom: 1px solid #f609e2;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
