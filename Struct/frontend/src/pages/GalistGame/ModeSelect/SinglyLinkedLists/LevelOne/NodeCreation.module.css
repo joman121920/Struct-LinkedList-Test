@@ -1374,11 +1374,7 @@
   z-index: 100;
 }
 
-.completedSquare {
-  animation: successGlow 1.5s ease-in-out infinite;
-  border-color: #2ecc71 !important;
-  box-shadow: 0 0 20px rgba(46, 204, 113, 0.6) !important;
-}
+
 
 @keyframes celebrationPulse {
   0%, 100% { transform: translateX(-50%) scale(1); }
@@ -1463,4 +1459,79 @@
   background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%) !important;
   border: 2px solid #fff !important;
   box-shadow: 0 0 10px rgba(255, 107, 107, 0.6) !important;
+}
+
+/* Completion Popup Styles */
+.completionOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.completionPopup {
+  background: #0c0c0c00;
+  border: 2px solid #f609e2;
+  border-radius: 15px;
+  padding: 50px 80px 20px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  min-width: 550px;
+  animation: popIn 0.4s ease-out;
+}
+
+.completionContent h2 {
+  color: #ffffff;
+  font-size: 32px;
+  margin-bottom: 40px;
+  font-weight: 600;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 1px;
+}
+
+.completionButton {
+  background: transparent;
+  color: #ffffff;
+  border: 2px solid #f609e2;
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 1px;
+  min-width: 100px;
+}
+
+.completionButton:hover {
+  background: #f609e2;
+  color: #000000;
+  transform: translateY(-2px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }

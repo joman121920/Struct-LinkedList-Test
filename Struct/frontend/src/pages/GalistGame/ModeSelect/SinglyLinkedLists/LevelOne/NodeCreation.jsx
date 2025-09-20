@@ -66,6 +66,8 @@ function MainGameComponent() {
   // Level completion states
   const [isLevelCompleted, setIsLevelCompleted] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
+  const [showCompletionPopup, setShowCompletionPopup] = useState(false);
+  const [isAllLevelsComplete, setIsAllLevelsComplete] = useState(false);
 
   // Floating target circles - some with values, some with addresses
   // Floating circles state and ref for performance optimization
@@ -199,43 +201,21 @@ function MainGameComponent() {
         
         // Set completion feedback
         setIsLevelCompleted(true);
-        setCompletionMessage(`Level ${exerciseKey.split('_')[1]} Complete!`);
+        setShowCompletionPopup(true);
+        
+        // Get current level number
+        const currentLevelNum = parseInt(exerciseKey.split('_')[1]);
+        setCompletionMessage(`Level Complete: ${currentLevelNum}/3`);
         
         // Check if there's a next level
         const nextLevel = exerciseManagerRef.current.getNextLevel(exerciseKey);
         
         if (nextLevel) {
-          
-          // Add a short delay before advancing to next level for better UX
-          setTimeout(() => {
-            setIsLevelCompleted(false);
-            setCompletionMessage("");
-            // Manually load the next exercise without using loadExercise callback
-            setCircles([]);
-            setConnections([]);
-            setSuckingCircles([]);
-            setSuckedCircles([]);
-            setCurrentEntryOrder([]);
-            if (entryOrderRef) entryOrderRef.current = [];
-            if (suckedCirclesRef) suckedCirclesRef.current = [];
-            setOriginalSubmission(null);
-            setShowValidationResult(false);
-            setValidationResult(null);
-            setSquareNode({ value: "", address: "" });
-            setIsLevelCompleted(false);
-            setCompletionMessage("");
-            
-            const exercise = exerciseManagerRef.current.loadExercise(nextLevel);
-            setCurrentExercise(exercise);
-            setExerciseKey(nextLevel);
-            setExpectedOutput({
-              value: exercise.expectedOutput.value,
-              address: exercise.expectedOutput.address
-            });
-          }, 1500); // 1.5 second delay to show completion
+          // Will continue to next level when user clicks Continue button
         } else {
-          setCompletionMessage("🏆 All Levels Complete! 🏆");
-          // Could add a completion celebration here
+          // All levels completed
+          setIsAllLevelsComplete(true);
+          setCompletionMessage("Node Creation Completed");
         }
       }
     }
@@ -693,6 +673,42 @@ function MainGameComponent() {
       )
     );
     closePopup();
+  };
+
+  // Completion popup handlers
+  const handleContinueToNextLevel = () => {
+    const nextLevel = exerciseManagerRef.current.getNextLevel(exerciseKey);
+    if (nextLevel) {
+      // Reset states for next level
+      setIsLevelCompleted(false);
+      setShowCompletionPopup(false);
+      setCompletionMessage("");
+      setCircles([]);
+      setConnections([]);
+      setSuckingCircles([]);
+      setSuckedCircles([]);
+      setCurrentEntryOrder([]);
+      if (entryOrderRef) entryOrderRef.current = [];
+      if (suckedCirclesRef) suckedCirclesRef.current = [];
+      setOriginalSubmission(null);
+      setShowValidationResult(false);
+      setValidationResult(null);
+      setSquareNode({ value: "", address: "" });
+      
+      // Load next exercise
+      const exercise = exerciseManagerRef.current.loadExercise(nextLevel);
+      setCurrentExercise(exercise);
+      setExerciseKey(nextLevel);
+      setExpectedOutput({
+        value: exercise.expectedOutput.value,
+        address: exercise.expectedOutput.address
+      });
+    }
+  };
+
+  const handleGoBack = () => {
+    // Navigate back to the previous screen or menu
+    window.history.back();
   };
 
   // Cannon circle event handlers - removed double-click editing for testing
@@ -1458,11 +1474,6 @@ function MainGameComponent() {
       
       {/* Interactive Square Node (bottom-center) */}
       <div className={styles.interactiveSquareWrapper}>
-        {isLevelCompleted && (
-          <div className={styles.completionMessage}>
-            {completionMessage}
-          </div>
-        )}
         <div className={`${styles.squareNode} ${isLevelCompleted ? styles.completedSquare : ''}`}>
           <div className={styles.squareSection}>
             <div className={styles.sectionLabel}>Value</div>
@@ -1478,6 +1489,39 @@ function MainGameComponent() {
           </div>
         </div>
       </div>
+
+      {/* Completion Popups */}
+      {showCompletionPopup && !isAllLevelsComplete && (
+        <div className={styles.completionOverlay}>
+          <div className={styles.completionPopup}>
+            <div className={styles.completionContent}>
+              <h2>{completionMessage}</h2>
+              <button 
+                onClick={handleContinueToNextLevel}
+                className={styles.completionButton}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCompletionPopup && isAllLevelsComplete && (
+        <div className={styles.completionOverlay}>
+          <div className={styles.completionPopup}>
+            <div className={styles.completionContent}>
+              <h2>{completionMessage}</h2>
+              <button 
+                onClick={handleGoBack}
+                className={styles.completionButton}
+              >
+                Go back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Circles */}
       {floatingCircles.map(circle => (
