@@ -10,12 +10,24 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [cannonAngle, setCannonAngle] = useState(0);
   const [squareNode, setSquareNode] = useState({ value: "", address: "" });
   const [tutorialBullets, setTutorialBullets] = useState([]);
+  // const [fadeIn, setFadeIn] = useState(false);
   const tutorialCirclesRef = useRef([]);
   
   // Update ref whenever tutorial circles change
   useEffect(() => {
     tutorialCirclesRef.current = tutorialCircles;
   }, [tutorialCircles]);
+
+  // Handle fade-in animation for scene4
+  // useEffect(() => {
+  //   if (scene === 'scene4') {
+  //     setFadeIn(false);
+  //     const timer = setTimeout(() => {
+  //       setFadeIn(true);
+  //     }, 5000);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [scene]);
 
   // Generate 4 random tutorial circles
   useEffect(() => {
@@ -390,6 +402,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
+                <h2>Good job!</h2>
                 <div className={styles.expectedOutputSquare} style={{ marginBottom: '20px' }}>
                   <div className={styles.squareSection}>
                     <div className={styles.sectionLabel}>Value</div>
@@ -404,7 +417,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     </div>
                   </div>
                 </div>
-                <h2>Good job!</h2>
                 <p>You&apos;ve added a value to your node. Now let&apos;s add an address to your node.</p>
                 <button 
                   onClick={onContinue}
@@ -511,7 +523,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <div className={styles.expectedOutputSquare} style={{ marginBottom: '20px' }}>
+                <h2>Perfect!</h2>
+                <div className={styles.expectedOutputSquare} style={{ marginBottom: '30px' }}>
                   <div className={styles.squareSection}>
                     <div className={styles.sectionLabel}>Value</div>
                     <div className={styles.squareNodeField}>
@@ -525,7 +538,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     </div>
                   </div>
                 </div>
-                <h2>Perfect!</h2>
                 <p>You created your first node with both data and address. Remember a node always needs both data and address.</p>
                 <p><strong>Let&apos;s head to the game.</strong></p>
                 <button 
@@ -538,6 +550,80 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (scene === 'scene4') {
+    return (
+      <div 
+        className={styles.app} 
+        // style={{
+        //   opacity: fadeIn ? 1 : 0,
+        //   transition: 'opacity 1.2s ease-in-out',
+        //   transform: fadeIn ? 'scale(1)' : 'scale(0.95)',
+        // }}
+            >
+        <video
+          className={styles.videoBackground}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+        >
+          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+
+        {/* Game Instructions Popup */}
+        <div className={tutorialStyles.gameInstructionsOverlay}>
+          <div className={tutorialStyles.gameInstructionsPopup}>
+            <div className={tutorialStyles.gameInstructionsContent}>
+              <div className={tutorialStyles.gameInstructionsHeader}>
+                <h2>Game Instruction</h2>
+              </div>
+              
+              <div className={tutorialStyles.gameInstructionsBody}>
+                <ul>
+                  <li><strong>Objective:</strong> Create nodes by shooting values and addresses into the square node</li>
+                  <li><strong>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets</li>
+                  <li><strong>Levels:</strong> Complete 3 challenging levels</li>
+                  <li><strong>Scoring:</strong> Earn points for each successful node creation</li>
+                  <li><strong>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
+                </ul>
+              </div>
+              
+              <div className={tutorialStyles.gameInstructionsFooter}>
+                <button 
+                  onClick={onContinue}
+                  className={tutorialStyles.tutorialButton}
+                  
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Interactive Square Node (bottom-center) - Show completed node from tutorial */}
+        <div className={styles.interactiveSquareWrapper}>
+          <div className={styles.squareNode}>
+            <div className={styles.squareSection}>
+              <div className={styles.sectionLabel}>Value</div>
+              <div className={styles.squareNodeField}>
+                {squareNode.value || "42"}
+              </div>
+            </div>
+            <div className={styles.squareSection}>
+              <div className={styles.sectionLabel}>Address</div>
+              <div className={styles.squareNodeField}>
+                {squareNode.address || "ab3"}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

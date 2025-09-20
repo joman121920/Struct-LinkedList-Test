@@ -1506,6 +1506,8 @@ function GalistNodeCreation() {
     } else if (currentScene === 'scene2') {
       setCurrentScene('scene3');
     } else if (currentScene === 'scene3') {
+      setCurrentScene('scene4');
+    } else if (currentScene === 'scene4') {
       setCurrentScene('mainGame');
     }
   };
@@ -1514,7 +1516,7 @@ function GalistNodeCreation() {
     // Value was shot in tutorial, could add logic here if needed
   };
 
-  if (currentScene === 'scene1' || currentScene === 'scene2' || currentScene === 'scene3') {
+  if (currentScene === 'scene1' || currentScene === 'scene2' || currentScene === 'scene3' || currentScene === 'scene4') {
     return (
       <TutorialScene 
         scene={currentScene}

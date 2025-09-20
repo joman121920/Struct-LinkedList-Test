@@ -26,8 +26,8 @@
 
 .tutorialContent h2 {
   color: #f609e2;
-  font-size: 28px;
-  margin-bottom: 30px;
+  font-size: 35px;
+  margin-bottom: 10px;
   font-weight: 700;
 }
 
@@ -96,4 +96,119 @@
 .tutorialContinueButton .tutorialButton:hover {
   background: linear-gradient(135deg, #20692e 0%, #1e5f2a 100%);
   box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+
+/* Game Instructions Popup Styles */
+.gameInstructionsOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeInOverlay 1s ease-in-out;
+  padding: 20px;
+}
+
+.gameInstructionsPopup {
+  background: transparent;
+  border: 3px solid #f609e2;
+  border-radius: 20px;
+  padding: 20px;
+  width: 95vw;
+  max-width: 1000px;
+  height: 90vh;
+  max-height: 450px;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  backdrop-filter: blur(15px);
+  transform: scale(0.8);
+  animation: popIn 1.2s ease-out forwards;
+  overflow: hidden;
+}
+
+.gameInstructionsContent {
+  color: #ffffff;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.gameInstructionsHeader {
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+
+.gameInstructionsHeader h2 {
+  color: #f609e2;
+  font-size: 32px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(246, 9, 226, 0.5);
+  border-bottom: 0.5px solid #f609e2;
+}
+
+.gameInstructionsBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 10px 20px;
+  text-align: left;
+}
+
+.gameInstructionsBody ul {
+  list-style-type: disc;
+  padding-left: 30px;
+  margin: 0;
+  width: 100%;
+}
+
+.gameInstructionsBody li {
+  margin-bottom: 15px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: #ffffff;
+  display: list-item;
+}
+
+
+
+
+.gameInstructionsFooter {
+  flex-shrink: 0;
+  padding-top: 20px;
+}
+
+
+
+/* Animations */
+@keyframes fadeInOverlay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(50px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
