@@ -7,13 +7,15 @@ import { ExerciseManager } from "./NodeCreationExercise";
 import { collisionDetection } from "../../../CollisionDetection";
 import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
+import TutorialScene from "./TutorialScene";
 
-function GalistNodeCreation() {
+// Main Game Component (your existing game)
+function MainGameComponent() {
   // --- Add refs to reliably track entry order and sucked circles ---
   const entryOrderRef = useRef([]);
   const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
   // Track which exercise is active
-  const [exerciseKey, setExerciseKey] = useState("exercise_one");
+  const [exerciseKey, setExerciseKey] = useState("level_1");
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -28,9 +30,7 @@ function GalistNodeCreation() {
   const [originalSubmission, setOriginalSubmission] = useState(null);
 
   // Exercise progress indicator logic
-  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
-  const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
-  const totalExercises = EXERCISE_KEYS.length;
+
 
   // --- Auto launch removed. No initial circles are launched automatically. ---
 
@@ -57,14 +57,169 @@ function GalistNodeCreation() {
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
 
-  // Cannon circle states - initialize with random values for testing
-  const [cannonCircle, setCannonCircle] = useState({ 
-    value: Math.floor(Math.random() * 100).toString(), 
-    address: Math.floor(Math.random() * 1000).toString() 
+  // Square node states for the interactive bottom square
+  const [squareNode, setSquareNode] = useState({
+    value: "",
+    address: ""
   });
 
+  // Level completion states
+  const [isLevelCompleted, setIsLevelCompleted] = useState(false);
+  const [completionMessage, setCompletionMessage] = useState("");
+  const [showCompletionPopup, setShowCompletionPopup] = useState(false);
+  const [isAllLevelsComplete, setIsAllLevelsComplete] = useState(false);
+
+  // Floating target circles - some with values, some with addresses
+  // Floating circles state and ref for performance optimization
+  const [floatingCircles, setFloatingCircles] = useState([]);
+  const floatingCirclesRef = useRef([]);
   
-  // const startGame = useCallback(() => {
+  // Update ref whenever floating circles change
+  useEffect(() => {
+    floatingCirclesRef.current = floatingCircles;
+  }, [floatingCircles]);
+
+  // Expected output for reference - will be dynamically set based on current level
+  const [expectedOutput, setExpectedOutput] = useState({
+    value: "10",
+    address: "ab7"
+  });
+
+  // Generate floating circles on mount and when level changes
+  useEffect(() => {
+    const generateFloatingCircles = () => {
+      if (!currentExercise) return;
+      
+      // Use the new exercise manager to generate floating circles
+      const circleData = exerciseManagerRef.current.generateFloatingCircles(exerciseKey);
+      
+      // Convert to the format expected by the animation system
+      const circles = circleData.map((circleInfo) => {
+        const baseSpeed = 0.8;
+        const speedVariation = Math.random() * 0.4 - 0.2; // -0.2 to +0.2
+        const speed = baseSpeed + speedVariation;
+        
+        return {
+          id: circleInfo.id,
+          type: circleInfo.type,
+          content: circleInfo.content,
+          isCorrect: circleInfo.isCorrect,
+          x: Math.random() * (window.innerWidth - 200) + 100,
+          y: Math.random() * (window.innerHeight - 300) + 150,
+          vx: (Math.random() - 0.4) * speed,
+          vy: (Math.random() - 0.4) * speed,
+        };
+      });
+      
+      setFloatingCircles(circles);
+    };
+
+    generateFloatingCircles();
+  }, [currentExercise, exerciseKey]);
+
+  // Animate floating circles with collision detection and real-time position tracking
+  useEffect(() => {
+    const animateInterval = setInterval(() => {
+      setFloatingCircles(prev => {
+        const now = performance.now();
+        const updatedCircles = prev.map(circle => {
+          let newX = circle.x + circle.vx;
+          let newY = circle.y + circle.vy;
+          let newVx = circle.vx;
+          let newVy = circle.vy;
+
+          // Bounce off walls
+          if (newX <= 60 || newX >= window.innerWidth - 120) {
+            newVx = -newVx;
+            newX = Math.max(60, Math.min(window.innerWidth - 120, newX));
+          }
+          if (newY <= 100 || newY >= window.innerHeight - 200) {
+            newVy = -newVy;
+            newY = Math.max(100, Math.min(window.innerHeight - 200, newY));
+          }
+
+          return {
+            ...circle,
+            x: newX,
+            y: newY,
+            vx: newVx,
+            vy: newVy,
+            lastUpdateTime: now, // Track when this circle was last updated for real-time collision detection
+          };
+        });
+
+        // Add collision detection between floating circles
+        for (let i = 0; i < updatedCircles.length; i++) {
+          for (let j = i + 1; j < updatedCircles.length; j++) {
+            const circle1 = updatedCircles[i];
+            const circle2 = updatedCircles[j];
+            
+            const dx = circle1.x - circle2.x;
+            const dy = circle1.y - circle2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const minDistance = 120; // Minimum distance between circles (60px radius each)
+            
+            if (distance < minDistance) {
+              // Circles are overlapping, separate them
+              const overlap = minDistance - distance;
+              const separationX = (dx / distance) * overlap * 0.5;
+              const separationY = (dy / distance) * overlap * 0.5;
+              
+              // Move circles apart
+              updatedCircles[i].x += separationX;
+              updatedCircles[i].y += separationY;
+              updatedCircles[j].x -= separationX;
+              updatedCircles[j].y -= separationY;
+              
+              // Reverse velocities to make them bounce apart
+              updatedCircles[i].vx = Math.abs(updatedCircles[i].vx) * (dx > 0 ? 1 : -1);
+              updatedCircles[i].vy = Math.abs(updatedCircles[i].vy) * (dy > 0 ? 1 : -1);
+              updatedCircles[j].vx = Math.abs(updatedCircles[j].vx) * (dx < 0 ? 1 : -1);
+              updatedCircles[j].vy = Math.abs(updatedCircles[j].vy) * (dy < 0 ? 1 : -1);
+            }
+          }
+        }
+
+        return updatedCircles;
+      });
+    }, 16); // ~60fps
+
+    return () => clearInterval(animateInterval);
+  }, []);
+
+  // Check for level completion and auto-progression
+  useEffect(() => {
+    if (squareNode.value && squareNode.address && currentExercise) {
+      // Validate the current level completion
+      const validation = exerciseManagerRef.current.validateLevel(
+        exerciseKey, 
+        squareNode.value, 
+        squareNode.address
+      );
+      
+      if (validation.isCorrect) {
+        
+        // Set completion feedback
+        setIsLevelCompleted(true);
+        setShowCompletionPopup(true);
+        
+        // Get current level number
+        const currentLevelNum = parseInt(exerciseKey.split('_')[1]);
+        setCompletionMessage(`Level Complete: ${currentLevelNum}/3`);
+        
+        // Check if there's a next level
+        const nextLevel = exerciseManagerRef.current.getNextLevel(exerciseKey);
+        
+        if (nextLevel) {
+          // Will continue to next level when user clicks Continue button
+        } else {
+          // All levels completed
+          setIsAllLevelsComplete(true);
+          setCompletionMessage("Node Creation Completed");
+        }
+      }
+    }
+  }, [squareNode, currentExercise, exerciseKey]);
   //   const next = { screen: "mode", mode: null };
   //   window.history.pushState(next, "");
   //   // Clear any previous game state so this session is fresh
@@ -148,7 +303,7 @@ function GalistNodeCreation() {
 
   // No head/tail logic needed for node creation level
 
-  const loadExercise = useCallback((key = "exercise_one") => {
+  const loadExercise = useCallback((key = "level_1") => {
     // Always clear circles/connections and reset launch state before loading new exercise
     setCircles([]);
     setConnections([]);
@@ -161,24 +316,30 @@ function GalistNodeCreation() {
     setOriginalSubmission(null);
     setShowValidationResult(false);
     setValidationResult(null);
-    // hasLaunchedRef.current = false;
+    // Reset square node when changing levels
+    setSquareNode({ value: "", address: "" });
+    // Reset completion states
+    setIsLevelCompleted(false);
+    setCompletionMessage("");
+    
     // Now load the new exercise
     const exercise = exerciseManagerRef.current.loadExercise(key);
     setCurrentExercise(exercise);
     setExerciseKey(key);
+    
+    // Update expected output for the current level
+    setExpectedOutput({
+      value: exercise.expectedOutput.value,
+      address: exercise.expectedOutput.address
+    });
   }, []);
 
-  const startExercise = useCallback(() => {
-    setShowInstructionPopup(false);
-    if (!currentExercise) {
-      loadExercise();
-    }
-  }, [loadExercise, currentExercise]);
+  
 
   // Initialize exercise on component mount
   useEffect(() => {
     if (!currentExercise) {
-      loadExercise("exercise_one");
+      loadExercise("level_1");
     }
   }, [currentExercise, loadExercise]);
 
@@ -203,6 +364,11 @@ function GalistNodeCreation() {
       setCircles((prevCircles) => {
 
         const circlesWithSpecialBehavior = prevCircles.map((circle) => {
+          // Skip all special behavior for bullets - they have their own animation system
+          if (circle.isBullet) {
+            return circle;
+          }
+          
           if (draggedCircle && circle.id === draggedCircle.id) {
             return circle;
           }
@@ -352,8 +518,8 @@ function GalistNodeCreation() {
           return circle;
         });
 
-        // Second pass: Apply collision detection and physics
-        const allCirclesForCollision = circlesWithSpecialBehavior;
+        // Second pass: Apply collision detection and physics (exclude bullets - they have their own system)
+        const allCirclesForCollision = circlesWithSpecialBehavior.filter(circle => !circle.isBullet);
         const draggedCircleData = draggedCircle
           ? allCirclesForCollision.find(
               (circle) => circle.id === draggedCircle.id
@@ -366,9 +532,14 @@ function GalistNodeCreation() {
                 suckingCircles
               )
             : [];
-        let finalCircles = updatedAllCircles;
+        
+        // Keep bullets separate - they're handled by their own animation loop
+        const bullets = circlesWithSpecialBehavior.filter(circle => circle.isBullet);
+        const finalCollisionCircles = [...updatedAllCircles, ...bullets];
+        
+        let finalCircles = finalCollisionCircles;
         if (draggedCircleData) {
-          finalCircles = updatedAllCircles.map((circle) => {
+          finalCircles = finalCollisionCircles.map((circle) => {
             if (circle.id === draggedCircle.id) {
               return {
                 ...draggedCircleData,
@@ -504,91 +675,253 @@ function GalistNodeCreation() {
     closePopup();
   };
 
+  // Completion popup handlers
+  const handleContinueToNextLevel = () => {
+    const nextLevel = exerciseManagerRef.current.getNextLevel(exerciseKey);
+    if (nextLevel) {
+      // Reset states for next level
+      setIsLevelCompleted(false);
+      setShowCompletionPopup(false);
+      setCompletionMessage("");
+      setCircles([]);
+      setConnections([]);
+      setSuckingCircles([]);
+      setSuckedCircles([]);
+      setCurrentEntryOrder([]);
+      if (entryOrderRef) entryOrderRef.current = [];
+      if (suckedCirclesRef) suckedCirclesRef.current = [];
+      setOriginalSubmission(null);
+      setShowValidationResult(false);
+      setValidationResult(null);
+      setSquareNode({ value: "", address: "" });
+      
+      // Load next exercise
+      const exercise = exerciseManagerRef.current.loadExercise(nextLevel);
+      setCurrentExercise(exercise);
+      setExerciseKey(nextLevel);
+      setExpectedOutput({
+        value: exercise.expectedOutput.value,
+        address: exercise.expectedOutput.address
+      });
+    }
+  };
+
+  const handleGoBack = () => {
+    // Navigate back to the previous screen or menu
+    window.history.back();
+  };
+
   // Cannon circle event handlers - removed double-click editing for testing
 
   // Global right-click handler for launching circles
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
     
-    console.log('Right-click detected! Cannon values:', cannonCircle);
+    // Calculate launch position from cannon tip
+    const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
+    const cannonTipY = window.innerHeight - 1; // Cannon base Y
     
-    // Launch circle from cannon if values are set
-    if (cannonCircle.value && cannonCircle.address) {
-      // Calculate launch position from cannon tip
-      const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
-      const cannonTipY = window.innerHeight - 1; // Cannon base Y
-      
-      // Calculate tip position based on cannon angle
-      const tipDistance = 55; // Distance from base to tip
-      const angleRad = (cannonAngle) * (Math.PI / 180);
-      const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
-      const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
-      
-      // Calculate launch velocity based on cannon direction
-      const launchSpeed = 8; // Pixels per frame - adjust this for faster/slower launch
-      const velocityX = Math.sin(angleRad) * launchSpeed;
-      const velocityY = -Math.cos(angleRad) * launchSpeed; // Negative because Y increases downward
-      
-      // Create new circle at cannon tip with launch velocity
-      const newCircle = {
-        id: Date.now(),
-        x: tipX - 30, // Offset for circle radius
-        y: tipY - 30,
-        value: cannonCircle.value,
-        address: cannonCircle.address,
-        velocityX: velocityX,
-        velocityY: velocityY,
-        isLaunched: true, // Flag to indicate this circle was launched
-      };
-      
-      console.log('Launching circle:', newCircle);
-      setCircles(prev => [...prev, newCircle]);
-      
-      // Generate new random values for the next shot
-      const newValues = { 
-        value: Math.floor(Math.random() * 100).toString(), 
-        address: Math.floor(Math.random() * 1000).toString() 
-      };
-      console.log('New cannon values:', newValues);
-      setCannonCircle(newValues);
-    } else {
-      console.log('Cannot launch - missing values:', cannonCircle);
-    }
-  }, [cannonCircle, cannonAngle]);
+    // Calculate tip position based on cannon angle
+    const tipDistance = 55; // Distance from base to tip
+    const angleRad = (cannonAngle) * (Math.PI / 180);
+    const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
+    const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
+    
+    // Calculate launch velocity based on cannon direction
+    const launchSpeed = 8; // Reduced speed for better control and accuracy
+    const velocityX = Math.sin(angleRad) * launchSpeed;
+    const velocityY = -Math.cos(angleRad) * launchSpeed; // Negative because Y increases downward
+    
+    // Create new bullet (simple circle without values)
+    const newBullet = {
+      id: Date.now(),
+      x: tipX - 15, // Offset for bullet radius (smaller than regular circles)
+      y: tipY - 15,
+      isBullet: true, // Flag to indicate this is a bullet
+      velocityX: velocityX,
+      velocityY: velocityY,
+      isLaunched: true,
+    };
+    
+    setCircles(prev => [...prev, newBullet]);
+  }, [cannonAngle]);
 
   // Animation loop for launched circles
   useEffect(() => {
     const animationFrame = () => {
-      setCircles(prevCircles => 
-        prevCircles.map(circle => {
-          if (circle.isLaunched && (circle.velocityX || circle.velocityY)) {
+      setCircles(prevCircles => {
+        const updatedCircles = [];
+        
+        prevCircles.forEach(circle => {
+          // Skip bullets that are already marked for deletion
+          if (circle.isLaunched && (circle.velocityX || circle.velocityY) && !circle.markedForDeletion) {
             // Update position based on velocity (no gravity - straight line movement)
             const newX = circle.x + circle.velocityX;
             const newY = circle.y + circle.velocityY;
             
-            // Remove circles that go off screen
-            if (newX < -100 || newX > window.innerWidth + 100 || 
-                newY < -100 || newY > window.innerHeight + 100) {
-              return null; // Mark for removal
+            // Screen boundary collision detection - bullets bounce off edges
+            let bounceVelocityX = circle.velocityX;
+            let bounceVelocityY = circle.velocityY;
+            let finalX = newX;
+            let finalY = newY;
+            
+            // Check horizontal boundaries (left and right edges)
+            if (newX <= 15 || newX >= window.innerWidth - 15) {
+              bounceVelocityX = -bounceVelocityX; // Reverse horizontal velocity
+              finalX = newX <= 15 ? 15 : window.innerWidth - 15; // Keep within bounds
             }
             
-            return {
+            // Check vertical boundaries (top and bottom edges)
+            if (newY <= 15 || newY >= window.innerHeight - 15) {
+              bounceVelocityY = -bounceVelocityY; // Reverse vertical velocity
+              finalY = newY <= 15 ? 15 : window.innerHeight - 15; // Keep within bounds
+            }
+            
+            const updatedCircle = {
               ...circle,
-              x: newX,
-              y: newY,
-              // Keep velocities constant for straight-line movement
-              velocityX: circle.velocityX,
-              velocityY: circle.velocityY
+              x: finalX,
+              y: finalY,
+              velocityX: bounceVelocityX,
+              velocityY: bounceVelocityY
             };
+
+            // Check for collisions with floating circles (balanced precision collision detection)
+            let bulletHitSomething = false;
+            
+            // Get real-time floating circle positions with balanced accuracy
+            const currentFloatingCircles = floatingCirclesRef.current;
+            for (let i = 0; i < currentFloatingCircles.length; i++) {
+              const floatingCircle = currentFloatingCircles[i];
+
+              // Calculate REAL-TIME position of floating circle with sub-frame accuracy
+              const now = performance.now();
+              const timeSinceLastUpdate = now - (floatingCircle.lastUpdateTime || now);
+              const timeStepMs = Math.min(timeSinceLastUpdate, 16); // Cap at 16ms to prevent large jumps
+              
+              // Calculate current real-time position with velocity interpolation
+              const currentCircleX = floatingCircle.x + (floatingCircle.vx * timeStepMs / 16);
+              const currentCircleY = floatingCircle.y + (floatingCircle.vy * timeStepMs / 16);
+
+              // Calculate current bullet position (center point)
+              const currentBulletX = updatedCircle.x;
+              const currentBulletY = updatedCircle.y;
+
+              // BALANCED PRECISION: Use visual radii with more forgiving threshold
+              const bulletRadius = 15; // Bullet visual radius (30px diameter / 2)
+              const circleRadius = 30; // Floating circle visual radius (60px diameter / 2)
+              const combinedRadius = bulletRadius + circleRadius; // Total collision radius (45px)
+              
+              // Distance between centers
+              const dx = currentBulletX - currentCircleX;
+              const dy = currentBulletY - currentCircleY;
+              const centerDistance = Math.sqrt(dx * dx + dy * dy);
+
+              // FORGIVING COLLISION: Use 90% of combined radius for better hit detection
+              const collisionThreshold = combinedRadius * 0.9; // 40.5px - more forgiving than 80%
+              
+              if (centerDistance < collisionThreshold) {
+                // OPTIONAL TRAJECTORY CHECK: Only validate if bullet is moving very fast
+                const bulletSpeed = Math.sqrt(updatedCircle.velocityX * updatedCircle.velocityX + updatedCircle.velocityY * updatedCircle.velocityY);
+                let isValidHit = true;
+                
+                // Only check trajectory for fast-moving bullets to prevent edge cases
+                if (bulletSpeed > 6) {
+                  const bulletPrevX = updatedCircle.x - updatedCircle.velocityX;
+                  const bulletPrevY = updatedCircle.y - updatedCircle.velocityY;
+                  
+                  const prevDistance = Math.sqrt(
+                    Math.pow(bulletPrevX - currentCircleX, 2) + Math.pow(bulletPrevY - currentCircleY, 2)
+                  );
+                  
+                  // Allow hit if getting closer OR already very close (handles edge cases)
+                  isValidHit = (centerDistance < prevDistance) || (centerDistance < combinedRadius * 0.7);
+                }
+                
+                if (isValidHit) {
+                  bulletHitSomething = true;
+
+                  // Transfer floating circle content to square node with smart overriding logic
+                  setSquareNode(prev => {
+                    const newSquareNode = { ...prev };
+                    
+                    if (floatingCircle.type === 'value') {
+                      // Get the correct value for current level
+                      const correctValue = expectedOutput.value;
+                      const currentValue = prev.value;
+                      const newValue = floatingCircle.content;
+                      
+                      // Smart overriding logic for values:
+                      if (!currentValue) {
+                        // Empty slot - always accept new value
+                        newSquareNode.value = newValue;
+                      } else if (currentValue === correctValue && newValue !== correctValue) {
+                        // Have correct value, shooting incorrect - DON'T override
+                      } else if (currentValue !== correctValue && newValue === correctValue) {
+                        // Have incorrect value, shooting correct - OVERRIDE
+                        newSquareNode.value = newValue;
+                      } else if (currentValue !== correctValue && newValue !== correctValue) {
+                        // Have incorrect value, shooting another incorrect - OVERRIDE
+                        newSquareNode.value = newValue;
+                      } else {
+                        // Have correct value, shooting correct again - don't change
+                      }
+                      
+                    } else if (floatingCircle.type === 'address') {
+                      // Get the correct address for current level
+                      const correctAddress = expectedOutput.address;
+                      const currentAddress = prev.address;
+                      const newAddress = floatingCircle.content;
+                      
+                      // Smart overriding logic for addresses:
+                      if (!currentAddress) {
+                        // Empty slot - always accept new address
+                        newSquareNode.address = newAddress;
+                      } else if (currentAddress === correctAddress && newAddress !== correctAddress) {
+                        // Have correct address, shooting incorrect - DON'T override
+                      } else if (currentAddress !== correctAddress && newAddress === correctAddress) {
+                        // Have incorrect address, shooting correct - OVERRIDE
+                        newSquareNode.address = newAddress;
+                      } else if (currentAddress !== correctAddress && newAddress !== correctAddress) {
+                        // Have incorrect address, shooting another incorrect - OVERRIDE
+                        newSquareNode.address = newAddress;
+                      } else {
+                        // Have correct address, shooting correct again - don't change
+                      }
+                    }
+                    
+                    return newSquareNode;
+                  });
+
+                  // Remove the hit floating circle immediately
+                  setFloatingCircles(prevFloating =>
+                    prevFloating.filter(fc => fc.id !== floatingCircle.id)
+                  );
+
+                  break; // Stop after first hit - maintain 1 bullet = 1 circle rule
+                }
+              }
+            }
+
+
+            // Only add bullet to updatedCircles if it didn't hit anything (CRITICAL: 1 bullet = 1 circle rule)
+            if (!bulletHitSomething) {
+              updatedCircles.push(updatedCircle);
+            } else {
+              // Bullet is NOT added to updatedCircles, so it gets deleted from the game
+            }
+          } else {
+            // Keep non-launched circles as they are
+            updatedCircles.push(circle);
           }
-          return circle;
-        }).filter(circle => circle !== null) // Remove null circles
-      );
+        });
+        
+        return updatedCircles;
+      });
     };
 
-    const intervalId = setInterval(animationFrame, 16); // ~60fps
+    const intervalId = setInterval(animationFrame, 8); // ~120fps for smoother movement
     return () => clearInterval(intervalId);
-  }, []);
+  }, [expectedOutput.value, expectedOutput.address]); // Include expectedOutput dependencies for smart overriding logic
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
@@ -803,74 +1136,39 @@ function GalistNodeCreation() {
         Your browser does not support the video tag.
       </video>
 
-      <button
-        className={styles.instructionButton}
-        onClick={() => setShowInstructionPopup(!showInstructionPopup)}
-      >
-        i
-      </button>
+      
 
-      {/* Exercise progress indicator (top right) */}
-      <div className={styles.exerciseProgressIndicator}>
-        {currentExerciseNumber}/{totalExercises}
-      </div>
+      
 
       {/* Expected results bar */}
-      {currentExercise && currentExercise.expectedStructure && (
+      {currentExercise && (
         <div className={styles.expectedBarWrapper}>
           <table className={styles.expectedBarTable}>
             <tbody>
               <tr className={styles.expectedBarRow}>
-                {currentExercise.expectedStructure.map((node, idx) => (
-                  <React.Fragment key={node.address}>
-                    <td className={styles.expectedBarCell}>
-                      <div className={styles.expectedBarCircle}>
-                        <div className={styles.expectedBarValue}>
-                          {node.value}
-                        </div>
-                        <div className={styles.expectedBarAddress}>
-                          {node.address}
-                        </div>
+                <td className={styles.expectedBarCell}>
+                  <div className={styles.expectedOutputSquare}>
+                    <div className={styles.squareSection}>
+                      <div className={styles.sectionLabel}>Value</div>
+                      <div className={styles.squareNodeField}>
+                        {expectedOutput.value}
                       </div>
-                    </td>
-                    {idx < currentExercise.expectedStructure.length - 1 && (
-                      <td className={styles.expectedBarArrowCell}>
-                        <span className={styles.expectedBarArrow}>→</span>
-                      </td>
-                    )}
-                  </React.Fragment>
-                ))}
+                    </div>
+                    <div className={styles.squareSection}>
+                      <div className={styles.sectionLabel}>Address</div>
+                      <div className={styles.squareNodeField}>
+                        {expectedOutput.address}
+                      </div>
+                    </div>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       )}
 
-      {showInstructionPopup &&
-        currentExercise &&
-        currentExercise.expectedStructure && (
-          <div className={styles.instructionPopup}>
-            <div className={styles.instructionContent}>
-              <h1>{currentExercise.title}</h1>
-              <div className={styles.instructionList}>
-                {currentExercise.expectedStructure.map((node, index) => (
-                  <div key={index} className={styles.instructionItem}>
-                    <span className={styles.instructionValue}>
-                      Value: {node.value}
-                    </span>
-                    <span className={styles.instructionArrow}>→</span>
-                    <span className={styles.instructionAddress}>
-                      Address: {node.address}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <button className={styles.startButton} onClick={startExercise}>
-                Start
-              </button>
-            </div>
-          </div>
-        )}
+      
 
       {/* Portal particles for vacuum effect */}
       <PortalParticles 
@@ -892,8 +1190,8 @@ function GalistNodeCreation() {
         <div 
           className={styles.cannonCircle}
         >
-          <span style={{ fontSize: '10px' }}>
-            {cannonCircle.value}
+          <span style={{ fontSize: '12px', color: '#fff' }}>
+            •
           </span>
         </div>
       </div>
@@ -905,26 +1203,32 @@ function GalistNodeCreation() {
             suckingCircles.includes(circle.id) ? styles.beingSucked : ""
           }`}
           style={{
-            left: `${circle.x - 30}px`,
-            top: `${circle.y - 30}px`,
+            left: `${circle.x - (circle.isBullet ? 15 : 30)}px`,
+            top: `${circle.y - (circle.isBullet ? 15 : 30)}px`,
+            width: circle.isBullet ? '30px' : '60px',
+            height: circle.isBullet ? '30px' : '60px',
+            backgroundColor: circle.isBullet ? '#ff6b6b' : '#d3d3d3',
             cursor: circle.isLaunched 
               ? "default" 
               : (draggedCircle && circle.id === draggedCircle.id
                 ? "grabbing"
                 : "grab"),
-            opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
+            opacity: circle.isLaunched ? 0.9 : 1,
             boxShadow: circle.isLaunched 
               ? "0 0 15px rgba(255, 255, 0, 0.6)" 
-              : "0 4px 8px rgba(0, 0, 0, 0.3)", // Yellow glow for launched circles
+              : "0 4px 8px rgba(0, 0, 0, 0.3)",
           }}
           onMouseDown={(e) => handleMouseDown(e, circle)}
-          // Double click disabled
         >
-          <span className={styles.circleValue}>{circle.value}</span>
-          <span className={styles.circleAddress}>{circle.address}</span>
+          {!circle.isBullet && (
+            <>
+              <span className={styles.circleValue}>{circle.value}</span>
+              <span className={styles.circleAddress}>{circle.address}</span>
+            </>
+          )}
         </div>
       ))}
-
+      
       <svg className={styles.connectionLines}>
         {connections.map((connection) => {
           // Only remove the line if BOTH nodes have been sucked
@@ -974,6 +1278,7 @@ function GalistNodeCreation() {
         </defs>
       </svg>
 
+      {/* Validation Overlay */}
       {showValidationResult && validationResult && (
         <div className={styles.validationOverlay}>
           <div className={styles.validationContent}>
@@ -984,30 +1289,6 @@ function GalistNodeCreation() {
                 </span>
               </div>
             </div>
-
-            {/* Debug: Show raw validationResult object */}
-            {/* <div
-              style={{
-                color: "#aaa",
-                fontSize: "12px",
-                marginBottom: "10px",
-                wordBreak: "break-all",
-              }}
-            >
-              <strong>Debug validationResult:</strong>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-all",
-                  background: "#222",
-                  color: "#eee",
-                  padding: "6px",
-                  borderRadius: "4px",
-                }}
-              >
-                {JSON.stringify(validationResult, null, 2)}
-              </pre>
-            </div> */}
 
             <div className={styles.expectedResultsSection}>
               <div className={styles.expectedLabel}>
@@ -1118,30 +1399,21 @@ function GalistNodeCreation() {
                   if (suckedCirclesRef) suckedCirclesRef.current = [];
                   setSuckedCircles([]);
                   setCurrentEntryOrder([]);
-                  if (
-                    validationResult &&
-                    validationResult.isCorrect &&
-                    exerciseKey === "exercise_one"
-                  ) {
-                    loadExercise("exercise_two");
-                  } else if (
-                    validationResult &&
-                    validationResult.isCorrect &&
-                    exerciseKey === "exercise_two"
-                  ) {
-                    loadExercise("exercise_tree");
+                  
+                  // Handle level progression for new system
+                  if (validationResult && validationResult.isCorrect) {
+                    const nextLevel = exerciseManagerRef.current.getNextLevel(exerciseKey);
+                    if (nextLevel) {
+                      loadExercise(nextLevel);
+                    } 
                   }
                 }}
                 className={styles.continueButton}
               >
-                {validationResult &&
-                validationResult.isCorrect &&
-                exerciseKey === "exercise_one"
-                  ? "NEXT EXERCISE"
-                  : validationResult &&
-                    validationResult.isCorrect &&
-                    exerciseKey === "exercise_two"
-                  ? "NEXT EXERCISE"
+                {validationResult && validationResult.isCorrect 
+                  ? (exerciseManagerRef.current.hasNextLevel(exerciseKey) 
+                      ? "NEXT LEVEL" 
+                      : "GAME COMPLETE") 
                   : "CONTINUE"}
               </button>
             </div>
@@ -1149,6 +1421,7 @@ function GalistNodeCreation() {
         </div>
       )}
 
+      {/* Circle Detail Popup */}
       {selectedCircle && (
         <div className={styles.popupOverlay} onClick={closePopup}>
           <div
@@ -1197,8 +1470,111 @@ function GalistNodeCreation() {
           </div>
         </div>
       )}
+
+      
+      {/* Interactive Square Node (bottom-center) */}
+      <div className={styles.interactiveSquareWrapper}>
+        <div className={`${styles.squareNode} ${isLevelCompleted ? styles.completedSquare : ''}`}>
+          <div className={styles.squareSection}>
+            <div className={styles.sectionLabel}>Value</div>
+            <div className={`${styles.squareNodeField} ${!squareNode.value ? styles.empty : ''}`}>
+              {squareNode.value || "-"}
+            </div>
+          </div>
+          <div className={styles.squareSection}>
+            <div className={styles.sectionLabel}>Address</div>
+            <div className={`${styles.squareNodeField} ${!squareNode.address ? styles.empty : ''}`}>
+              {squareNode.address || "-"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Completion Popups */}
+      {showCompletionPopup && !isAllLevelsComplete && (
+        <div className={styles.completionOverlay}>
+          <div className={styles.completionPopup}>
+            <div className={styles.completionContent}>
+              <h2>{completionMessage}</h2>
+              <button 
+                onClick={handleContinueToNextLevel}
+                className={styles.completionButton}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCompletionPopup && isAllLevelsComplete && (
+        <div className={styles.completionOverlay}>
+          <div className={styles.completionPopup}>
+            <div className={styles.completionContent}>
+              <h2>{completionMessage}</h2>
+              <button 
+                onClick={handleGoBack}
+                className={styles.completionButton}
+              >
+                Go back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Circles */}
+      {floatingCircles.map(circle => (
+        <div
+          key={circle.id}
+          className={`${styles.floatingCircle} ${circle.type === 'value' ? styles.valueCircle : styles.addressCircle}`}
+          style={{
+            left: `${circle.x}px`,
+            top: `${circle.y}px`,
+          }}
+        >
+          {circle.content}
+        </div>
+      ))}
     </div>
   );
+}
+
+// Main Tutorial Wrapper Component
+function GalistNodeCreation() {
+  const [currentScene, setCurrentScene] = useState('scene1');
+
+  const handleSceneTransition = () => {
+    if (currentScene === 'scene1') {
+      setCurrentScene('scene2');
+    } else if (currentScene === 'scene2') {
+      setCurrentScene('scene3');
+    } else if (currentScene === 'scene3') {
+      setCurrentScene('scene4');
+    } else if (currentScene === 'scene4') {
+      setCurrentScene('mainGame');
+    }
+  };
+
+  const handleValueShoot = () => {
+    // Value was shot in tutorial, could add logic here if needed
+  };
+
+  if (currentScene === 'scene1' || currentScene === 'scene2' || currentScene === 'scene3' || currentScene === 'scene4') {
+    return (
+      <TutorialScene 
+        scene={currentScene}
+        onContinue={handleSceneTransition}
+        onValueShoot={handleValueShoot}
+      />
+    );
+  }
+
+  if (currentScene === 'mainGame') {
+    return <MainGameComponent />;
+  }
+
+  return null;
 }
 
 export default GalistNodeCreation;
