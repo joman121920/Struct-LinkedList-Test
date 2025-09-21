@@ -67,6 +67,10 @@ function GalistGameLinkingNode() {
   const [headCircleId, setHeadCircleId] = useState(null);
   const [tailCircleId, setTailCircleId] = useState(null);
 
+  // Bullet selection modal states
+  const [showBulletModal, setShowBulletModal] = useState(false);
+  const [bulletOptions, setBulletOptions] = useState([]);
+
   // Basic helper functions first
   const createConnection = useCallback((fromId, toId) => {
     const newConnection = {
@@ -83,6 +87,86 @@ function GalistGameLinkingNode() {
     const dy = circle1.y - circle2.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     return distance <= (radius * 1.5); // Slightly larger collision area for easier targeting
+  }, []);
+
+  // Generate bullet options for the modal
+  const generateBulletOptions = useCallback(() => {
+    const options = [];
+    const expectedNodes = currentExercise?.expectedStructure || [];
+    const MAX_BULLETS = 15;
+    
+    // Add all expected nodes (correct answers)
+    expectedNodes.forEach(node => {
+      options.push({
+        id: `expected_${node.value}`,
+        value: node.value.toString(),
+        address: node.address,
+        isCorrect: true
+      });
+    });
+    
+    // Add random distractor bullets to reach exactly 15 total bullets
+    const usedValues = new Set(expectedNodes.map(n => n.value));
+    const usedAddresses = new Set(expectedNodes.map(n => n.address));
+    
+    // Calculate how many random bullets we need to reach exactly 15
+    const numRandomBullets = Math.max(0, MAX_BULLETS - expectedNodes.length);
+    
+    for (let i = 0; i < numRandomBullets; i++) {
+      let randomValue, randomAddress;
+      
+      // Generate unique random value
+      do {
+        randomValue = Math.floor(Math.random() * 100) + 1;
+      } while (usedValues.has(randomValue));
+      usedValues.add(randomValue);
+      
+      // Generate unique random address
+      do {
+        const addressTypes = ['aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg', 'hh', 'ii', 'jj'];
+        const numbers = ['10', '20', '30', '40', '50', '60', '70', '80', '90'];
+        randomAddress = addressTypes[Math.floor(Math.random() * addressTypes.length)] + 
+                       numbers[Math.floor(Math.random() * numbers.length)];
+      } while (usedAddresses.has(randomAddress));
+      usedAddresses.add(randomAddress);
+      
+      options.push({
+        id: `random_${i}`,
+        value: randomValue.toString(),
+        address: randomAddress,
+        isCorrect: false
+      });
+    }
+    
+    // Shuffle the options so correct answers aren't always in the same position
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+    
+    return options;
+  }, [currentExercise]);
+
+  // Handle cannon circle click to open bullet selection modal
+  const handleCannonClick = useCallback(() => {
+    const bullets = generateBulletOptions();
+    setBulletOptions(bullets);
+    setShowBulletModal(true);
+  }, [generateBulletOptions]);
+
+  // Handle bullet selection
+  const handleBulletSelect = useCallback((selectedBullet) => {
+    setCannonCircle({
+      value: selectedBullet.value,
+      address: selectedBullet.address
+    });
+    setShowBulletModal(false);
+    console.log('Selected bullet:', selectedBullet);
+  }, []);
+
+  // Close bullet modal
+  const closeBulletModal = useCallback(() => {
+    setShowBulletModal(false);
   }, []);
 
   // Function to check if a circle is a head node (has outgoing connections but no incoming)
@@ -1460,9 +1544,14 @@ function GalistGameLinkingNode() {
         {/* Cannon Circle */}
         <div 
           className={styles.cannonCircle}
+          onClick={handleCannonClick}
+          style={{ cursor: 'pointer' }}
         >
           <span style={{ fontSize: '10px' }}>
             {cannonCircle.value}
+          </span>
+          <span style={{ fontSize: '8px' }}>
+            {cannonCircle.address}
           </span>
         </div>
       </div>
@@ -1799,6 +1888,80 @@ function GalistGameLinkingNode() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bullet Selection Modal */}
+      {showBulletModal && (
+        <div className={styles.popupOverlay} onClick={closeBulletModal}>
+          <div
+            className={styles.bulletModalContent}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#1a1a1a',
+              border: '3px solid #fff',
+              borderRadius: '15px',
+              padding: '30px',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              overflow: 'auto'
+            }}
+          >
+
+            <h2 style={{ 
+              color: '#fff', 
+              textAlign: 'center', 
+              marginBottom: '30px',
+              fontSize: '24px'
+            }}>
+              Choose Bullet
+            </h2>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: '15px',
+              justifyItems: 'center'
+            }}>
+              {bulletOptions.map((bullet) => (
+                <div
+                  key={bullet.id}
+                  onClick={() => handleBulletSelect(bullet)}
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    backgroundColor: '#d3d3d3',
+                    border: '2px solid #bbb',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    color: '#000',
+                    fontWeight: 'bold'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'scale(1.1)';
+                    e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'scale(1)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                >
+                  <span style={{ fontSize: '14px', lineHeight: 1 }}>
+                    {bullet.value}
+                  </span>
+                  <span style={{ fontSize: '10px', lineHeight: 1, color: '#333' }}>
+                    {bullet.address}
+                  </span>
+                </div>
+              ))}
+            </div>
+
           </div>
         </div>
       )}
