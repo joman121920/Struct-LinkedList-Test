@@ -744,16 +744,65 @@ function GalistGameLinkingNode() {
                   existingTails: existingTailNodes.length
                 });
                 
-                // Apply bounce physics first
+                // ENHANCED COLLISION PHYSICS: Make launched circles more powerful
                 const movingCircle = circle1Moving ? circle1 : circle2;
-                const bounceReduction = 0.6;
                 
-                if (movingCircle === circle1) {
-                  circle1.velocityX = -circle1.velocityX * bounceReduction;
-                  circle1.velocityY = -circle1.velocityY * bounceReduction;
+                // Check if the moving circle is a recently launched one (high speed)
+                const circle1Speed = Math.sqrt((circle1.velocityX || 0)**2 + (circle1.velocityY || 0)**2);
+                const circle2Speed = Math.sqrt((circle2.velocityX || 0)**2 + (circle2.velocityY || 0)**2);
+                const launchedThreshold = 3; // Speed threshold to identify launched circles
+                
+                const circle1IsLaunched = circle1.isLaunched && circle1Speed > launchedThreshold;
+                const circle2IsLaunched = circle2.isLaunched && circle2Speed > launchedThreshold;
+                
+                console.log('Collision physics analysis:', {
+                  circle1: { speed: circle1Speed, isLaunched: circle1IsLaunched },
+                  circle2: { speed: circle2Speed, isLaunched: circle2IsLaunched }
+                });
+                
+                if (circle1IsLaunched && !circle2IsLaunched) {
+                  // Circle1 is the powerful launched circle
+                  const transferRatio = 0.8; // How much momentum to transfer
+                  const retentionRatio = 0.4; // How much speed the launched circle keeps
+                  
+                  // Transfer most energy to the target circle
+                  circle2.velocityX = circle1.velocityX * transferRatio;
+                  circle2.velocityY = circle1.velocityY * transferRatio;
+                  
+                  // Launched circle bounces back but with reduced speed
+                  circle1.velocityX = -circle1.velocityX * retentionRatio;
+                  circle1.velocityY = -circle1.velocityY * retentionRatio;
+                  
+                  console.log('POWERFUL LAUNCH COLLISION: Circle1 pushes Circle2');
+                  
+                } else if (circle2IsLaunched && !circle1IsLaunched) {
+                  // Circle2 is the powerful launched circle
+                  const transferRatio = 0.8; // How much momentum to transfer
+                  const retentionRatio = 0.4; // How much speed the launched circle keeps
+                  
+                  // Transfer most energy to the target circle
+                  circle1.velocityX = circle2.velocityX * transferRatio;
+                  circle1.velocityY = circle2.velocityY * transferRatio;
+                  
+                  // Launched circle bounces back but with reduced speed
+                  circle2.velocityX = -circle2.velocityX * retentionRatio;
+                  circle2.velocityY = -circle2.velocityY * retentionRatio;
+                  
+                  console.log('POWERFUL LAUNCH COLLISION: Circle2 pushes Circle1');
+                  
                 } else {
-                  circle2.velocityX = -circle2.velocityX * bounceReduction;
-                  circle2.velocityY = -circle2.velocityY * bounceReduction;
+                  // Default collision (both slow or both fast)
+                  const bounceReduction = 0.6;
+                  
+                  if (movingCircle === circle1) {
+                    circle1.velocityX = -circle1.velocityX * bounceReduction;
+                    circle1.velocityY = -circle1.velocityY * bounceReduction;
+                  } else {
+                    circle2.velocityX = -circle2.velocityX * bounceReduction;
+                    circle2.velocityY = -circle2.velocityY * bounceReduction;
+                  }
+                  
+                  console.log('NORMAL COLLISION: Standard bounce physics');
                 }
                 
                 // LINKED LIST LOGIC:
