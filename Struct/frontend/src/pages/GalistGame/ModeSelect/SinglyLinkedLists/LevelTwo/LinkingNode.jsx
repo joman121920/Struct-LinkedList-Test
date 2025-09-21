@@ -851,21 +851,20 @@ function GalistGameLinkingNode() {
                   }
                   console.log('CASE 2: Extending list from head/tail');
                 }
-                // Case 3: Hit head when list has 2+ circles - delete new circle
+                // Case 3: Hit head when list has 2+ circles - delete ONLY isolated new circle
                 else if (totalConnections >= 1 && ((circle1IsHead && circle2IsIsolated) || (circle2IsHead && circle1IsIsolated))) {
                   shouldDeleteCircle = circle1IsHead ? circle2.id : circle1.id;
-                  console.log('CASE 3: Hit head with 2+ circles - deleting new circle');
+                  console.log('CASE 3: Hit head with 2+ circles - deleting new isolated circle');
                 }
-                // Case 4: Hit middle node - delete new circle  
+                // Case 4: Hit middle node - delete ONLY isolated new circle  
                 else if ((circle1IsMiddle && circle2IsIsolated) || (circle2IsMiddle && circle1IsIsolated)) {
                   shouldDeleteCircle = circle1IsMiddle ? circle2.id : circle1.id;
-                  console.log('CASE 4: Hit middle node - deleting new circle');
+                  console.log('CASE 4: Hit middle node - deleting new isolated circle');
                 }
-                // Case 5: Two connected nodes colliding - delete one or both
+                // Case 5: Two connected nodes colliding - BOUNCE ONLY (no deletion)
                 else if (!circle1IsIsolated && !circle2IsIsolated) {
-                  // Both circles are part of existing structures - delete the moving one
-                  shouldDeleteCircle = circle1Moving ? circle1.id : circle2.id;
-                  console.log('CASE 5: Two connected nodes colliding - deleting moving circle');
+                  // Both circles are part of existing structures - just bounce, don't delete
+                  console.log('CASE 5: Two connected nodes colliding - bounce only (preserve linked list)');
                 }
                 // Default: No action (bounce only)
                 else {
