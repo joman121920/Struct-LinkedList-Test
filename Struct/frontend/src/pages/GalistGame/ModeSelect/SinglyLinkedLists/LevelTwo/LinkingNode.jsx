@@ -161,7 +161,6 @@ function GalistGameLinkingNode() {
       address: selectedBullet.address
     });
     setShowBulletModal(false);
-    console.log('Selected bullet:', selectedBullet);
   }, []);
 
   // Close bullet modal
@@ -559,10 +558,11 @@ function GalistGameLinkingNode() {
 
           // Sucking effect (GalistGame logic)
           if (suckingCircles.includes(circle.id)) {
-            const portalCenterX = 10 + portalInfo.canvasWidth / 2;
-            const portalCenterY = window.innerHeight / 2;
-            const dx = portalCenterX - circle.x;
-            const dy = portalCenterY - circle.y;
+            // Portal entrance coordinates
+            const portalEntranceX = 10 + portalInfo.canvasWidth / 2;
+            const portalEntranceY = window.innerHeight / 2;
+            const dx = portalEntranceX - circle.x;
+            const dy = portalEntranceY - circle.y;
 
             // Portal entrance area
             const portalTop = window.innerHeight / 2 - 50;
@@ -570,6 +570,8 @@ function GalistGameLinkingNode() {
             const entranceTop = portalTop + 10;
             const entranceBottom = portalBottom - 10;
 
+            // If circle is close enough to portal entrance, remove it and trigger validation
+            const distanceToPortal = Math.sqrt(dx * dx + dy * dy);
             if (
               circle.x >= 10 &&
               circle.x <= 35 &&
@@ -649,24 +651,22 @@ function GalistGameLinkingNode() {
                   }
                 }, 0);
               }, 50);
-              return circle;
+              return null; // Remove the circle from rendering immediately
             }
 
             // CONSTANT suction speed for all circles (true constant speed, not force)
-            const suctionSpeed = 1.0; // Lower for slower suction, higher for faster
-            const norm = Math.sqrt(dx * dx + dy * dy) || 1;
-            // If already at the portal, don't move
-            if (norm < suctionSpeed) {
+            const suctionSpeed = 2.5; // Faster suction for visible effect
+            if (distanceToPortal < suctionSpeed) {
               return {
                 ...circle,
-                x: circle.x + dx,
-                y: circle.y + dy,
-                velocityX: dx,
-                velocityY: dy,
+                x: portalEntranceX,
+                y: portalEntranceY,
+                velocityX: 0,
+                velocityY: 0,
               };
             }
-            const newVelocityX = (dx / norm) * suctionSpeed;
-            const newVelocityY = (dy / norm) * suctionSpeed;
+            const newVelocityX = (dx / distanceToPortal) * suctionSpeed;
+            const newVelocityY = (dy / distanceToPortal) * suctionSpeed;
             return {
               ...circle,
               x: circle.x + newVelocityX,
@@ -731,7 +731,7 @@ function GalistGameLinkingNode() {
         }
 
         // Third pass: Check for collisions and auto-connect between ANY circles
-        console.log('Checking for collisions - total circles:', finalCircles.length);
+  // ...existing code...
         
         // Use indexed loops to avoid checking each pair twice
         for (let i = 0; i < finalCircles.length; i++) {
@@ -745,7 +745,7 @@ function GalistGameLinkingNode() {
             
             if (!circle1Moving && !circle2Moving) continue; // Skip if both are stationary
             
-            console.log('Checking collision between circles:', circle1.id, 'and', circle2.id);
+            // ...existing code...
             
             // Check collision distance
             const distance = Math.sqrt(
@@ -755,25 +755,7 @@ function GalistGameLinkingNode() {
             const collisionThreshold = 70; // Larger threshold for easier collision
             
             if (distance <= collisionThreshold) {
-              console.log('COLLISION DETECTED!', {
-                distance,
-                threshold: collisionThreshold,
-                circle1: { 
-                  id: circle1.id, 
-                  value: circle1.value, 
-                  pos: { x: circle1.x, y: circle1.y },
-                  velocity: { x: circle1.velocityX, y: circle1.velocityY },
-                  isMoving: circle1Moving
-                },
-                circle2: { 
-                  id: circle2.id, 
-                  value: circle2.value, 
-                  pos: { x: circle2.x, y: circle2.y },
-                  velocity: { x: circle2.velocityX, y: circle2.velocityY },
-                  isMoving: circle2Moving
-                },
-                currentConnections: connections.length
-              });
+              // ...existing code...
               
               // Check if connection already exists
               const connectionExists = connections.some(conn => 
@@ -782,10 +764,10 @@ function GalistGameLinkingNode() {
               );
               
               if (!connectionExists) {
-                console.log('NO EXISTING CONNECTION - Applying linked list logic');
+                // ...existing code...
                 
                 // Count total circles and connections to understand current state
-                const totalCircles = finalCircles.length;
+               
                 const totalConnections = connections.length;
                 
                 // Check connection status of both circles
@@ -818,15 +800,7 @@ function GalistGameLinkingNode() {
                 });
                 const hasExistingLinkedList = existingHeadNodes.length > 0 && existingTailNodes.length > 0;
                 
-                console.log('Circle states:', {
-                  circle1: { id: circle1.id, isHead: circle1IsHead, isTail: circle1IsTail, isMiddle: circle1IsMiddle, isIsolated: circle1IsIsolated },
-                  circle2: { id: circle2.id, isHead: circle2IsHead, isTail: circle2IsTail, isMiddle: circle2IsMiddle, isIsolated: circle2IsIsolated },
-                  totalCircles,
-                  totalConnections,
-                  hasExistingLinkedList,
-                  existingHeads: existingHeadNodes.length,
-                  existingTails: existingTailNodes.length
-                });
+                // ...existing code...
                 
                 // ENHANCED COLLISION PHYSICS: Make launched circles more powerful
                 const movingCircle = circle1Moving ? circle1 : circle2;
@@ -838,42 +812,21 @@ function GalistGameLinkingNode() {
                 
                 const circle1IsLaunched = circle1.isLaunched && circle1Speed > launchedThreshold;
                 const circle2IsLaunched = circle2.isLaunched && circle2Speed > launchedThreshold;
-                
-                console.log('Collision physics analysis:', {
-                  circle1: { speed: circle1Speed, isLaunched: circle1IsLaunched },
-                  circle2: { speed: circle2Speed, isLaunched: circle2IsLaunched }
-                });
-                
+                // Enhanced collision physics
                 if (circle1IsLaunched && !circle2IsLaunched) {
-                  // Circle1 is the powerful launched circle
-                  const transferRatio = 0.8; // How much momentum to transfer
-                  const retentionRatio = 0.4; // How much speed the launched circle keeps
-                  
-                  // Transfer most energy to the target circle
+                  const transferRatio = 0.8;
+                  const retentionRatio = 0.4;
                   circle2.velocityX = circle1.velocityX * transferRatio;
                   circle2.velocityY = circle1.velocityY * transferRatio;
-                  
-                  // Launched circle bounces back but with reduced speed
                   circle1.velocityX = -circle1.velocityX * retentionRatio;
                   circle1.velocityY = -circle1.velocityY * retentionRatio;
-                  
-                  console.log('POWERFUL LAUNCH COLLISION: Circle1 pushes Circle2');
-                  
                 } else if (circle2IsLaunched && !circle1IsLaunched) {
-                  // Circle2 is the powerful launched circle
-                  const transferRatio = 0.8; // How much momentum to transfer
-                  const retentionRatio = 0.4; // How much speed the launched circle keeps
-                  
-                  // Transfer most energy to the target circle
+                  const transferRatio = 0.8;
+                  const retentionRatio = 0.4;
                   circle1.velocityX = circle2.velocityX * transferRatio;
                   circle1.velocityY = circle2.velocityY * transferRatio;
-                  
-                  // Launched circle bounces back but with reduced speed
                   circle2.velocityX = -circle2.velocityX * retentionRatio;
                   circle2.velocityY = -circle2.velocityY * retentionRatio;
-                  
-                  console.log('POWERFUL LAUNCH COLLISION: Circle2 pushes Circle1');
-                  
                 } else {
                   // Default collision (both slow or both fast)
                   const bounceReduction = 0.6;
@@ -886,7 +839,7 @@ function GalistGameLinkingNode() {
                     circle2.velocityY = -circle2.velocityY * bounceReduction;
                   }
                   
-                  console.log('NORMAL COLLISION: Standard bounce physics');
+                  // ...existing code...
                 }
                 
                 // LINKED LIST LOGIC:
@@ -901,11 +854,11 @@ function GalistGameLinkingNode() {
                     shouldConnect = true;
                     fromId = circle1.id;
                     toId = circle2.id;
-                    console.log('CASE 1: Connecting two isolated circles (no existing list)');
+                    // ...existing code...
                   } else {
                     // Delete both circles if linked list already exists
                     shouldDeleteCircle = [circle1.id, circle2.id];
-                    console.log('CASE 1 BLOCKED: Two isolated circles hit but linked list already exists - deleting both');
+                    // ...existing code...
                   }
                 }
                 // Case 2: Hit head/tail with isolated circle - extend the list
@@ -920,7 +873,7 @@ function GalistGameLinkingNode() {
                     fromId = circle2.id;
                     toId = circle1.id;
                   }
-                  console.log('CASE 2: Extending list from head/tail');
+                  // ...existing code...
                 }
                 else if ((circle2IsHead || circle2IsTail) && circle1IsIsolated) {
                   shouldConnect = true;
@@ -933,26 +886,26 @@ function GalistGameLinkingNode() {
                     fromId = circle1.id;
                     toId = circle2.id;
                   }
-                  console.log('CASE 2: Extending list from head/tail');
+                  // ...existing code...
                 }
                 // Case 3: Hit head when list has 2+ circles - delete ONLY isolated new circle
                 else if (totalConnections >= 1 && ((circle1IsHead && circle2IsIsolated) || (circle2IsHead && circle1IsIsolated))) {
                   shouldDeleteCircle = circle1IsHead ? circle2.id : circle1.id;
-                  console.log('CASE 3: Hit head with 2+ circles - deleting new isolated circle');
+                  // ...existing code...
                 }
                 // Case 4: Hit middle node - delete ONLY isolated new circle  
                 else if ((circle1IsMiddle && circle2IsIsolated) || (circle2IsMiddle && circle1IsIsolated)) {
                   shouldDeleteCircle = circle1IsMiddle ? circle2.id : circle1.id;
-                  console.log('CASE 4: Hit middle node - deleting new isolated circle');
+                  // ...existing code...
                 }
                 // Case 5: Two connected nodes colliding - BOUNCE ONLY (no deletion)
                 else if (!circle1IsIsolated && !circle2IsIsolated) {
                   // Both circles are part of existing structures - just bounce, don't delete
-                  console.log('CASE 5: Two connected nodes colliding - bounce only (preserve linked list)');
+                  // ...existing code...
                 }
                 // Default: No action (bounce only)
                 else {
-                  console.log('DEFAULT: No connection or deletion - bounce only');
+                  // ...existing code...
                 }
                 
                 // Execute the decision
@@ -964,25 +917,25 @@ function GalistGameLinkingNode() {
                     to: toId
                   };
                   
-                  console.log('CREATING CONNECTION:', newConnection);
+                  // ...existing code...
                   
                   setConnections(prev => {
                     const updated = [...prev, newConnection];
-                    console.log('Updated connections state:', updated);
+                    // ...existing code...
                     return updated;
                   });
                 } else if (shouldDeleteCircle) {
                   // Delete the specified circle(s)
                   if (Array.isArray(shouldDeleteCircle)) {
                     // Delete multiple circles
-                    console.log('DELETING MULTIPLE CIRCLES:', shouldDeleteCircle);
+                    // ...existing code...
                     
                     setTimeout(() => {
                       setCircles(prev => prev.filter(c => !shouldDeleteCircle.includes(c.id)));
                     }, 100);
                   } else {
                     // Delete single circle
-                    console.log('DELETING CIRCLE:', shouldDeleteCircle);
+                    // ...existing code...
                     
                     setTimeout(() => {
                       setCircles(prev => prev.filter(c => c.id !== shouldDeleteCircle));
@@ -1009,7 +962,7 @@ function GalistGameLinkingNode() {
                   }));
                 }
               } else {
-                console.log('Connection already exists, skipping');
+                // ...existing code...
               }
             }
           }
@@ -1162,7 +1115,6 @@ function GalistGameLinkingNode() {
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
     
-    console.log('Right-click detected! Cannon values:', cannonCircle);
     
     // Launch circle from cannon if values are set
     if (cannonCircle.value && cannonCircle.address) {
@@ -1194,27 +1146,20 @@ function GalistGameLinkingNode() {
         launchTime: Date.now(), // Track when it was launched
       };
       
-      console.log('Launching circle:', newCircle);
       
       setCircles(prev => {
-        console.log('Current state before launch:', {
-          circleCount: prev.length,
-          connections: connections.length,
-          headCircleId,
-          tailCircleId
-        });
+        // ...existing code...
         
         const newCircles = [...prev, newCircle];
         
         // If this is the first circle, make it head/tail
         if (prev.length === 0) {
-          console.log('First circle launched - setting as head/tail:', newCircle.id);
+          // ...existing code...
           setHeadCircleId(newCircle.id);
           setTailCircleId(newCircle.id);
         }
         
-        console.log('Updated circles array:', newCircles);
-        return newCircles;
+  return newCircles;
       });
       
       // Generate new random values for the next shot
@@ -1222,12 +1167,11 @@ function GalistGameLinkingNode() {
         value: Math.floor(Math.random() * 100).toString(), 
         address: Math.floor(Math.random() * 1000).toString() 
       };
-      console.log('New cannon values:', newValues);
-      setCannonCircle(newValues);
+  setCannonCircle(newValues);
     } else {
-      console.log('Cannot launch - missing values:', cannonCircle);
+  // ...existing code...
     }
-  }, [cannonCircle, cannonAngle, connections.length, headCircleId, tailCircleId]);
+  }, [cannonCircle, cannonAngle]);
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
@@ -1436,7 +1380,6 @@ function GalistGameLinkingNode() {
         playsInline
         preload="auto"
         // onError={(e) => console.error("Video error:", e)}
-        // onLoadedData={() => console.log("Video loaded successfully")}
       >
         <source src="./video/bubble_bg.mp4" type="video/mp4" />
         Your browser does not support the video tag.
@@ -1611,7 +1554,6 @@ function GalistGameLinkingNode() {
 
       <svg className={styles.connectionLines}>
         {(() => {
-          console.log('Rendering connections:', connections);
           return connections.map((connection) => {
             // Only remove the line if BOTH nodes have been sucked
             const fromSucked = suckedCircles.includes(connection.from);
@@ -1631,11 +1573,7 @@ function GalistGameLinkingNode() {
             const toX = toCircle ? toCircle.x : entranceX;
             const toY = toCircle ? toCircle.y : entranceY;
             
-            console.log('Rendering line:', {
-              connectionId: connection.id,
-              from: { id: connection.from, x: fromX, y: fromY },
-              to: { id: connection.to, x: toX, y: toY }
-            });
+            // ...existing code...
             
             return (
               <g key={connection.id}>
