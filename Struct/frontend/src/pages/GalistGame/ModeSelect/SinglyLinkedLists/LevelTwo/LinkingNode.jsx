@@ -703,10 +703,10 @@ function GalistGameLinkingNode() {
         });
 
         // Second pass: Apply collision detection and physics
-        const allCirclesForCollision = circlesWithSpecialBehavior;
+        const allCirclesForCollision = circlesWithSpecialBehavior.filter(c => c !== null);
         const draggedCircleData = draggedCircle
           ? allCirclesForCollision.find(
-              (circle) => circle.id === draggedCircle.id
+              (circle) => circle && circle.id === draggedCircle.id
             )
           : null;
         const updatedAllCircles =
@@ -719,7 +719,7 @@ function GalistGameLinkingNode() {
         let finalCircles = updatedAllCircles;
         if (draggedCircleData) {
           finalCircles = updatedAllCircles.map((circle) => {
-            if (circle.id === draggedCircle.id) {
+            if (circle && circle.id === draggedCircle.id) {
               return {
                 ...draggedCircleData,
                 velocityX: circle.velocityX,
@@ -731,57 +731,41 @@ function GalistGameLinkingNode() {
         }
 
         // Third pass: Check for collisions and auto-connect between ANY circles
-  // ...existing code...
-        
         // Use indexed loops to avoid checking each pair twice
         for (let i = 0; i < finalCircles.length; i++) {
           for (let j = i + 1; j < finalCircles.length; j++) {
             const circle1 = finalCircles[i];
             const circle2 = finalCircles[j];
-            
+            if (!circle1 || !circle2) continue;
             // At least one circle should be moving for collision to occur
             const circle1Moving = circle1.isLaunched && (circle1.velocityX || circle1.velocityY);
             const circle2Moving = circle2.isLaunched && (circle2.velocityX || circle2.velocityY);
-            
             if (!circle1Moving && !circle2Moving) continue; // Skip if both are stationary
-            
-            // ...existing code...
-            
             // Check collision distance
             const distance = Math.sqrt(
               Math.pow(circle1.x - circle2.x, 2) + 
               Math.pow(circle1.y - circle2.y, 2)
             );
             const collisionThreshold = 70; // Larger threshold for easier collision
-            
             if (distance <= collisionThreshold) {
-              // ...existing code...
-              
               // Check if connection already exists
               const connectionExists = connections.some(conn => 
                 (conn.from === circle1.id && conn.to === circle2.id) ||
                 (conn.from === circle2.id && conn.to === circle1.id)
               );
-              
               if (!connectionExists) {
-                // ...existing code...
-                
                 // Count total circles and connections to understand current state
-               
                 const totalConnections = connections.length;
-                
                 // Check connection status of both circles
                 const circle1HasOutgoing = connections.some(conn => conn.from === circle1.id);
                 const circle1HasIncoming = connections.some(conn => conn.to === circle1.id);
                 const circle2HasOutgoing = connections.some(conn => conn.from === circle2.id);
                 const circle2HasIncoming = connections.some(conn => conn.to === circle2.id);
-                
                 // Determine if circles are head, tail, or middle
                 const circle1IsHead = circle1HasOutgoing && !circle1HasIncoming;
                 const circle1IsTail = circle1HasIncoming && !circle1HasOutgoing;
                 const circle1IsMiddle = circle1HasIncoming && circle1HasOutgoing;
                 const circle1IsIsolated = !circle1HasIncoming && !circle1HasOutgoing;
-                
                 const circle2IsHead = circle2HasOutgoing && !circle2HasIncoming;
                 const circle2IsTail = circle2HasIncoming && !circle2HasOutgoing;
                 const circle2IsMiddle = circle2HasIncoming && circle2HasOutgoing;
@@ -799,8 +783,6 @@ function GalistGameLinkingNode() {
                   return !hasOut && hasIn;
                 });
                 const hasExistingLinkedList = existingHeadNodes.length > 0 && existingTailNodes.length > 0;
-                
-                // ...existing code...
                 
                 // ENHANCED COLLISION PHYSICS: Make launched circles more powerful
                 const movingCircle = circle1Moving ? circle1 : circle2;
@@ -838,8 +820,6 @@ function GalistGameLinkingNode() {
                     circle2.velocityX = -circle2.velocityX * bounceReduction;
                     circle2.velocityY = -circle2.velocityY * bounceReduction;
                   }
-                  
-                  // ...existing code...
                 }
                 
                 // LINKED LIST LOGIC:
@@ -912,7 +892,7 @@ function GalistGameLinkingNode() {
                 if (shouldConnect) {
                   // Create connection
                   const newConnection = {
-                    id: Date.now(),
+                    id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     from: fromId,
                     to: toId
                   };
@@ -1162,12 +1142,7 @@ function GalistGameLinkingNode() {
   return newCircles;
       });
       
-      // Generate new random values for the next shot
-      const newValues = { 
-        value: Math.floor(Math.random() * 100).toString(), 
-        address: Math.floor(Math.random() * 1000).toString() 
-      };
-  setCannonCircle(newValues);
+      // Do NOT randomize cannonCircle after launch; keep the selected value/address
     } else {
   // ...existing code...
     }
@@ -1906,5 +1881,5 @@ function GalistGameLinkingNode() {
     </div>
   );
 }
-
+                
 export default GalistGameLinkingNode;
