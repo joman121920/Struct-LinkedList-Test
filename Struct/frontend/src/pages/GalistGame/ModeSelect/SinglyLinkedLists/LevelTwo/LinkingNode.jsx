@@ -434,6 +434,45 @@ function GalistGameLinkingNode() {
             };
           }
 
+          // Add gentle floating movement to ALL circles (even stationary ones)
+          if (!circle.isLaunched || (!circle.velocityX && !circle.velocityY)) {
+            // Initialize gentle floating if not already set
+            if (!circle.floatVelocityX || !circle.floatVelocityY) {
+              // Random gentle drift in space
+              const angle = Math.random() * 2 * Math.PI;
+              const speed = 0.2 + Math.random() * 0.3; // Very slow floating speed (0.2 to 0.5 pixels per frame)
+              circle.floatVelocityX = Math.cos(angle) * speed;
+              circle.floatVelocityY = Math.sin(angle) * speed;
+            }
+            
+            // Apply gentle floating movement
+            const newX = circle.x + circle.floatVelocityX;
+            const newY = circle.y + circle.floatVelocityY;
+            
+            // Gentle boundary bouncing for floating circles
+            let newFloatVelocityX = circle.floatVelocityX;
+            let newFloatVelocityY = circle.floatVelocityY;
+            
+            if (newX <= 30 || newX >= window.innerWidth - 30) {
+              newFloatVelocityX = -newFloatVelocityX; // Reverse X direction
+            }
+            if (newY <= 30 || newY >= window.innerHeight - 30) {
+              newFloatVelocityY = -newFloatVelocityY; // Reverse Y direction
+            }
+            
+            // Keep within bounds
+            const boundedX = Math.max(30, Math.min(window.innerWidth - 30, newX));
+            const boundedY = Math.max(30, Math.min(window.innerHeight - 30, newY));
+            
+            return {
+              ...circle,
+              x: boundedX,
+              y: boundedY,
+              floatVelocityX: newFloatVelocityX,
+              floatVelocityY: newFloatVelocityY
+            };
+          }
+
           // Sucking effect (GalistGame logic)
           if (suckingCircles.includes(circle.id)) {
             const portalCenterX = 10 + portalInfo.canvasWidth / 2;
