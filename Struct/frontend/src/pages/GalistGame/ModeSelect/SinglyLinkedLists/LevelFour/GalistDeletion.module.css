@@ -18,12 +18,21 @@
 /* Expected Results Bar Styles */
 .expectedBarWrapper {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 15px 0;
-  border: 2px solid #fff;
   z-index: 10;
   border-radius: 8px;
+}
+
+.levelIndicator {
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 1px;
 }
 
 .expectedBarTable {
@@ -31,9 +40,21 @@
   border-spacing: 0 0;
 }
 
-
 .expectedBarCell {
   padding: 0 8px;
+  text-align: center;
+}
+
+.expectedOutputSquare {
+  display: flex;
+  width: 350px;
+  height: 60px;
+  background: transparent;
+  border: 3px solid #f609e2;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  margin: 0 auto;
 }
 
 .expectedBarCircle {
@@ -55,13 +76,13 @@
 }
 
 .expectedBarValue {
-  font-size: 15px;
+  font-size: 8px;
   font-weight: 1000;
   line-height: 1.1;
 }
 
 .expectedBarAddress {
-  font-size: 12px;
+  font-size: 8px;
   color: #1a1a1a;
   opacity: 0.85;
   font-weight: 800;
@@ -325,14 +346,71 @@
 
 .rightSquare {
   position: absolute;
-  bottom: 10px;
+  bottom: 1px;
   right: -40px;
-  width: 100px;
-  height: 90px;
-  background-color: #666;
+  width: 70px;
+  height: 110px;
+  background: linear-gradient(to top, #666 0%, #888 50%, #aaa 100%);
+  border: 2px solid #fff;
   z-index: 10;
-  transform: rotate(-40deg);
-  transform-origin: bottom right;
+  transform-origin: bottom center;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  border-radius: 5px 5px 15px 15px;
+}
+
+.rightSquare::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(255, 107, 107, 0.8);
+}
+
+.cannonCircle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  background: #4caf50;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  transition: all 0.2s ease;
+  animation: pulse 1.5s infinite;
+}
+
+.cannonCircle:hover {
+  background: #45a049;
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  }
 }
 
 .controls {
@@ -416,7 +494,7 @@
   border: none;
   box-sizing: border-box;
 }
-.launchButton:disabled{
+.launchButton:disabled {
   background-color: #444 !important;
   color: #aaa !important;
   cursor: not-allowed;
@@ -488,15 +566,9 @@
   background-color: #8c8c8c;
 }
 
-.portalButtonDisabled {
-  background-color: #333333;
-  color: #666666;
+.portalButton:disabled {
+  background-color: #282828;
   cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.portalButtonDisabled:hover {
-  background-color: #333333;
 }
 
 /* Open state overrides disabled state */
@@ -553,6 +625,25 @@
   100% {
     stroke-dashoffset: 0;
   }
+}
+
+/* Aim line overlay */
+.aimLines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2; /* above connection lines, below nodes (nodes are z-index 5/8) */
+}
+
+.aimLine {
+  stroke: #ffd54a;
+  stroke-width: 3;
+  stroke-dasharray: 6 8;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 3px rgba(255, 213, 74, 0.9));
 }
 
 .popupOverlay {
@@ -641,7 +732,6 @@
   flex: 1;
 }
 
-
 .popupText {
   color: white;
   font-size: 14px;
@@ -664,13 +754,14 @@
   outline: none;
   max-width: 280px;
 }
-.popupInput:disabled{
+.popupInput:disabled {
   background-color: #121212;
   color: #7c6c6c00;
+  cursor: not-allowed;
 }
 
 .popupInput::placeholder {
-  color: #ffffff;
+  color: #323131;
 }
 .popupInput:focus {
   outline: none;
@@ -699,11 +790,11 @@
 .connectBtn {
   background-color: #666;
 }
-.connectBtn:disabled{
+.connectBtn:disabled {
   background-color: #2c2c2c;
   color: #414040;
+  cursor: not-allowed;
 }
-
 
 .deleteBtn {
   background-color: #ff4444;
@@ -1030,4 +1121,441 @@
   font-size: 16px;
   color: #ccc;
   line-height: 1.4;
+}
+
+/* Insert Modal Styles */
+.insert-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.insert-modal-content {
+  background-color: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 15px;
+  padding: 40px;
+  position: relative;
+  width: 80%;
+  height: 60%;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.insert-modal-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.insert-modal-close-btn:hover {
+  background: #ff6666;
+}
+
+.insert-options {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.insert-option-btn {
+  margin-top: 45px;
+  background-color: #666666;
+  border: none;
+  border-radius: 15px;
+  padding: 40px 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: black;
+  font-family: Arial, sans-serif;
+  height: 300px;
+  flex: 1;
+}
+
+.insert-option-btn:hover {
+  background-color: #777777;
+  transform: translateY(-2px);
+}
+
+.option-title {
+  font-size: 42px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.option-subtitle {
+  font-size: 18px;
+  text-align: center;
+  color: #333;
+  line-height: 1.3;
+}
+
+/* Index Modal Styles */
+.index-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+}
+
+.index-modal-content {
+  background-color: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 15px;
+  padding: 40px;
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+  height: 25%;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+.index-modal-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 23px;
+  height: 23px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.index-modal-close-btn:hover {
+  background: #ff6666;
+}
+
+.index-modal-title {
+  font-size: 36px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: left;
+  color: white;
+}
+
+.index-input-container {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.index-input {
+  background-color: #333;
+  border: 1px solid #555;
+  border-radius: 5px;
+  padding: 15px 20px;
+  color: white;
+  font-size: 16px;
+  width: 330px;
+  outline: none;
+}
+
+.index-input:focus {
+  border-color: #777;
+}
+
+.index-input::placeholder {
+  color: #aaa;
+  font-style: italic;
+}
+
+.index-go-btn {
+  background-color: #666;
+  border: none;
+  border-radius: 5px;
+  padding: 15px 30px;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.index-go-btn:hover {
+  background-color: #777;
+}
+
+.index-subtitle {
+  font-size: 14px;
+  color: #aaa;
+  margin-top: 10px;
+}
+
+/* Square Node Styles */
+.squareNode {
+  display: flex;
+  width: 250px;
+  height: 80px;
+  background: transparent;
+  border: 3px solid #f609e2;
+  border-radius: 8px;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.squareSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.squareSection:first-child {
+  border-right: 2px solid #f609e2;
+}
+
+.sectionLabel {
+  background: rgba(236, 240, 241, 0.2);
+  color: #ecf0f1;
+  font-size: 8px;
+  font-weight: bold;
+  text-align: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #f609e2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.squareNodeField {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.squareNodeField.empty {
+  color: #95a5a6;
+  font-size: 24px;
+  font-weight: normal;
+}
+
+.completionMessage {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(45deg, #2ecc71, #27ae60);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+  animation: celebrationPulse 1.5s ease-in-out infinite;
+  z-index: 100;
+}
+
+@keyframes celebrationPulse {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
+@keyframes successGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(46, 204, 113, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(46, 204, 113, 0.9);
+  }
+}
+
+.expectedWrapper {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+}
+
+.expectedTitle {
+  color: #3498db;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.interactiveSquareWrapper {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.interactiveTitle {
+  color: #e74c3c;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-align: center;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* Floating circle styles */
+.floatingCircle {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+  cursor: default;
+  z-index: 8;
+  transition: all 0.3s ease;
+}
+
+.floatingCircle.valueCircle {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  border: 2px solid #fff;
+}
+
+.floatingCircle.addressCircle {
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+  border: 2px solid #fff;
+}
+
+.floatingCircle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.5);
+}
+
+/* Bullet styles */
+.bullet {
+  width: 30px !important;
+  height: 30px !important;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%) !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.6) !important;
+}
+
+/* Completion Popup Styles */
+.completionOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.completionPopup {
+  background: #0c0c0c00;
+  border: 2px solid #f609e2;
+  border-radius: 15px;
+  padding: 50px 80px 20px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  min-width: 550px;
+  animation: popIn 0.4s ease-out;
+}
+
+.completionContent h2 {
+  color: #ffffff;
+  font-size: 32px;
+  margin-bottom: 40px;
+  font-weight: 600;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 1px;
+}
+
+.completionButton {
+  background: transparent;
+  color: #ffffff;
+  border: 2px solid #f609e2;
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 1px;
+  min-width: 100px;
+}
+
+.completionButton:hover {
+  background: #f609e2;
+  color: #000000;
+  transform: translateY(-2px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
