@@ -70,7 +70,8 @@ function GalistGameLinkingNode() {
     address: Math.floor(Math.random() * 1000).toString() 
   });
 
-  // Head and tail tracking for linked list structure
+  // Black hole states for challenge mechanics
+  const [blackHoles, setBlackHoles] = useState([]);
   const [headCircleId, setHeadCircleId] = useState(null);
   const [tailCircleId, setTailCircleId] = useState(null);
 
@@ -98,6 +99,40 @@ function GalistGameLinkingNode() {
     const distance = Math.sqrt(dx * dx + dy * dy);
     return distance <= (radius * 1.5); // Slightly larger collision area for easier targeting
   }, []);
+
+  // Generate random black hole positions
+  const generateBlackHoles = useCallback(() => {
+    const numBlackHoles = Math.floor(Math.random() * 3) + 2; // 1-3 black holes
+    const newBlackHoles = [];
+
+    for (let i = 0; i < numBlackHoles; i++) {
+      let x, y;
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      // Try to find a position that doesn't overlap with other black holes
+      do {
+        x = Math.random() * (window.innerWidth - 200) + 100; // Keep away from edges
+        y = Math.random() * (window.innerHeight - 200) + 100;
+        attempts++;
+      } while (attempts < maxAttempts &&
+        newBlackHoles.some(bh => {
+          const dx = x - bh.x;
+          const dy = y - bh.y;
+          return Math.sqrt(dx * dx + dy * dy) < 120; // Minimum distance between black holes
+        })
+      );
+
+      newBlackHoles.push({
+        id: `blackhole_${i}`,
+        x,
+        y,
+        radius: 60 // Very large radius for testing - 120px diameter
+      });
+    }
+
+    return newBlackHoles;
+  }, []); // Remove circles dependency to prevent constant repositioning
 
   // Generate bullet options for the modal
   const generateBulletOptions = useCallback(() => {
@@ -494,7 +529,6 @@ function GalistGameLinkingNode() {
       if (!isAnimating) return;
 
       setCircles((prevCircles) => {
-
         const circlesWithSpecialBehavior = prevCircles.map((circle) => {
           if (draggedCircle && circle.id === draggedCircle.id) {
             return circle;
@@ -709,7 +743,27 @@ function GalistGameLinkingNode() {
               return circle;
             }
           }
-          return circle;
+
+          // Check for black hole collision - only affects launched circles WITHIN 3 seconds of launch and NOT already connected
+          if (circle.isLaunched && blackHoles.length > 0 && circle.launchTime) {
+            const timeSinceLaunch = Date.now() - circle.launchTime;
+            const maxVulnerableTime = 3000; // 3 seconds in milliseconds
+            // Check if circle is already connected in the linked list
+            const connectedIds = findConnectedCircles(circle.id);
+            const isConnected = connectedIds.length > 1; // More than itself means it's connected
+            if (timeSinceLaunch <= maxVulnerableTime && !isConnected) {
+              for (const blackHole of blackHoles) {
+                const dx = circle.x - blackHole.x;
+                const dy = circle.y - blackHole.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                // If freshly launched and unconnected circle hits black hole, remove it
+                if (distance <= (20 + blackHole.radius)) {
+                  console.log('Black hole collision detected!', { circle: circle.id, blackHole: blackHole.id, distance, timeSinceLaunch });
+                  return null; // Remove the circle
+                }
+              }
+            }
+          }          return circle;
         });
 
         // Second pass: Apply collision detection and physics
@@ -958,7 +1012,34 @@ function GalistGameLinkingNode() {
           }
         }
 
-        return finalCircles.filter(circle => circle !== null); // Remove null circles
+        // Additional pass: Check for black hole collisions and remove affected circles
+        let filteredCircles = finalCircles.filter(circle => {
+          if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
+
+          // Check if circle is already connected in the linked list
+          const connectedIds = findConnectedCircles(circle.id);
+          const isConnected = connectedIds.length > 1; // More than itself means it's connected
+
+          // Only allow deletion if NOT connected and within 3 seconds of launch
+          if (!isConnected && circle.launchTime) {
+            const timeSinceLaunch = Date.now() - circle.launchTime;
+            const maxVulnerableTime = 3000; // 3 seconds in milliseconds
+            if (timeSinceLaunch <= maxVulnerableTime) {
+              for (const blackHole of blackHoles) {
+                const dx = circle.x - blackHole.x;
+                const dy = circle.y - blackHole.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance <= (20 + blackHole.radius)) {
+                  // Only delete if not connected and within 3 seconds
+                  return false;
+                }
+              }
+            }
+          }
+          return true; // Keep this circle
+        });
+
+        return filteredCircles.filter(circle => circle !== null); // Remove null circles (fallback)
       });
       animationRef.current = requestAnimationFrame(gameLoop);
     };
@@ -972,7 +1053,6 @@ function GalistGameLinkingNode() {
     portalInfo,
     suckingCircles,
     draggedCircle,
-    // startChainSuction,
     findConnectedCircles,
     connections,
     currentExercise,
@@ -988,6 +1068,7 @@ function GalistGameLinkingNode() {
     isTailNode,
     getChainOrder,
     startChainSuction,
+    blackHoles,
   ]);
 
   // Handle connection removal when circles are sucked
@@ -1408,6 +1489,21 @@ function GalistGameLinkingNode() {
     setCurrentExercise(exercise);
   }, [exerciseKey]);
 
+  // Black hole repositioning timer - every 20 seconds
+  useEffect(() => {
+    const repositionBlackHoles = () => {
+      setBlackHoles(generateBlackHoles());
+    };
+
+    // Initial positioning
+    repositionBlackHoles();
+
+    // Set up interval for repositioning every 20 seconds
+    const interval = setInterval(repositionBlackHoles, Math.random() * 5000 + 5000); // Random interval between 5-10 seconds
+
+    return () => clearInterval(interval);
+  }, [generateBlackHoles]); // Include generateBlackHoles dependency
+
   return (
     <div className={styles.app}>
       <video
@@ -1589,6 +1685,26 @@ function GalistGameLinkingNode() {
           </div>
         );
       })}
+
+      {/* Black holes for challenge */}
+      {blackHoles.map((blackHole) => (
+        <div
+          key={blackHole.id}
+          style={{
+            position: 'absolute',
+            left: `${blackHole.x - blackHole.radius}px`,
+            top: `${blackHole.y - blackHole.radius}px`,
+            width: `${blackHole.radius * 2}px`,
+            height: `${blackHole.radius * 2}px`,
+            borderRadius: '50%',
+            backgroundColor: '#000',
+            border: '4px solid #ff0000',
+            boxShadow: '0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5)',
+            zIndex: 10,
+            animation: 'blackHolePulse 2s infinite ease-in-out',
+          }}
+        />
+      ))}
 
       <svg className={styles.connectionLines}>
         {(() => {
@@ -1924,6 +2040,7 @@ function GalistGameLinkingNode() {
                     e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
                   }}
                   onMouseLeave={(e) => {
+                   
                     e.target.style.transform = 'scale(1)';
                     e.target.style.boxShadow = 'none';
                   }}
@@ -1933,7 +2050,7 @@ function GalistGameLinkingNode() {
                   </span>
                   <span style={{ fontSize: '10px', lineHeight: 1, color: '#333' }}>
                     {bullet.address}
-                  </span>
+                                   </span>
                 </div>
               ))}
             </div>
