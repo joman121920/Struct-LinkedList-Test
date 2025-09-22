@@ -9,6 +9,13 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 
 function GalistGameLinkingNode() {
+  // Completion modal state for all exercises done
+  const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
+
+  // Handler for Go Back button
+  const handleGoBack = useCallback(() => {
+    window.history.back();
+  }, []);
   // --- Add refs to reliably track entry order and sucked circles ---
   const entryOrderRef = useRef([]);
   const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
@@ -28,7 +35,7 @@ function GalistGameLinkingNode() {
   const [originalSubmission, setOriginalSubmission] = useState(null);
 
   // Exercise progress indicator logic
-  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
+  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
   const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
   const totalExercises = EXERCISE_KEYS.length;
 
@@ -70,6 +77,9 @@ function GalistGameLinkingNode() {
   // Bullet selection modal states
   const [showBulletModal, setShowBulletModal] = useState(false);
   const [bulletOptions, setBulletOptions] = useState([]);
+
+  // Level completion modal state
+  const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
 
   // Basic helper functions first
   const createConnection = useCallback((fromId, toId) => {
@@ -239,15 +249,15 @@ function GalistGameLinkingNode() {
   }, [connections, circles, updateHeadTailIds]);
 
   // Check if portal button should be enabled (requires at least one head AND one tail node)
-  const hasHeadNode = useCallback(() => {
-    return circles.some((circle) => isHeadNode(circle.id));
-  }, [circles, isHeadNode]);
+  // const hasHeadNode = useCallback(() => {
+  //   return circles.some((circle) => isHeadNode(circle.id));
+  // }, [circles, isHeadNode]);
 
-  const hasTailNode = useCallback(() => {
-    return circles.some((circle) => isTailNode(circle.id));
-  }, [circles, isTailNode]);
+  // const hasTailNode = useCallback(() => {
+  //   return circles.some((circle) => isTailNode(circle.id));
+  // }, [circles, isTailNode]);
 
-  const isPortalButtonEnabled = isPortalOpen || (hasHeadNode() && hasTailNode());
+  // const isPortalButtonEnabled = isPortalOpen || (hasHeadNode() && hasTailNode());
 
   // Helper function to get the complete chain order from head to tail
   const getChainOrder = useCallback(
@@ -333,10 +343,10 @@ function GalistGameLinkingNode() {
     [getChainOrder, circles, connections]
   );
 
-  // Portal toggle function
-  const togglePortal = useCallback(() => {
-    setIsPortalOpen(!isPortalOpen);
-  }, [isPortalOpen]);
+  // // Portal toggle function
+  // const togglePortal = useCallback(() => {
+  //   setIsPortalOpen(!isPortalOpen);
+  // }, [isPortalOpen]);
 
   
   // const startGame = useCallback(() => {
@@ -1048,8 +1058,6 @@ function GalistGameLinkingNode() {
     ];
   };
 
-  
-
   const handleConnect = () => {
     if (!selectedCircle || !connectToAddress.trim()) return;
 
@@ -1345,6 +1353,61 @@ function GalistGameLinkingNode() {
     };
   }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick]);
 
+  // Helper: Get current linked list structure as array of {value, address}
+  const getCurrentLinkedList = useCallback(() => {
+    // Find head node (no incoming connection)
+    const head = circles.find(c => !connections.some(conn => conn.to === c.id));
+    if (!head) return [];
+    // Traverse from head using outgoing connections
+    const result = [];
+    let current = head;
+    const visited = new Set();
+    while (current && !visited.has(current.id)) {
+      result.push({ value: current.value, address: current.address });
+      visited.add(current.id);
+      const nextConn = connections.find(conn => conn.from === current.id);
+      current = nextConn ? circles.find(c => c.id === nextConn.to) : null;
+    }
+    return result;
+  }, [circles, connections]);
+
+  // Check for level completion after every connection/circle update
+  useEffect(() => {
+    if (!currentExercise) return;
+    const expected = (currentExercise.expectedStructure || []).map(n => ({ value: n.value.toString(), address: n.address }));
+    const actual = getCurrentLinkedList();
+    // Compare arrays
+    const isMatch = expected.length === actual.length && expected.every((node, i) => node.value === actual[i]?.value && node.address === actual[i]?.address);
+    if (isMatch) {
+      if (currentExerciseNumber < totalExercises) {
+        setShowLevelCompleteModal(true);
+      } else {
+        setShowAllCompletedModal(true);
+      }
+    }
+  }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises]);
+
+  // Handler for Continue button
+  const handleLevelContinue = () => {
+    // Advance to next exercise if possible
+    if (currentExerciseNumber < totalExercises) {
+      setShowLevelCompleteModal(false);
+      const nextKey = EXERCISE_KEYS[currentExerciseNumber];
+      loadExercise(nextKey);
+    } else {
+      // All exercises completed: skip level complete modal for last exercise
+      setShowLevelCompleteModal(false);
+      setShowAllCompletedModal(true);
+    }
+  };
+
+  // Update currentExercise when exerciseKey changes
+  useEffect(() => {
+    // Update currentExercise when exerciseKey changes
+    const exercise = exerciseManagerRef.current.getCurrentExercise(exerciseKey);
+    setCurrentExercise(exercise);
+  }, [exerciseKey]);
+
   return (
     <div className={styles.app}>
       <video
@@ -1439,7 +1502,7 @@ function GalistGameLinkingNode() {
       />
 
       {/* Controls section */}
-      <div className={styles.controls}>
+      {/* <div className={styles.controls}>
         <button
           onClick={isPortalButtonEnabled ? togglePortal : undefined}
           className={`${styles.portalButton} ${
@@ -1449,7 +1512,7 @@ function GalistGameLinkingNode() {
         >
           {isPortalOpen ? "CLOSE PORTAL" : "OPEN PORTAL"}
         </button>
-      </div>
+      </div> */}
       
       <div 
         className={styles.rightSquare} 
@@ -1875,6 +1938,59 @@ function GalistGameLinkingNode() {
               ))}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Level Complete Modal */}
+      {showLevelCompleteModal && currentExerciseNumber < totalExercises && (
+        <div className={styles.popupOverlay}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#1a1a1a', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '400px', textAlign: 'center' }}>
+            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '20px' }}>
+              Level Complete: {currentExerciseNumber}/{totalExercises}
+            </h2>
+            <button
+              style={{
+                background: 'none',
+                border: '2px solid #ff00ff',
+                borderRadius: '10px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.2rem',
+                padding: '10px 30px',
+                cursor: 'pointer',
+                marginTop: '20px',
+              }}
+              onClick={handleLevelContinue}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showAllCompletedModal && (
+        <div className={styles.popupOverlay}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #fff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
+            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '30px' }}>
+              Linking Nodes Completed
+            </h2>
+            <button
+              style={{
+                background: 'none',
+                border: '2px solid #fff',
+                borderRadius: '8px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                padding: '10px 30px',
+                cursor: 'pointer',
+                marginTop: '20px',
+              }}
+              onClick={handleGoBack}
+            >
+              Go back
+            </button>
           </div>
         </div>
       )}
