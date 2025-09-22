@@ -70,12 +70,12 @@
   font-size: 18px;
   font-weight: 600;
   z-index: 100;
-  border: transparent;
+  border: 2px solid #f609e2;
 }
 
 .tutorialInstructionBar h3 {
-  margin-top: 20px;
-  font-size: 28px;
+  margin: 0;
+  font-size: 20px;
   letter-spacing: 1.5px;
 }
 

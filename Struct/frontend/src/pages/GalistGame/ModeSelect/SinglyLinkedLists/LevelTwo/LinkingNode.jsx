@@ -7,6 +7,7 @@ import { ExerciseManager } from "./LinkingNodeExercise.js";
 import { collisionDetection } from "../../../CollisionDetection";
 import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
+import TutorialScene from "./TutorialScene";
 
 function GalistGameLinkingNode() {
   // Completion modal state for all exercises done
@@ -24,8 +25,6 @@ function GalistGameLinkingNode() {
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [selectedCircle, setSelectedCircle] = useState(null);
-  const [connectToAddress, setConnectToAddress] = useState("");
   const [connections, setConnections] = useState([]);
   const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
@@ -59,7 +58,7 @@ function GalistGameLinkingNode() {
   const [currentExercise, setCurrentExercise] = useState(null);
   const [showValidationResult, setShowValidationResult] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
-  const [showInstructionPopup, setShowInstructionPopup] = useState(false);
+  const [showInstructionPopup, setShowInstructionPopup] = useState(true);
 
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
@@ -435,8 +434,6 @@ function GalistGameLinkingNode() {
         setValidationResult(null);
         setIsPortalOpen(false);
         setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-        setSelectedCircle(null);
-        setConnectToAddress("");
         setShowInstructionPopup(false);
         // Reset head/tail state
         setHeadCircleId(null);
@@ -502,13 +499,6 @@ function GalistGameLinkingNode() {
       loadExercise();
     }
   }, [loadExercise, currentExercise]);
-
-  // Initialize exercise on component mount
-  useEffect(() => {
-    if (!currentExercise) {
-      loadExercise("exercise_one");
-    }
-  }, [currentExercise, loadExercise]);
 
   // Initialize with basic exercise when instruction popup is closed
   useEffect(() => {
@@ -1139,44 +1129,7 @@ function GalistGameLinkingNode() {
     ];
   };
 
-  const handleConnect = () => {
-    if (!selectedCircle || !connectToAddress.trim()) return;
 
-    const targetCircle = circles.find(
-      (c) => c.address === connectToAddress.trim()
-    );
-    if (targetCircle && targetCircle.id !== selectedCircle.id) {
-      const newConnection = {
-        id: Date.now(),
-        from: selectedCircle.id,
-        to: targetCircle.id,
-      };
-      setConnections((prev) => [...prev, newConnection]);
-    }
-
-    setSelectedCircle(null);
-    setConnectToAddress("");
-  };
-
-  const closePopup = () => {
-    setSelectedCircle(null);
-    setConnectToAddress("");
-  };
-
-  const handleDeleteCircle = () => {
-    if (!selectedCircle) return;
-    const nodeToDelete = selectedCircle.id;
-    
-    setCircles((prevCircles) =>
-      prevCircles.filter((circle) => circle.id !== nodeToDelete)
-    );
-    setConnections((prevConnections) =>
-      prevConnections.filter(
-        (conn) => conn.from !== nodeToDelete && conn.to !== nodeToDelete
-      )
-    );
-    closePopup();
-  };
 
   // Cannon circle event handlers - removed double-click editing for testing
 
@@ -1239,10 +1192,6 @@ function GalistGameLinkingNode() {
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
-      // Always update cannon rotation regardless of dragging state
-      // Calculate cannon base position (bottom center of the cannon)
-      // CSS: right: -40px, bottom: 1px, width: 70px, height: 110px
-      // Transform origin is bottom center, so we calculate from the bottom-center of the cannon
       const cannonBaseX = window.innerWidth + 40 - 35; // Right edge + 40px offset - half width (35px)
       const cannonBaseY = window.innerHeight - 1; // Bottom edge position (bottom: 1px)
       
@@ -1519,12 +1468,7 @@ function GalistGameLinkingNode() {
         Your browser does not support the video tag.
       </video>
 
-      <button
-        className={styles.instructionButton}
-        onClick={() => setShowInstructionPopup(!showInstructionPopup)}
-      >
-        i
-      </button>
+      
 
       {/* Exercise progress indicator (top right) */}
       <div className={styles.exerciseProgressIndicator}>
@@ -1562,30 +1506,11 @@ function GalistGameLinkingNode() {
         </div>
       )}
 
-      {showInstructionPopup &&
-        currentExercise &&
-        currentExercise.expectedStructure && (
-          <div className={styles.instructionPopup}>
-            <div className={styles.instructionContent}>
-              <h1>{currentExercise.title}</h1>
-              <div className={styles.instructionList}>
-                {currentExercise.expectedStructure.map((node, index) => (
-                  <div key={index} className={styles.instructionItem}>
-                    <span className={styles.instructionValue}>
-                      Value: {node.value}
-                    </span>
-                    <span className={styles.instructionArrow}>→</span>
-                    <span className={styles.instructionAddress}>
-                      Address: {node.address}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <button className={styles.startButton} onClick={startExercise}>
-                Start
-              </button>
-            </div>
-          </div>
+      {showInstructionPopup && (
+          <TutorialScene 
+            scene="scene1" 
+            onContinue={startExercise}
+          />
         )}
 
       {/* Portal particles for vacuum effect */}
@@ -1597,18 +1522,7 @@ function GalistGameLinkingNode() {
         isOpen={isPortalOpen}
       />
 
-      {/* Controls section */}
-      {/* <div className={styles.controls}>
-        <button
-          onClick={isPortalButtonEnabled ? togglePortal : undefined}
-          className={`${styles.portalButton} ${
-            !isPortalButtonEnabled ? styles.portalButtonDisabled : ""
-          } ${isPortalOpen ? styles.portalButtonOpen : ""}`}
-          disabled={!isPortalButtonEnabled}
-        >
-          {isPortalOpen ? "CLOSE PORTAL" : "OPEN PORTAL"}
-        </button>
-      </div> */}
+      
       
       <div 
         className={styles.rightSquare} 
@@ -1759,7 +1673,7 @@ function GalistGameLinkingNode() {
           </marker>
         </defs>
       </svg>
-
+      {/* Validation Result Overlay */}
       {showValidationResult && validationResult && (
         <div className={styles.validationOverlay}>
           <div className={styles.validationContent}>
@@ -1935,54 +1849,6 @@ function GalistGameLinkingNode() {
         </div>
       )}
 
-      {selectedCircle && (
-        <div className={styles.popupOverlay} onClick={closePopup}>
-          <div
-            className={styles.popupContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button className={styles.popupCloseBtn} onClick={closePopup}>
-              ×
-            </button>
-
-            <div className={styles.popupCircle}>
-              <span className={styles.popupCircleValue}>
-                {selectedCircle.value}
-              </span>
-              <span className={styles.popupCircleAddress}>
-                {selectedCircle.address}
-              </span>
-            </div>
-            <div className={styles.popupFormContainer}>
-              <div className={styles.popupText}>Connect to?</div>
-              <input
-                type="text"
-                placeholder="Enter Address"
-                value={connectToAddress}
-                onChange={(e) => setConnectToAddress(e.target.value)}
-                className={styles.popupInput}
-                disabled={true}
-                autoFocus
-              />
-              <div className={styles.popupButtons}>
-                <button
-                  onClick={handleConnect}
-                  className={`${styles.popupButton} ${styles.connectBtn}`}
-                  disabled={true}
-                >
-                  CONNECT
-                </button>
-                <button
-                  onClick={handleDeleteCircle}
-                  className={`${styles.popupButton} ${styles.deleteBtn}`}
-                >
-                  DELETE
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Bullet Selection Modal */}
       {showBulletModal && (
@@ -2085,7 +1951,7 @@ function GalistGameLinkingNode() {
           </div>
         </div>
       )}
-
+      {/* All Exercises Completed Modal */}
       {showAllCompletedModal && (
         <div className={styles.popupOverlay}>
           <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #fff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
