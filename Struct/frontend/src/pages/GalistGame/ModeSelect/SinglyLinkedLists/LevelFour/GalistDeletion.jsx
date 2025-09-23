@@ -1,17 +1,11 @@
-// --- Add refs to reliably track entry order and sucked circles ---
-
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 import styles from "./GalistDeletion.module.css";
 import { ExerciseManager } from "./GalistDeletionExercise.js";
-import { collisionDetection } from "../../../CollisionDetection.js";
-import PortalComponent from "../../../PortalComponent.jsx";
-import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene.jsx";
 
 // Main Game Component (your existing game)
 function MainGameComponent() {
-  // --- Add refs to reliably track entry order and sucked circles ---
   const entryOrderRef = useRef([]);
   const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
   // Track which exercise is active
@@ -19,54 +13,33 @@ function MainGameComponent() {
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [selectedCircle, setSelectedCircle] = useState(null);
-  const [connectToAddress, setConnectToAddress] = useState("");
   const [connections, setConnections] = useState([]);
-  const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
   const [suckingCircles, setSuckingCircles] = useState([]);
-  const [suckedCircles, setSuckedCircles] = useState([]);
-  const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
-  const [originalSubmission, setOriginalSubmission] = useState(null);
-  // Ricochet/validation helpers
   const pendingValidationRef = useRef(null);
   const correctHitRef = useRef(false);
-
-  // Exercise progress indicator logic
-
-  // --- Auto launch removed. No initial circles are launched automatically. ---
-
-  // Use a unique key on the main container to force React to fully reset state on exerciseKey change
-  // Portal state management
-  const [portalInfo, setPortalInfo] = useState({
-    isVisible: false,
-    canvasWidth: 45,
-  });
-  const [isPortalOpen, setIsPortalOpen] = useState(false);
-
-  // Wrap setPortalInfo in useCallback to prevent unnecessary re-renders
-  const handlePortalStateChange = useCallback((newPortalInfo) => {
-    setPortalInfo(newPortalInfo);
-  }, []);
 
   // Exercise system states
   const exerciseManagerRef = useRef(new ExerciseManager());
   const [currentExercise, setCurrentExercise] = useState(null);
   const [showValidationResult, setShowValidationResult] = useState(false);
-  const [validationResult, setValidationResult] = useState(null);
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
 
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
 
-  // Deletion mode does not track a bottom square; validation happens immediately on hit
-
-  // Level completion handled via validation overlay only
-
-  // Floating target circles - some with values, some with addresses
   // Floating circles state and ref for performance optimization
   const [floatingCircles, setFloatingCircles] = useState([]);
   const floatingCirclesRef = useRef([]);
+
+  // --- NEW: Challenge Mode Features ---
+  // Track which nodes each bullet has hit to create connections
+  // eslint-disable-next-line no-unused-vars
+  const [_bulletHitSequences, setBulletHitSequences] = useState(new Map());
+  // Track activated (color-changed) nodes
+  const [activatedNodes, setActivatedNodes] = useState(new Set());
+  // Track player-created connections
+  const [playerConnections, setPlayerConnections] = useState([]);
 
   // Update ref whenever floating circles change
   useEffect(() => {
@@ -105,37 +78,6 @@ function MainGameComponent() {
     generateFloatingCircles();
   }, [currentExercise, exerciseKey]);
 
-  // Animate floating circles with collision detection and real-time position tracking
-  useEffect(() => {
-    // Floating circles are static now; no animation interval needed.
-  }, []);
-
-  // No auto-completion check for deletion; handled on bullet hit
-  //   const next = { screen: "mode", mode: null };
-  //   window.history.pushState(next, "");
-  //   // Clear any previous game state so this session is fresh
-  //   setCircles([]);
-  //   setConnections([]);
-  //   setSuckingCircles([]);
-  //   setSuckedCircles([]);
-  //   setCurrentEntryOrder([]);
-  //   setOriginalSubmission(null);
-  //   setShowValidationResult(false);
-  //   setValidationResult(null);
-  //   setIsPortalOpen(false);
-  //   setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-  //   setAddress("");
-  //   setValue("");
-  //   setShowDuplicateModal(false);
-  //   setShowInsertButton(false);
-  //   setShowInsertModal(false);
-  //   setShowIndexModal(false);
-  //   setInsertIndex("");
-  //   setSelectedCircle(null);
-  //   setConnectToAddress("");
-  //   setShowInstructionPopup(false);
-  // }, []);
-
   // Initialize history state and handle browser back/forward
   useEffect(() => {
     const state = window.history.state;
@@ -154,15 +96,8 @@ function MainGameComponent() {
         setCircles([]);
         setConnections([]);
         setSuckingCircles([]);
-        setSuckedCircles([]);
-        setCurrentEntryOrder([]);
-        setOriginalSubmission(null);
         setShowValidationResult(false);
-        setValidationResult(null);
-        setIsPortalOpen(false);
-        setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-        setSelectedCircle(null);
-        setConnectToAddress("");
+
         setShowInstructionPopup(false);
       }
       // applyNavigationState(st);
@@ -192,6 +127,256 @@ function MainGameComponent() {
     [connections]
   );
 
+  // --- NEW: Function to validate challenge mode completion ---
+  const validateChallengeCompletion = useCallback(
+    (playerLinkedList, updatedFloatingCircles = null) => {
+      if (!currentExercise) return;
+
+      // Check if the player's linked list matches the expected structure after deletion
+      const { expectedStructure, targetNode } = currentExercise;
+
+      console.log("🔍 Validating challenge completion...");
+      console.log("Player linked list:", playerLinkedList);
+      console.log("Expected structure:", expectedStructure);
+      console.log("Target to delete:", targetNode);
+
+      // Use the provided floating circles or current state
+      const currentFloatingCircles = updatedFloatingCircles || floatingCircles;
+
+      // Check if the target node has been successfully excluded (deleted)
+      // It should not be in the player's linked list AND not in floating circles
+      const targetNodeInLinkedList = playerLinkedList.some(
+        (node) =>
+          node.value === targetNode.value && node.address === targetNode.address
+      );
+
+      const targetNodeInFloatingCircles = currentFloatingCircles.some(
+        (circle) =>
+          circle.value === targetNode.value &&
+          circle.address === targetNode.address &&
+          circle.isInList // Only check list nodes, not distractors
+      );
+
+      const targetNodeDeleted =
+        !targetNodeInLinkedList && !targetNodeInFloatingCircles;
+
+      console.log("🎯 Target node in linked list:", targetNodeInLinkedList);
+      console.log(
+        "🎯 Target node in floating circles:",
+        targetNodeInFloatingCircles
+      );
+      console.log("🎯 Target node deleted:", targetNodeDeleted);
+
+      // Compare player's linked list with expected structure
+      let isCorrect = false;
+
+      if (
+        targetNodeDeleted &&
+        playerLinkedList.length === expectedStructure.length
+      ) {
+        isCorrect = playerLinkedList.every((playerNode, index) => {
+          const expectedNode = expectedStructure[index];
+          return (
+            playerNode.value === expectedNode.value &&
+            playerNode.address === expectedNode.address
+          );
+        });
+      } else {
+        console.log(
+          "🔍 Length mismatch or target not deleted:",
+          "Expected length:",
+          expectedStructure.length,
+          "Player length:",
+          playerLinkedList.length,
+          "Target deleted:",
+          targetNodeDeleted
+        );
+      }
+
+      console.log("🔍 Structure match:", isCorrect);
+      console.log("🔍 Expected length:", expectedStructure.length);
+      console.log("🔍 Player length:", playerLinkedList.length);
+      console.log(
+        "🔍 Current floating circles count:",
+        currentFloatingCircles.length
+      );
+      console.log(
+        "🔍 Floating circles that are list nodes:",
+        currentFloatingCircles
+          .filter((c) => c.isInList)
+          .map((c) => `${c.value}(${c.address})`)
+      );
+
+      if (isCorrect) {
+        pendingValidationRef.current = {
+          isCorrect: true,
+          message: "Perfect! Challenge completed successfully!",
+          score: 100,
+          expectedStructure,
+          userCircles: playerLinkedList,
+        };
+
+        // Auto-show validation result
+        if (!showValidationResult) {
+          setShowValidationResult(true);
+        }
+
+        console.log("🎉 Challenge completed successfully!");
+      } else {
+        console.log("❌ Challenge not yet completed");
+        // Don't show validation result for incomplete challenges
+        // Let player continue working
+      }
+    },
+    [currentExercise, showValidationResult, floatingCircles]
+  );
+
+  // --- NEW: Function to update the linked list structure based on player connections ---
+  const updateLinkedListStructure = useCallback(
+    (connections) => {
+      if (!currentExercise || connections.length === 0) return;
+
+      // Get all nodes that are part of player connections
+      const connectedNodeIds = new Set();
+      connections.forEach((conn) => {
+        connectedNodeIds.add(conn.from);
+        connectedNodeIds.add(conn.to);
+      });
+
+      // Build new linked list structure from player connections
+      const newLinkedList = [];
+      const nodeMap = new Map();
+
+      // Create a map of connected nodes
+      connections.forEach((conn) => {
+        const fromNode = floatingCircles.find((c) => c.id === conn.from);
+        const toNode = floatingCircles.find((c) => c.id === conn.to);
+
+        if (fromNode && toNode) {
+          nodeMap.set(conn.from, {
+            id: conn.from,
+            value: fromNode.value,
+            address: fromNode.address,
+            next: conn.to,
+            isInList: fromNode.isInList,
+          });
+
+          // Ensure the destination node is also in the map
+          if (!nodeMap.has(conn.to)) {
+            nodeMap.set(conn.to, {
+              id: conn.to,
+              value: toNode.value,
+              address: toNode.address,
+              next: null,
+              isInList: toNode.isInList,
+            });
+          }
+        }
+      });
+
+      // Find the head node (node with no incoming connections)
+      const hasIncoming = new Set();
+      connections.forEach((conn) => hasIncoming.add(conn.to));
+
+      const headNodes = [...nodeMap.keys()].filter(
+        (nodeId) => !hasIncoming.has(nodeId)
+      );
+
+      if (headNodes.length === 1) {
+        // Traverse from head to build ordered linked list
+        let currentNodeId = headNodes[0];
+        while (currentNodeId && nodeMap.has(currentNodeId)) {
+          const currentNode = nodeMap.get(currentNodeId);
+          newLinkedList.push({
+            value: currentNode.value,
+            address: currentNode.address,
+          });
+          currentNodeId = currentNode.next;
+        }
+
+        console.log("🔗 New linked list structure:", newLinkedList);
+
+        // Remove unconnected nodes from floating circles
+        const updatedFloatingCircles = floatingCircles.filter((circle) => {
+          // Keep the circle if it's connected OR if it's a distractor (not in original list)
+          return connectedNodeIds.has(circle.id) || !circle.isInList;
+        });
+
+        console.log(
+          "🗑️ Removed unconnected nodes. Remaining:",
+          updatedFloatingCircles.length
+        );
+
+        setFloatingCircles(updatedFloatingCircles);
+
+        // Update the current exercise to reflect the new structure
+        setCurrentExercise((prev) => ({
+          ...prev,
+          initialList: newLinkedList,
+        }));
+
+        // Validate the challenge with the updated structure
+        validateChallengeCompletion(newLinkedList, updatedFloatingCircles);
+      } else {
+        console.log("⚠️ Multiple or no head nodes found:", headNodes.length);
+      }
+    },
+    [
+      currentExercise,
+      setCurrentExercise,
+      setFloatingCircles,
+      validateChallengeCompletion,
+      floatingCircles,
+    ]
+  );
+  const createPlayerConnection = useCallback(
+    (fromNodeId, toNodeId) => {
+      const fromNode = floatingCircles.find(
+        (circle) => circle.id === fromNodeId
+      );
+      const toNode = floatingCircles.find((circle) => circle.id === toNodeId);
+
+      if (!fromNode || !toNode) {
+        console.warn(
+          "Could not find nodes for connection:",
+          fromNodeId,
+          toNodeId
+        );
+        return;
+      }
+
+      const newConnection = {
+        id: `player-${fromNodeId}-to-${toNodeId}-${Date.now()}`,
+        from: fromNodeId,
+        to: toNodeId,
+        fromNode: fromNode,
+        toNode: toNode,
+        isPlayerCreated: true,
+      };
+
+      setPlayerConnections((prevConnections) => {
+        const exists = prevConnections.some(
+          (conn) => conn.from === fromNodeId && conn.to === toNodeId
+        );
+
+        if (!exists) {
+          console.log(
+            `🔗 Player connection created: ${fromNode.value}(${fromNode.address}) → ${toNode.value}(${toNode.address})`
+          );
+          const updatedConnections = [...prevConnections, newConnection];
+
+          // Update the linked list structure based on new connections
+          updateLinkedListStructure(updatedConnections);
+
+          return updatedConnections;
+        }
+
+        return prevConnections;
+      });
+    },
+    [floatingCircles, updateLinkedListStructure]
+  );
+
   // No head/tail logic needed for node creation level
 
   const loadExercise = useCallback((key = "level_1") => {
@@ -199,14 +384,16 @@ function MainGameComponent() {
     setCircles([]);
     setConnections([]);
     setSuckingCircles([]);
-    setSuckedCircles([]);
-    setCurrentEntryOrder([]);
     // Clear persistent refs to avoid stale data between runs
     if (entryOrderRef) entryOrderRef.current = [];
     if (suckedCirclesRef) suckedCirclesRef.current = [];
-    setOriginalSubmission(null);
     setShowValidationResult(false);
-    setValidationResult(null);
+
+    // Reset challenge mode states
+    setPlayerConnections([]);
+    setActivatedNodes(new Set());
+    setBulletHitSequences(new Map());
+
     pendingValidationRef.current = null;
     correctHitRef.current = false;
     // Reset validation-related UI
@@ -230,269 +417,6 @@ function MainGameComponent() {
       loadExercise();
     }
   }, [showInstructionPopup, currentExercise, loadExercise]);
-
-  // (Removed unused getChainOrder for node creation)
-
-  // No chain suction effect for deletion
-
-  // PHYSICS SYSTEM - Simple animation loop adapted for portal
-  useEffect(() => {
-    let isAnimating = true;
-
-    const gameLoop = () => {
-      if (!isAnimating) return;
-
-      setCircles((prevCircles) => {
-        const circlesWithSpecialBehavior = prevCircles.map((circle) => {
-          // Skip all special behavior for bullets - they have their own animation system
-          if (circle.isBullet) {
-            return circle;
-          }
-
-          if (draggedCircle && circle.id === draggedCircle.id) {
-            return circle;
-          }
-
-          // Sucking effect (GalistGame logic)
-          if (suckingCircles.includes(circle.id)) {
-            const portalCenterX = 10 + portalInfo.canvasWidth / 2;
-            const portalCenterY = window.innerHeight / 2;
-            const dx = portalCenterX - circle.x;
-            const dy = portalCenterY - circle.y;
-
-            // Portal entrance area
-            const portalTop = window.innerHeight / 2 - 50;
-            const portalBottom = window.innerHeight / 2 + 50;
-            const entranceTop = portalTop + 10;
-            const entranceBottom = portalBottom - 10;
-
-            if (
-              circle.x >= 10 &&
-              circle.x <= 35 &&
-              circle.y >= entranceTop &&
-              circle.y <= entranceBottom
-            ) {
-              setTimeout(() => {
-                setSuckedCircles((prev) => {
-                  let updated = prev;
-                  if (!prev.includes(circle.id)) updated = [...prev, circle.id];
-                  return updated;
-                });
-                setCurrentEntryOrder((prev) => {
-                  let updated = prev;
-                  const addressAlreadyEntered = (
-                    suckedCirclesRef.current || []
-                  ).some((c) => c.address === circle.address);
-                  if (!prev.includes(circle.id) && !addressAlreadyEntered) {
-                    updated = [...prev, circle.id];
-                    suckedCirclesRef.current = [
-                      ...(suckedCirclesRef.current || []),
-                      { ...circle },
-                    ];
-                  }
-                  entryOrderRef.current = updated;
-                  return updated;
-                });
-                setSuckingCircles((prev) =>
-                  prev.filter((id) => id !== circle.id)
-                );
-
-                setTimeout(() => {
-                  const expectedCount =
-                    currentExercise?.expectedStructure?.length || 0;
-                  const suckedIds = entryOrderRef.current;
-                  const suckedCirclesForValidation =
-                    suckedCirclesRef.current || [];
-                  const uniqueCircles = [];
-                  const uniqueIds = [];
-                  const seenAddresses = new Set();
-                  for (let i = 0; i < suckedCirclesForValidation.length; i++) {
-                    const c = suckedCirclesForValidation[i];
-                    if (c && !seenAddresses.has(c.address)) {
-                      uniqueCircles.push({ ...c, value: Number(c.value) });
-                      uniqueIds.push(suckedIds[i]);
-                      seenAddresses.add(c.address);
-                    }
-                  }
-                  if (uniqueCircles.length === expectedCount) {
-                    if (currentExercise) {
-                      try {
-                        const result =
-                          exerciseManagerRef.current.validateSubmission(
-                            uniqueCircles,
-                            uniqueIds
-                          );
-                        setValidationResult(result);
-                        setShowValidationResult(true);
-                      } catch (error) {
-                        setValidationResult({
-                          isCorrect: false,
-                          message: "System Error",
-                          details: error.message,
-                          score: 0,
-                          totalPoints: 100,
-                        });
-                        setShowValidationResult(true);
-                      }
-                    }
-                    setCircles((prevCircles) =>
-                      prevCircles.filter((c) => c.id !== circle.id)
-                    );
-                  } else {
-                    setCircles((prevCircles) =>
-                      prevCircles.filter((c) => c.id !== circle.id)
-                    );
-                  }
-                }, 0);
-              }, 50);
-              return circle;
-            }
-
-            // CONSTANT suction speed for all circles (true constant speed, not force)
-            const suctionSpeed = 1.0; // Lower for slower suction, higher for faster
-            const norm = Math.sqrt(dx * dx + dy * dy) || 1;
-            // If already at the portal, don't move
-            if (norm < suctionSpeed) {
-              return {
-                ...circle,
-                x: circle.x + dx,
-                y: circle.y + dy,
-                velocityX: dx,
-                velocityY: dy,
-              };
-            }
-            const newVelocityX = (dx / norm) * suctionSpeed;
-            const newVelocityY = (dy / norm) * suctionSpeed;
-            return {
-              ...circle,
-              x: circle.x + newVelocityX,
-              y: circle.y + newVelocityY,
-              velocityX: newVelocityX,
-              velocityY: newVelocityY,
-            };
-          }
-
-          // Removed gentle suction when portal is open. Only circles in suckingCircles are affected.
-
-          // Manual trigger for chain suction
-          if (portalInfo.isVisible) {
-            const portalRight = 10 + portalInfo.canvasWidth + 20;
-            const portalTop = window.innerHeight / 2 - 50;
-            const portalBottom = window.innerHeight / 2 + 50;
-            const entranceTop = portalTop + 10;
-            const entranceBottom = portalBottom - 10;
-            const circleRadius = 30;
-            const newX = circle.x + (circle.velocityX || 0);
-            const newY = circle.y + (circle.velocityY || 0);
-            if (
-              newX - circleRadius <= portalRight &&
-              newX - circleRadius >= portalRight - 20 &&
-              newY >= entranceTop &&
-              newY <= entranceBottom &&
-              !suckingCircles.includes(circle.id)
-            ) {
-              // No head/tail logic needed for node creation
-              return circle;
-            }
-          }
-          return circle;
-        });
-
-        // Second pass: Apply collision detection and physics (exclude bullets - they have their own system)
-        const allCirclesForCollision = circlesWithSpecialBehavior.filter(
-          (circle) => !circle.isBullet
-        );
-        const draggedCircleData = draggedCircle
-          ? allCirclesForCollision.find(
-              (circle) => circle.id === draggedCircle.id
-            )
-          : null;
-        const updatedAllCircles =
-          allCirclesForCollision.length > 0
-            ? collisionDetection.updatePhysics(
-                allCirclesForCollision,
-                suckingCircles
-              )
-            : [];
-
-        // Keep bullets separate - they're handled by their own animation loop
-        const bullets = circlesWithSpecialBehavior.filter(
-          (circle) => circle.isBullet
-        );
-        const finalCollisionCircles = [...updatedAllCircles, ...bullets];
-
-        let finalCircles = finalCollisionCircles;
-        if (draggedCircleData) {
-          finalCircles = finalCollisionCircles.map((circle) => {
-            if (circle.id === draggedCircle.id) {
-              return {
-                ...draggedCircleData,
-                velocityX: circle.velocityX,
-                velocityY: circle.velocityY,
-              };
-            }
-            return circle;
-          });
-        }
-        return finalCircles;
-      });
-      animationRef.current = requestAnimationFrame(gameLoop);
-    };
-    animationRef.current = requestAnimationFrame(gameLoop);
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [
-    portalInfo,
-    suckingCircles,
-    draggedCircle,
-    // startChainSuction,
-    findConnectedCircles,
-    connections,
-    currentExercise,
-    suckedCircles,
-    originalSubmission,
-    currentEntryOrder,
-    circles,
-  ]);
-
-  // Handle connection removal when circles are sucked
-  useEffect(() => {
-    if (suckedCircles.length > 0) {
-      const timer = setTimeout(() => {
-        setConnections((prevConnections) =>
-          prevConnections.filter((connection) => {
-            const fromSucked = suckedCircles.includes(connection.from);
-            const toSucked = suckedCircles.includes(connection.to);
-            return !(fromSucked && toSucked);
-          })
-        );
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [suckedCircles]);
-
-  // Auto-suction effect when portal opens - not used in deletion
-  useEffect(() => {
-    if (portalInfo.isVisible && circles.length > 0) {
-      // No-op for deletion (circles array mainly holds bullets)
-      circles.forEach((node, index) => {
-        setTimeout(() => {
-          setSuckingCircles((prev) => {
-            if (!prev.includes(node.id)) {
-              return [...prev, node.id];
-            }
-            return prev;
-          });
-        }, index * 200);
-      });
-    } else if (!portalInfo.isVisible) {
-      setSuckingCircles([]);
-    }
-  }, [portalInfo.isVisible, circles, connections]);
 
   // Mouse event handlers for dragging
   const handleMouseDown = (e, circle) => {
@@ -518,22 +442,6 @@ function MainGameComponent() {
     ];
   };
 
-  const handleConnect = () => {
-    // Disabled in deletion mode
-    setSelectedCircle(null);
-    setConnectToAddress("");
-  };
-
-  const closePopup = () => {
-    setSelectedCircle(null);
-    setConnectToAddress("");
-  };
-
-  const handleDeleteCircle = () => {
-    // Disabled in deletion mode
-    closePopup();
-  };
-
   // No completion popup handlers in deletion mode; handled by validation overlay
 
   // Cannon firing handled via global right-click
@@ -544,7 +452,7 @@ function MainGameComponent() {
       e.preventDefault(); // Prevent context menu
 
       // Calculate launch position from cannon tip
-      const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
+      const cannonTipX = window.innerWidth + 40 - 35; // CSS: right: -40px, so base is at window.innerWidth + 40, center at -35
       const cannonTipY = window.innerHeight - 1; // Cannon base Y
 
       // Calculate tip position based on cannon angle
@@ -558,16 +466,27 @@ function MainGameComponent() {
       const velocityX = Math.sin(angleRad) * launchSpeed;
       const velocityY = -Math.cos(angleRad) * launchSpeed; // Negative because Y increases downward
 
+      // Ensure bullet spawns within screen bounds (like TutorialScene)
+      // If tip is outside screen, move spawn point to screen edge
+      let spawnX = tipX;
+      let spawnY = tipY;
+
+      // Constrain spawn position to be within screen bounds with margin
+      const margin = 15;
+      spawnX = Math.max(margin, Math.min(window.innerWidth - margin, spawnX));
+      spawnY = Math.max(margin, Math.min(window.innerHeight - margin, spawnY));
+
       // Create new bullet (simple circle)
       const newBullet = {
         id: Date.now(),
-        // Spawn bullet at tip center so preview matches
-        x: tipX,
-        y: tipY,
+        // Spawn bullet at constrained position
+        x: spawnX,
+        y: spawnY,
         isBullet: true, // Flag to indicate this is a bullet
         velocityX: velocityX,
         velocityY: velocityY,
         isLaunched: true,
+        remainingBounces: 2, // Allow 2 bounces total, disappears on third
       };
 
       setCircles((prev) => [...prev, newBullet]);
@@ -583,12 +502,8 @@ function MainGameComponent() {
         const updatedCircles = [];
 
         prevCircles.forEach((circle) => {
-          // Skip bullets that are already marked for deletion
-          if (
-            circle.isLaunched &&
-            (circle.velocityX || circle.velocityY) &&
-            !circle.markedForDeletion
-          ) {
+          // Only process launched bullets that are still moving
+          if (circle.isLaunched && (circle.velocityX || circle.velocityY)) {
             // Update position based on velocity (no gravity - straight line movement)
             const newX = circle.x + circle.velocityX;
             const newY = circle.y + circle.velocityY;
@@ -598,17 +513,20 @@ function MainGameComponent() {
             let bounceVelocityY = circle.velocityY;
             let finalX = newX;
             let finalY = newY;
+            let hitWall = false;
 
             // Check horizontal boundaries (left and right edges)
             if (newX <= 15 || newX >= window.innerWidth - 15) {
               bounceVelocityX = -bounceVelocityX; // Reverse horizontal velocity
               finalX = newX <= 15 ? 15 : window.innerWidth - 15; // Keep within bounds
+              hitWall = true;
             }
 
             // Check vertical boundaries (top and bottom edges)
             if (newY <= 15 || newY >= window.innerHeight - 15) {
               bounceVelocityY = -bounceVelocityY; // Reverse vertical velocity
               finalY = newY <= 15 ? 15 : window.innerHeight - 15; // Keep within bounds
+              hitWall = true;
             }
 
             const updatedCircle = {
@@ -618,9 +536,9 @@ function MainGameComponent() {
               velocityX: bounceVelocityX,
               velocityY: bounceVelocityY,
               remainingBounces:
-                typeof circle.remainingBounces === "number"
-                  ? circle.remainingBounces - 0
-                  : 30,
+                circle.remainingBounces !== undefined
+                  ? circle.remainingBounces
+                  : 2,
             };
 
             // Check for collisions with floating node circles
@@ -697,122 +615,62 @@ function MainGameComponent() {
                   updatedCircle.lastHitTime = nowTs;
                   reflectedThisStep = true;
 
-                  // --- Two-hit linking mechanic ---
-                  if (floatingCircle.type === "node") {
-                    const isInListNode = !!floatingCircle.isInList;
-                    if (isInListNode) {
-                      if (!updatedCircle.firstHitNodeId) {
-                        // First node hit by this bullet
-                        updatedCircle.firstHitNodeId = floatingCircle.id;
-                        updatedCircle.firstHitAddress = floatingCircle.address;
-                      } else if (
-                        updatedCircle.firstHitNodeId !== floatingCircle.id
-                      ) {
-                        // Second distinct node hit, trigger deletion
-                        const initialList = currentExercise?.initialList || [];
-                        const getIndexByAddress = (addr) =>
-                          initialList.findIndex(
-                            (n) => String(n.address) === String(addr)
-                          );
+                  // --- NEW: Challenge Mode Logic ---
+                  // Track which nodes this bullet has hit and create connections
+                  setBulletHitSequences((prevSequences) => {
+                    const newSequences = new Map(prevSequences);
+                    const bulletId = circle.id;
 
-                        const idxA = getIndexByAddress(
-                          updatedCircle.firstHitAddress
+                    if (!newSequences.has(bulletId)) {
+                      // First hit - activate the node (change color)
+                      newSequences.set(bulletId, [floatingCircle.id]);
+                      setActivatedNodes(
+                        (prev) => new Set([...prev, floatingCircle.id])
+                      );
+                      console.log(
+                        `🎯 Node ${floatingCircle.value}(${floatingCircle.address}) activated!`
+                      );
+                    } else {
+                      // Subsequent hit - create connection from previous node to current node
+                      const hitSequence = newSequences.get(bulletId);
+                      const previousNodeId =
+                        hitSequence[hitSequence.length - 1];
+
+                      if (previousNodeId !== floatingCircle.id) {
+                        console.log(
+                          `🔗 Linking nodes: ${previousNodeId} → ${floatingCircle.id}`
                         );
-                        const idxB = getIndexByAddress(floatingCircle.address);
 
-                        if (idxA !== -1 && idxB !== -1) {
-                          const start = Math.min(idxA, idxB);
-                          const end = Math.max(idxA, idxB);
-                          const toRemoveAddr = new Set();
+                        // Create connection between the two nodes
+                        createPlayerConnection(
+                          previousNodeId,
+                          floatingCircle.id
+                        );
 
-                          // Collect addresses of nodes to remove (between start and end, exclusive)
-                          for (let k = start + 1; k < end; k++) {
-                            toRemoveAddr.add(String(initialList[k].address));
-                          }
-
-                          if (toRemoveAddr.size > 0) {
-                            // Find the circles that need to be removed
-                            const circlesToRemove =
-                              currentFloatingCircles.filter(
-                                (c) =>
-                                  c.type === "node" &&
-                                  !!c.isInList &&
-                                  toRemoveAddr.has(String(c.address))
-                              );
-
-                            if (circlesToRemove.length > 0) {
-                              const toRemoveIds = new Set(
-                                circlesToRemove.map((c) => c.id)
-                              );
-
-                              // Validate the deletion against the nodes we've identified
-                              let isDeletionCorrect = false;
-                              for (const fc of circlesToRemove) {
-                                const res =
-                                  exerciseManagerRef.current.validateDeletion(
-                                    exerciseKey,
-                                    {
-                                      value: fc.value,
-                                      address: fc.address,
-                                      isInList: true,
-                                    }
-                                  );
-
-                                if (res?.isCorrect) {
-                                  isDeletionCorrect = true;
-                                  resultToShow = res; // Show validation immediately
-                                  break; // Exit after first correct validation
-                                } else {
-                                  pendingValidationRef.current = res; // Log incorrect attempt
-                                }
-                              }
-
-                              if (isDeletionCorrect) {
-                                correctHitRef.current = true;
-                                // Remove the deleted nodes from the UI
-                                setFloatingCircles((prevFloating) =>
-                                  prevFloating.filter(
-                                    (fc) => !toRemoveIds.has(fc.id)
-                                  )
-                                );
-                              }
-                            }
-                          } else {
-                            // No nodes between the two hit nodes - they are adjacent
-                            // This is likely an invalid deletion attempt
-                            const res =
-                              exerciseManagerRef.current.validateDeletion(
-                                exerciseKey,
-                                {
-                                  value: -1, // Invalid deletion
-                                  address: "invalid",
-                                  isInList: false,
-                                }
-                              );
-                            pendingValidationRef.current = res;
-                          }
-                        }
-                        // Mark bullet for deletion after the two-hit action
-                        updatedCircle.markedForDeletion = true;
+                        // Activate current node and add to sequence
+                        setActivatedNodes(
+                          (prev) => new Set([...prev, floatingCircle.id])
+                        );
+                        hitSequence.push(floatingCircle.id);
+                        newSequences.set(bulletId, hitSequence);
                       }
                     }
-                  }
+
+                    return newSequences;
+                  });
+
                   break; // Processed a hit, exit loop for this frame
                 }
               }
             }
 
             // Decrement remaining bounces when we reflect off walls or nodes
-            if (reflectedThisStep) {
+            if (reflectedThisStep || hitWall) {
               updatedCircle.remainingBounces -= 1;
             }
 
-            // Remove bullet if out of bounces or marked for deletion
-            if (
-              (typeof updatedCircle.remainingBounces === "number" &&
-                updatedCircle.remainingBounces <= 0) ||
-              updatedCircle.markedForDeletion
-            ) {
+            // Remove bullet if out of bounces (after 2 bounces total, disappears on third impact)
+            if (updatedCircle.remainingBounces <= 0) {
               // End of bullet life: if no correct hit but we have pending incorrect, show it
               if (
                 !correctHitRef.current &&
@@ -822,6 +680,16 @@ function MainGameComponent() {
                 resultToShow = pendingValidationRef.current;
                 pendingValidationRef.current = null;
               }
+
+              console.log(`💥 Bullet ${circle.id} disappeared after 2 bounces`);
+
+              // --- NEW: Clean up bullet hit sequence when bullet disappears ---
+              setBulletHitSequences((prevSequences) => {
+                const newSequences = new Map(prevSequences);
+                newSequences.delete(circle.id);
+                return newSequences;
+              });
+
               // Don't keep this bullet
             } else {
               updatedCircles.push(updatedCircle);
@@ -835,14 +703,18 @@ function MainGameComponent() {
         return updatedCircles;
       });
       if (resultToShow) {
-        setValidationResult(resultToShow);
         setShowValidationResult(true);
       }
     };
 
     const intervalId = setInterval(animationFrame, 8); // ~120fps for smoother movement
     return () => clearInterval(intervalId);
-  }, [exerciseKey, showValidationResult, currentExercise]);
+  }, [
+    exerciseKey,
+    showValidationResult,
+    currentExercise,
+    createPlayerConnection,
+  ]);
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
@@ -1100,12 +972,133 @@ function MainGameComponent() {
         </div>
       )}
 
-      {/* Portal particles for vacuum effect */}
-      <PortalParticles portalInfo={portalInfo} />
-      <PortalComponent
-        onPortalStateChange={handlePortalStateChange}
-        isOpen={isPortalOpen}
-      />
+      {/* Challenge Mode Instructions */}
+      <div
+        style={{
+          position: "absolute",
+          top: "100px",
+          left: "20px",
+          background: "rgba(0, 0, 0, 0.8)",
+          border: "2px solid #00ff88",
+          borderRadius: "10px",
+          padding: "15px",
+          color: "#fff",
+          fontSize: "14px",
+          maxWidth: "350px",
+          zIndex: 15,
+        }}
+      >
+        <div
+          style={{ color: "#00ff88", fontWeight: "bold", marginBottom: "8px" }}
+        >
+          🚀 Challenge Mode: Node Deletion
+        </div>
+        <div>Right-click to shoot balls at nodes.</div>
+        <div style={{ color: "#00ff88" }}>
+          • First hit: Activates node (turns green)
+        </div>
+        <div style={{ color: "#00ff88" }}>
+          • Second hit: Creates connection!
+        </div>
+        <div style={{ color: "#ff6600", fontSize: "12px", marginTop: "5px" }}>
+          🎯 Goal: Create the target structure by connecting the right nodes
+        </div>
+        <div style={{ color: "#ff6600", fontSize: "12px" }}>
+          🔗 Connected nodes become the new linked list
+        </div>
+        <div style={{ color: "#ff6600", fontSize: "12px" }}>
+          🗑️ Unconnected nodes are automatically deleted!
+        </div>
+        <div style={{ color: "#ffaa00", fontSize: "12px", marginTop: "3px" }}>
+          💡 Don&apos;t connect the target node to delete it
+        </div>
+      </div>
+
+      {/* Connection Counter and Manual Validation */}
+      <div
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "20px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          zIndex: 15,
+        }}
+      >
+        <div
+          style={{
+            background: "rgba(0, 0, 0, 0.8)",
+            border: "2px solid #00ff88",
+            borderRadius: "8px",
+            padding: "10px 15px",
+            color: "#00ff88",
+            fontSize: "16px",
+            fontWeight: "bold",
+          }}
+        >
+          🔗 Connections: {playerConnections.length}
+        </div>
+        <button
+          onClick={() => {
+            // Manual validation
+            if (currentExercise && playerConnections.length > 0) {
+              // Build the current linked list from connections
+              const connectedNodeIds = new Set();
+              playerConnections.forEach((conn) => {
+                connectedNodeIds.add(conn.from);
+                connectedNodeIds.add(conn.to);
+              });
+
+              const nodeMap = new Map();
+              playerConnections.forEach((conn) => {
+                const fromNode = floatingCircles.find(
+                  (c) => c.id === conn.from
+                );
+                const toNode = floatingCircles.find((c) => c.id === conn.to);
+                if (fromNode && toNode) {
+                  nodeMap.set(conn.from, { ...fromNode, next: conn.to });
+                  if (!nodeMap.has(conn.to)) {
+                    nodeMap.set(conn.to, { ...toNode, next: null });
+                  }
+                }
+              });
+
+              // Find head and build list
+              const hasIncoming = new Set();
+              playerConnections.forEach((conn) => hasIncoming.add(conn.to));
+              const headNodes = [...nodeMap.keys()].filter(
+                (id) => !hasIncoming.has(id)
+              );
+
+              if (headNodes.length === 1) {
+                const linkedList = [];
+                let currentId = headNodes[0];
+                while (currentId && nodeMap.has(currentId)) {
+                  const node = nodeMap.get(currentId);
+                  linkedList.push({ value: node.value, address: node.address });
+                  currentId = node.next;
+                }
+                validateChallengeCompletion(linkedList);
+              }
+            }
+          }}
+          style={{
+            background: "rgba(255, 165, 0, 0.8)",
+            border: "2px solid #ffaa00",
+            borderRadius: "8px",
+            padding: "8px 12px",
+            color: "#fff",
+            fontSize: "14px",
+            fontWeight: "bold",
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+          }}
+        >
+          ✅ Check Solution
+        </button>
+      </div>
+
       <div
         className={styles.rightSquare}
         style={{
@@ -1316,251 +1309,6 @@ function MainGameComponent() {
         </div>
       ))}
 
-      <svg className={styles.connectionLines}>
-        {connections.map((connection) => {
-          // Only remove the line if BOTH nodes have been sucked
-          const fromSucked = suckedCircles.includes(connection.from);
-          const toSucked = suckedCircles.includes(connection.to);
-          if (fromSucked && toSucked) return null;
-
-          // Only anchor to portal entrance if a node has been sucked; otherwise, skip the line if either node is missing (e.g., during launch)
-          const fromCircle = circles.find((c) => c.id === connection.from);
-          const toCircle = circles.find((c) => c.id === connection.to);
-          const entranceX = 10 + portalInfo.canvasWidth / 2;
-          const entranceY = window.innerHeight / 2;
-          // If neither node is present and neither is sucked, don't render the line (prevents portal-anchored lines during launch)
-          if (!fromCircle && !fromSucked) return null;
-          if (!toCircle && !toSucked) return null;
-          const fromX = fromCircle ? fromCircle.x : entranceX;
-          const fromY = fromCircle ? fromCircle.y : entranceY;
-          const toX = toCircle ? toCircle.x : entranceX;
-          const toY = toCircle ? toCircle.y : entranceY;
-          return (
-            <g key={connection.id}>
-              <line
-                x1={fromX}
-                y1={fromY}
-                x2={toX}
-                y2={toY}
-                className={styles.animatedLine}
-                markerEnd="url(#arrowhead)"
-              />
-            </g>
-          );
-        })}
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="8"
-            markerHeight="8"
-            refX="16"
-            refY="4"
-            orient="auto"
-            fill="#fff"
-            stroke="#fff"
-            strokeWidth="0.5"
-          >
-            <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
-          </marker>
-        </defs>
-      </svg>
-
-      {/* Validation Overlay */}
-      {showValidationResult && validationResult && (
-        <div className={styles.validationOverlay}>
-          <div className={styles.validationContent}>
-            <div className={styles.validationHeader}>
-              <div className={styles.scoreSection}>
-                <span className={styles.scoreLabel}>
-                  Score: {validationResult.score}/100
-                </span>
-              </div>
-            </div>
-
-            <div className={styles.expectedResultsSection}>
-              <div className={styles.expectedLabel}>
-                Expected <br /> Results
-              </div>
-
-              {currentExercise && currentExercise.expectedStructure && (
-                <table className={styles.validationTable}>
-                  <tbody>
-                    <tr className={styles.expectedRow}>
-                      {currentExercise.expectedStructure.map(
-                        (expectedNode, index) => (
-                          <React.Fragment
-                            key={`expected-${expectedNode.value}`}
-                          >
-                            <td className={styles.expectedCell}>
-                              <div className={styles.expectedValue}>
-                                {expectedNode.value}
-                              </div>
-                              <div className={styles.expectedAddress}>
-                                {expectedNode.address}
-                              </div>
-                            </td>
-                            {index <
-                              currentExercise.expectedStructure.length - 1 && (
-                              <td className={styles.arrowCellEmpty}></td>
-                            )}
-                          </React.Fragment>
-                        )
-                      )}
-                    </tr>
-                    <tr className={styles.userRow}>
-                      {(() => {
-                        // Prefer validated userCircles to ensure UI matches scoring
-                        const validated =
-                          validationResult &&
-                          Array.isArray(validationResult.userCircles)
-                            ? validationResult.userCircles
-                            : null;
-                        let userOrder =
-                          validated && validated.length > 0 ? validated : [];
-                        return currentExercise.expectedStructure.map(
-                          (expectedNode, index) => {
-                            const userNode = userOrder[index];
-                            const isCorrect =
-                              userNode &&
-                              String(userNode.value) ===
-                                String(expectedNode.value);
-                            return (
-                              <React.Fragment
-                                key={`user-${expectedNode.value}`}
-                              >
-                                <td className={styles.userCell}>
-                                  {userNode ? (
-                                    <div
-                                      className={`${styles.userNode} ${
-                                        isCorrect
-                                          ? styles.userNodeCorrect
-                                          : styles.userNodeIncorrect
-                                      }`}
-                                    >
-                                      <div className={styles.userNodeValue}>
-                                        {userNode.value}
-                                      </div>
-                                      <div className={styles.userNodeAddress}>
-                                        {userNode.address}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div
-                                      className={`${styles.userNode} ${styles.userNodeMissing}`}
-                                    >
-                                      <div className={styles.userNodeValue}>
-                                        ?
-                                      </div>
-                                      <div className={styles.userNodeAddress}>
-                                        ?
-                                      </div>
-                                    </div>
-                                  )}
-                                </td>
-                                {index <
-                                  currentExercise.expectedStructure.length -
-                                    1 && (
-                                  <td className={styles.arrowCell}>→</td>
-                                )}
-                              </React.Fragment>
-                            );
-                          }
-                        );
-                      })()}
-                    </tr>
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            <div className={styles.validationButtons}>
-              <button
-                onClick={() => {
-                  setShowValidationResult(false);
-                  setIsPortalOpen(false);
-                  setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-                  // Clear refs and local entry state for a clean retry/next
-                  if (entryOrderRef) entryOrderRef.current = [];
-                  if (suckedCirclesRef) suckedCirclesRef.current = [];
-                  setSuckedCircles([]);
-                  setCurrentEntryOrder([]);
-
-                  // Handle level progression for new system
-                  if (validationResult && validationResult.isCorrect) {
-                    const nextLevel =
-                      exerciseManagerRef.current.getNextLevel(exerciseKey);
-                    if (nextLevel) {
-                      loadExercise(nextLevel);
-                    }
-                  }
-                }}
-                className={styles.continueButton}
-              >
-                {validationResult && validationResult.isCorrect
-                  ? exerciseManagerRef.current.hasNextLevel(exerciseKey)
-                    ? "NEXT LEVEL"
-                    : "GAME COMPLETE"
-                  : "CONTINUE"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Circle Detail Popup */}
-      {selectedCircle && (
-        <div className={styles.popupOverlay} onClick={closePopup}>
-          <div
-            className={styles.popupContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button className={styles.popupCloseBtn} onClick={closePopup}>
-              ×
-            </button>
-
-            <div className={styles.popupCircle}>
-              <span className={styles.popupCircleValue}>
-                {selectedCircle.value}
-              </span>
-              <span className={styles.popupCircleAddress}>
-                {selectedCircle.address}
-              </span>
-            </div>
-            <div className={styles.popupFormContainer}>
-              <div className={styles.popupText}>Connect to?</div>
-              <input
-                type="text"
-                placeholder="Enter Address"
-                value={connectToAddress}
-                onChange={(e) => setConnectToAddress(e.target.value)}
-                className={styles.popupInput}
-                disabled={true}
-                autoFocus
-              />
-              <div className={styles.popupButtons}>
-                <button
-                  onClick={handleConnect}
-                  className={`${styles.popupButton} ${styles.connectBtn}`}
-                  disabled={true}
-                >
-                  CONNECT
-                </button>
-                <button
-                  onClick={handleDeleteCircle}
-                  className={`${styles.popupButton} ${styles.deleteBtn}`}
-                >
-                  DELETE
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* No interactive square node in deletion mode */}
-
-      {/* No completion popups in deletion mode */}
-
       {/* Linked List Connections (between present list nodes) */}
       {currentExercise &&
         floatingCircles.length > 0 &&
@@ -1663,11 +1411,68 @@ function MainGameComponent() {
           );
         })()}
 
+      {/* Player-created connections */}
+      {playerConnections.length > 0 && (
+        <svg
+          className={styles.connectionLines}
+          style={{ pointerEvents: "none" }}
+        >
+          {playerConnections.map((connection) => {
+            const fromNode = floatingCircles.find(
+              (c) => c.id === connection.from
+            );
+            const toNode = floatingCircles.find((c) => c.id === connection.to);
+
+            if (!fromNode || !toNode) return null;
+
+            const fromX = fromNode.x + 30; // Center of 60px circle
+            const fromY = fromNode.y + 30;
+            const toX = toNode.x + 30;
+            const toY = toNode.y + 30;
+
+            return (
+              <line
+                key={connection.id}
+                x1={fromX}
+                y1={fromY}
+                x2={toX}
+                y2={toY}
+                stroke="#00ff88"
+                strokeWidth="4"
+                strokeDasharray="8 4"
+                markerEnd="url(#arrowhead-player)"
+                style={{
+                  filter: "drop-shadow(0 0 4px rgba(0, 255, 136, 0.8))",
+                }}
+              />
+            );
+          })}
+          <defs>
+            <marker
+              id="arrowhead-player"
+              markerWidth="10"
+              markerHeight="10"
+              refX="18"
+              refY="5"
+              orient="auto"
+              fill="#00ff88"
+              stroke="#00ff88"
+              strokeWidth="0.5"
+            >
+              <path d="M0,0 L0,10 L10,5 z" fill="#00ff88" />
+            </marker>
+          </defs>
+        </svg>
+      )}
+
       {/* Floating Node Circles (value + address) */}
       {floatingCircles.map((circle) => (
         <div
           key={circle.id}
-          className={`${styles.floatingCircle} ${styles.valueCircle}`}
+          data-node-id={circle.id}
+          className={`${styles.floatingCircle} ${styles.valueCircle} ${
+            activatedNodes.has(circle.id) ? styles.activated : ""
+          }`}
           style={{
             left: `${circle.x}px`,
             top: `${circle.y}px`,
@@ -1679,6 +1484,194 @@ function MainGameComponent() {
           <div style={{ fontSize: "10px", opacity: 0.9 }}>{circle.address}</div>
         </div>
       ))}
+
+      {/* Validation Overlay */}
+      {showValidationResult && pendingValidationRef.current && (
+        <div className={styles.validationOverlay}>
+          <div className={styles.validationContent}>
+            <div className={styles.validationHeader}>
+              <div className={styles.scoreSection}>
+                <span className={styles.scoreLabel}>
+                  {pendingValidationRef.current.isCorrect
+                    ? "✅ Success!"
+                    : "❌ Try Again"}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              <h2
+                style={{
+                  color: pendingValidationRef.current.isCorrect
+                    ? "#00ff88"
+                    : "#ff4444",
+                  marginBottom: "10px",
+                }}
+              >
+                {pendingValidationRef.current.message}
+              </h2>
+              {pendingValidationRef.current.isCorrect && (
+                <div style={{ color: "#00ff88", fontSize: "18px" }}>
+                  🎉 Challenge Complete! Score:{" "}
+                  {pendingValidationRef.current.score}
+                </div>
+              )}
+            </div>
+
+            {/* Show the resulting linked list structure */}
+            {pendingValidationRef.current.isCorrect &&
+              pendingValidationRef.current.userCircles && (
+                <div style={{ marginBottom: "30px" }}>
+                  <h3
+                    style={{
+                      color: "#00ff88",
+                      textAlign: "center",
+                      marginBottom: "20px",
+                      fontSize: "18px",
+                    }}
+                  >
+                    ✅ Your New Linked List:
+                  </h3>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      gap: "20px",
+                      flexWrap: "wrap",
+                      padding: "20px",
+                      background: "rgba(0, 255, 136, 0.1)",
+                      border: "2px solid #00ff88",
+                      borderRadius: "15px",
+                      margin: "0 auto",
+                      maxWidth: "80%",
+                    }}
+                  >
+                    {pendingValidationRef.current.userCircles.map(
+                      (node, index) => (
+                        <div
+                          key={`result-${index}`}
+                          style={{ display: "flex", alignItems: "center" }}
+                        >
+                          {/* Node circle */}
+                          <div
+                            style={{
+                              width: "80px",
+                              height: "80px",
+                              borderRadius: "50%",
+                              background:
+                                "linear-gradient(135deg, #00ff88 0%, #00cc66 100%)",
+                              border: "3px solid #fff",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "#000",
+                              fontWeight: "bold",
+                              boxShadow: "0 0 20px rgba(0, 255, 136, 0.6)",
+                            }}
+                          >
+                            <div style={{ fontSize: "18px", fontWeight: 800 }}>
+                              {node.value}
+                            </div>
+                            <div style={{ fontSize: "12px", opacity: 0.8 }}>
+                              {node.address}
+                            </div>
+                          </div>
+
+                          {/* Arrow (if not the last node) */}
+                          {index <
+                            pendingValidationRef.current.userCircles.length -
+                              1 && (
+                            <div
+                              style={{
+                                margin: "0 15px",
+                                color: "#00ff88",
+                                fontSize: "24px",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              →
+                            </div>
+                          )}
+                        </div>
+                      )
+                    )}
+
+                    {/* NULL indicator */}
+                    <div
+                      style={{
+                        margin: "0 15px",
+                        color: "#00ff88",
+                        fontSize: "24px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      → NULL
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      textAlign: "center",
+                      marginTop: "15px",
+                      color: "#00ff88",
+                      fontSize: "14px",
+                    }}
+                  >
+                    {currentExercise.target?.type === "head"
+                      ? "🎯 Head node successfully deleted!"
+                      : currentExercise.target?.type === "tail"
+                      ? "🎯 Tail node successfully deleted!"
+                      : `🎯 Node with value ${currentExercise.target?.value} successfully deleted!`}
+                  </div>
+                </div>
+              )}
+
+            <div className={styles.validationButtons}>
+              <button
+                className={styles.continueButton}
+                onClick={() => {
+                  if (pendingValidationRef.current.isCorrect) {
+                    // Check if there's a next level
+                    const nextLevel =
+                      exerciseManagerRef.current.getNextLevel(exerciseKey);
+                    if (nextLevel) {
+                      // Reset states and load next level
+                      setPlayerConnections([]);
+                      setActivatedNodes(new Set());
+                      setBulletHitSequences(new Map());
+                      setCircles([]);
+                      loadExercise(nextLevel);
+                    } else {
+                      console.log("🎉 All levels completed!");
+                    }
+                  }
+                  setShowValidationResult(false);
+                  pendingValidationRef.current = null;
+                }}
+                style={{
+                  background: pendingValidationRef.current.isCorrect
+                    ? "#00ff88"
+                    : "#666",
+                  color: "#000",
+                  border: "none",
+                  padding: "12px 30px",
+                  borderRadius: "8px",
+                  fontSize: "16px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                {pendingValidationRef.current.isCorrect
+                  ? "Continue"
+                  : "Try Again"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

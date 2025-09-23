@@ -480,64 +480,6 @@
   }
 }
 
-.launchButton {
-  padding: 12px 30px;
-  background-color: #676767;
-  color: black;
-  font-weight: bold;
-  font-size: 14px;
-  width: 300px;
-  cursor: pointer;
-  height: 55px;
-  transition: background-color 0.2s;
-  border-radius: 8px;
-  border: none;
-  box-sizing: border-box;
-}
-.launchButton:disabled {
-  background-color: #444 !important;
-  color: #aaa !important;
-  cursor: not-allowed;
-  opacity: 0.3;
-}
-
-/* .launchButton:hover {
-  background-color: #bbb;
-} */
-
-.buttonContainer {
-  position: relative;
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  gap: 10px;
-  width: 300px;
-  flex-shrink: 0;
-}
-
-.insertButton {
-  padding: 12px 30px;
-  background-color: #888888;
-  color: black;
-  font-weight: bold;
-  font-size: 14px;
-  width: 300px;
-  height: 50px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-radius: 8px;
-  border: none;
-  animation: slideUp 0.3s ease-out;
-  position: absolute;
-  bottom: 100%;
-  margin-bottom: 10px;
-  z-index: 5;
-}
-
-.insertButton:hover {
-  background-color: #aaa;
-}
-
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -546,57 +488,6 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-.portalButton {
-  padding: 12px 30px;
-  background-color: #555555;
-  color: rgb(0, 0, 0);
-  font-weight: bold;
-  font-size: 14px;
-  width: 300px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  border-radius: 8px;
-  border: none;
-}
-
-.portalButton:hover {
-  background-color: #8c8c8c;
-}
-
-.portalButton:disabled {
-  background-color: #282828;
-  cursor: not-allowed;
-}
-
-/* Open state overrides disabled state */
-.portalButtonOpen {
-  background-color: #ae08a3 !important;
-  color: white !important;
-  cursor: pointer !important;
-  opacity: 1 !important;
-  border: 2px solid #bb0faf;
-  box-shadow: 0 0 20px rgba(174, 8, 163, 0.8), 0 0 40px rgba(174, 8, 163, 0.4),
-    inset 0 0 10px rgba(174, 8, 163, 0.3);
-  animation: portal-button-glow 2s ease-in-out infinite alternate;
-}
-
-.portalButtonOpen:hover {
-  background-color: #bb0faf;
-  box-shadow: 0 0 25px rgba(187, 15, 175, 1), 0 0 50px rgba(187, 15, 175, 0.6),
-    inset 0 0 15px rgba(187, 15, 175, 0.4);
-}
-
-@keyframes portal-button-glow {
-  0% {
-    box-shadow: 0 0 20px rgba(174, 8, 163, 0.8), 0 0 40px rgba(174, 8, 163, 0.4),
-      inset 0 0 10px rgba(174, 8, 163, 0.3);
-  }
-  100% {
-    box-shadow: 0 0 30px rgba(174, 8, 163, 1), 0 0 60px rgba(174, 8, 163, 0.6),
-      inset 0 0 15px rgba(174, 8, 163, 0.5);
   }
 }
 
@@ -1464,6 +1355,12 @@
 .floatingCircle.valueCircle {
   background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
   border: 2px solid #fff;
+}
+
+.floatingCircle.activated {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%) !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.6) !important;
 }
 
 .floatingCircle.addressCircle {
