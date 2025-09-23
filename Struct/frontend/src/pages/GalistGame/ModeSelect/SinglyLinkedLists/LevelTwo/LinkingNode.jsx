@@ -897,30 +897,41 @@ function GalistGameLinkingNode() {
                 }
                 // Case 2: Hit head/tail with isolated circle - extend the list
                 else if ((circle1IsHead || circle1IsTail) && circle2IsIsolated) {
-                  shouldConnect = true;
+                  // If the isolated circle hits the tail, extend the list from tail.
+                  // If it hits the head, and the isolated circle was launched by the player,
+                  // remove the launched circle instead of inserting before head.
                   if (circle1IsTail) {
-                    // Extend from tail
+                    shouldConnect = true;
                     fromId = circle1.id;
                     toId = circle2.id;
                   } else {
-                    // Extend from head (add before head)
-                    fromId = circle2.id;
-                    toId = circle1.id;
+                    // circle1 is head
+                    if (circle2.isLaunched) {
+                      // Remove the launched circle when it collides with the head
+                      shouldDeleteCircle = circle2.id;
+                    } else {
+                      // Add before head (non-launched insertion)
+                      shouldConnect = true;
+                      fromId = circle2.id;
+                      toId = circle1.id;
+                    }
                   }
-                  // ...existing code...
                 }
                 else if ((circle2IsHead || circle2IsTail) && circle1IsIsolated) {
-                  shouldConnect = true;
                   if (circle2IsTail) {
-                    // Extend from tail
+                    shouldConnect = true;
                     fromId = circle2.id;
                     toId = circle1.id;
                   } else {
-                    // Extend from head (add before head)
-                    fromId = circle1.id;
-                    toId = circle2.id;
+                    // circle2 is head
+                    if (circle1.isLaunched) {
+                      shouldDeleteCircle = circle1.id;
+                    } else {
+                      shouldConnect = true;
+                      fromId = circle1.id;
+                      toId = circle2.id;
+                    }
                   }
-                  // ...existing code...
                 }
                 // Case 3: Hit head when list has 2+ circles - delete ONLY isolated new circle
                 else if (totalConnections >= 1 && ((circle1IsHead && circle2IsIsolated) || (circle2IsHead && circle1IsIsolated))) {
