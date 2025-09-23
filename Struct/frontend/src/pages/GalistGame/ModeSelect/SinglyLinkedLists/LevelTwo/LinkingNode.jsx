@@ -1840,7 +1840,7 @@ function GalistGameLinkingNode() {
                     validationResult.isCorrect &&
                     exerciseKey === "exercise_two"
                   ) {
-                    loadExercise("exercise_tree");
+                    loadExercise("exercise_three");
                   }
                 }}
                 className={styles.continueButton}

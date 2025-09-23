@@ -60,6 +60,9 @@ function GalistGameInsertionNode() {
   const [validationResult, setValidationResult] = useState(null);
   const [showInstructionPopup, setShowInstructionPopup] = useState(true);
 
+  // Insertion mode: 'left' = insert before touched node, 'right' = insert after touched node
+  const [insertionMode, setInsertionMode] = useState('right');
+
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
 
@@ -442,7 +445,19 @@ function GalistGameInsertionNode() {
       // applyNavigationState(st);
     };
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+
+    // Wheel handler: scroll up -> left mode, scroll down -> right mode
+    const handleWheel = (ev) => {
+      if (Math.abs(ev.deltaY) < 1) return;
+      if (ev.deltaY < 0) setInsertionMode('left');
+      else setInsertionMode('right');
+    };
+    window.addEventListener('wheel', handleWheel, { passive: true });
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener('wheel', handleWheel);
+    };
   }, []);
 
   // Function to find all connected circles recursively
@@ -496,7 +511,7 @@ function GalistGameInsertionNode() {
     const initialMap = {
       exercise_one: INITIAL_CIRCLES,
       exercise_two: INITIAL_CIRCLES_TWO,
-      exercise_tree: INITIAL_CIRCLES_THREE,
+      exercise_three: INITIAL_CIRCLES_THREE,
     };
 
     const templateInit = initialMap[key];
@@ -975,30 +990,103 @@ function GalistGameInsertionNode() {
                 }
                 // Case 2: Hit head/tail with isolated circle - extend the list
                 else if ((circle1IsHead || circle1IsTail) && circle2IsIsolated) {
-                  shouldConnect = true;
-                  if (circle1IsTail) {
-                    // Extend from tail
-                    fromId = circle1.id;
-                    toId = circle2.id;
+                  // existingNode = circle1, newNode = circle2
+                  const existingNode = circle1;
+                  const newNode = circle2;
+                  const newNodeIsLaunched = !!newNode.isLaunched;
+
+                  if (newNodeIsLaunched) {
+                    if (insertionMode === 'right') {
+                      // Insert AFTER existingNode: rewire existing->newNode and newNode->oldNext
+                      const oldNextConn = connections.find(conn => conn.from === existingNode.id);
+                      const oldNextId = oldNextConn ? oldNextConn.to : null;
+
+                      setConnections(prev => {
+                        // Remove existing->oldNext if present
+                        let updated = prev.filter(c => !(c.from === existingNode.id && c.to === oldNextId));
+                        // Add existing -> newNode
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: existingNode.id, to: newNode.id });
+                        // If there was an old next, connect newNode -> oldNext
+                        if (oldNextId) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: oldNextId });
+                        }
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      if (!oldNextId) setTailCircleId(newNode.id);
+                      setHeadCircleId(prev => prev || existingNode.id);
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else {
+                      // insertionMode === 'left' -> insert BEFORE existingNode: rewire incoming -> newNode -> existing
+                      const incomingConn = connections.find(conn => conn.to === existingNode.id);
+                      const incomingFrom = incomingConn ? incomingConn.from : null;
+
+                      setConnections(prev => {
+                        let updated = prev.filter(c => !(incomingConn && c.from === incomingFrom && c.to === existingNode.id));
+                        if (incomingFrom) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: incomingFrom, to: newNode.id });
+                        }
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: existingNode.id });
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      if (!incomingConn) setHeadCircleId(newNode.id);
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    }
                   } else {
-                    // Extend from head (add before head)
-                    fromId = circle2.id;
-                    toId = circle1.id;
+                    shouldDeleteCircle = newNode.id;
                   }
-                  // ...existing code...
                 }
                 else if ((circle2IsHead || circle2IsTail) && circle1IsIsolated) {
-                  shouldConnect = true;
-                  if (circle2IsTail) {
-                    // Extend from tail
-                    fromId = circle2.id;
-                    toId = circle1.id;
+                  // existingNode = circle2, newNode = circle1
+                  const existingNode = circle2;
+                  const newNode = circle1;
+                  const newNodeIsLaunched = !!newNode.isLaunched;
+
+                  if (newNodeIsLaunched) {
+                    if (insertionMode === 'right') {
+                      const oldNextConn = connections.find(conn => conn.from === existingNode.id);
+                      const oldNextId = oldNextConn ? oldNextConn.to : null;
+
+                      setConnections(prev => {
+                        let updated = prev.filter(c => !(c.from === existingNode.id && c.to === oldNextId));
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: existingNode.id, to: newNode.id });
+                        if (oldNextId) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: oldNextId });
+                        }
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      if (!oldNextId) setTailCircleId(newNode.id);
+                      setHeadCircleId(prev => prev || existingNode.id);
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else {
+                      const incomingConn = connections.find(conn => conn.to === existingNode.id);
+                      const incomingFrom = incomingConn ? incomingConn.from : null;
+
+                      setConnections(prev => {
+                        let updated = prev.filter(c => !(incomingConn && c.from === incomingFrom && c.to === existingNode.id));
+                        if (incomingFrom) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: incomingFrom, to: newNode.id });
+                        }
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: existingNode.id });
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      if (!incomingConn) setHeadCircleId(newNode.id);
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    }
                   } else {
-                    // Extend from head (add before head)
-                    fromId = circle1.id;
-                    toId = circle2.id;
+                    shouldDeleteCircle = newNode.id;
                   }
-                  // ...existing code...
                 }
                 // Case 3: Hit head when list has 2+ circles - delete ONLY isolated new circle
                 else if (totalConnections >= 1 && ((circle1IsHead && circle2IsIsolated) || (circle2IsHead && circle1IsIsolated))) {
@@ -1019,54 +1107,71 @@ function GalistGameInsertionNode() {
                     const oldNextConn = connections.find(conn => conn.from === existingNode.id);
                     const oldNextId = oldNextConn ? oldNextConn.to : null;
 
-                    // Build new connections: existing -> newNode, newNode -> oldNext (if exists)
-                    setConnections(prev => {
-                      // Remove the old connection from existingNode to oldNextId (if present)
-                      let updated = prev.filter(c => !(c.from === existingNode.id && c.to === oldNextId));
+                    if (insertionMode === 'right') {
+                      // Build new connections: existing -> newNode, newNode -> oldNext (if exists)
+                      setConnections(prev => {
+                        // Remove the old connection from existingNode to oldNextId (if present)
+                        let updated = prev.filter(c => !(c.from === existingNode.id && c.to === oldNextId));
 
-                      // Add connection existing -> newNode
-                      updated = [
-                        ...updated,
-                        {
-                          id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                          from: existingNode.id,
-                          to: newNode.id,
-                        },
-                      ];
-
-                      // If there was a previous next, add newNode -> oldNext
-                      if (oldNextId) {
+                        // Add connection existing -> newNode
                         updated = [
                           ...updated,
                           {
                             id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                            from: newNode.id,
-                            to: oldNextId,
+                            from: existingNode.id,
+                            to: newNode.id,
                           },
                         ];
-                      }
 
-                      return updated;
-                    });
+                        // If there was a previous next, add newNode -> oldNext
+                        if (oldNextId) {
+                          updated = [
+                            ...updated,
+                            {
+                              id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                              from: newNode.id,
+                              to: oldNextId,
+                            },
+                          ];
+                        }
 
-                    // Ensure the new node exists in circles state (it should already be present, but ensure id stability)
-                    setCircles(prev => {
-                      if (prev.some(c => c.id === newNode.id)) return prev;
-                      return [...prev, newNode];
-                    });
+                        return updated;
+                      });
 
-                    // Update head/tail ids if necessary
-                    setHeadCircleId(prev => prev || existingNode.id);
-                    if (!oldNextId) {
-                      // existingNode was tail, so newNode becomes new tail
-                      setTailCircleId(newNode.id);
+                      // Ensure the new node exists in circles state
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+
+                      setHeadCircleId(prev => prev || existingNode.id);
+                      if (!oldNextId) setTailCircleId(newNode.id);
+
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else {
+                      // insertionMode === 'left' => insert BEFORE existingNode
+                      // Find incoming connection(s) to existingNode
+                      const incomingConn = connections.find(conn => conn.to === existingNode.id);
+                      const incomingFrom = incomingConn ? incomingConn.from : null;
+
+                      setConnections(prev => {
+                        let updated = prev.filter(c => !(c.from === incomingFrom && c.to === existingNode.id));
+                        // If there was an incoming, connect incomingFrom -> newNode
+                        if (incomingFrom) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: incomingFrom, to: newNode.id });
+                        }
+                        // Connect newNode -> existingNode
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: existingNode.id });
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+
+                      // If there was no incoming, the newNode becomes new head
+                      if (!incomingConn) setHeadCircleId(newNode.id);
+
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
                     }
-
-                    // Prevent deletion logic from running for this collision
-                    shouldDeleteCircle = null;
-                    shouldConnect = false;
                   } else {
-                    // Fallback: if new node wasn't launched, keep previous behavior (delete isolated)
                     shouldDeleteCircle = newNode.id;
                   }
                 }
@@ -1197,6 +1302,7 @@ function GalistGameInsertionNode() {
     getChainOrder,
     startChainSuction,
     blackHoles,
+    insertionMode,
   ]);
 
   // Handle connection removal when circles are sucked
@@ -1693,6 +1799,11 @@ function GalistGameInsertionNode() {
         {currentExerciseNumber}/{totalExercises}
       </div>
 
+      {/* Insertion mode indicator (top-left) */}
+      <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>
+        Insert: {insertionMode === 'left' ? 'Before (←)' : 'After (→)'}
+      </div>
+
       {/* Expected results bar */}
       {currentExercise && currentExercise.expectedStructure && (
         <div className={styles.expectedBarWrapper}>
@@ -2080,7 +2191,7 @@ function GalistGameInsertionNode() {
                     validationResult.isCorrect &&
                     exerciseKey === "exercise_two"
                   ) {
-                    loadExercise("exercise_tree");
+                    loadExercise("exercise_three");
                   }
                 }}
                 className={styles.continueButton}
@@ -2207,7 +2318,7 @@ function GalistGameInsertionNode() {
         <div className={styles.popupOverlay}>
           <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #fff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
             <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '30px' }}>
-              Linking Nodes Completed
+              Insertion Nodes Completed
             </h2>
             <button
               style={{

@@ -364,7 +364,7 @@ export const EXERCISE_TEMPLATES = {
     title: "Fix the Linked Lists",
     description: "Delete some unnecessary Nodes to achieve the desired linked list structure"
   },
-  exercise_tree: {
+  exercise_three: {
     sequence: [66, 65, 64, 67, 76, 77, 78],
     addresses: {
       66: "l",

@@ -11,7 +11,7 @@ import LoadingScreen from "../../../LoadingScreen/LoadingScreen.jsx";
 import { useDimming } from "../../../Dimming/Dimming.jsx";
 
 // Exercise constants
-const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_tree"];
+const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
 
 function GalistAbstractDataType() {
 
@@ -184,7 +184,7 @@ function GalistAbstractDataType() {
       initialCircles = INITIAL_CIRCLES;
     } else if (exerciseKey === "exercise_two") {
       initialCircles = INITIAL_CIRCLES_TWO;
-    } else if (exerciseKey === "exercise_tree") {
+  } else if (exerciseKey === "exercise_three") {
       initialCircles = INITIAL_CIRCLES_THREE;
     } else {
       initialCircles = [];
@@ -1710,7 +1710,7 @@ function GalistAbstractDataType() {
                   if (validationResult && validationResult.isCorrect && exerciseKey === "exercise_one") {
                     loadExercise("exercise_two");
                   } else if (validationResult && validationResult.isCorrect && exerciseKey === "exercise_two") {
-                    loadExercise("exercise_tree");
+                    loadExercise("exercise_three");
                   }
                 }}
                 className={styles.continueButton}
