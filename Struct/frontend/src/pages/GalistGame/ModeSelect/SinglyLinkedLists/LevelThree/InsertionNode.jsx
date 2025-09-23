@@ -1245,8 +1245,8 @@ function GalistGameInsertionNode() {
 
   // Mouse event handlers for dragging
   const handleMouseDown = (e, circle) => {
-    // Prevent dragging launched circles
-    if (circle.isLaunched) {
+    // Prevent dragging launched circles or initial protected circles
+    if (circle.isLaunched || circle.isInitial) {
       return;
     }
     
@@ -1266,6 +1266,86 @@ function GalistGameInsertionNode() {
       },
     ];
   };
+
+  // Handle simple clicks on circles to increment a click-counter; delete after 5 clicks
+  // Helper to perform deletion and bridge connections
+  const performDelete = useCallback((circleId) => {
+    setCircles(prev => {
+      const remaining = prev.filter(c => c.id !== circleId);
+
+      setConnections(prevConns => {
+        const incoming = prevConns.filter(conn => conn.to === circleId);
+        const outgoing = prevConns.filter(conn => conn.from === circleId);
+
+        let newConns = prevConns.filter(conn => conn.from !== circleId && conn.to !== circleId);
+
+        for (const inConn of incoming) {
+          for (const outConn of outgoing) {
+            const fromId = inConn.from;
+            const toId = outConn.to;
+            const exists = newConns.some(c => c.from === fromId && c.to === toId);
+            if (fromId !== toId && !exists) {
+              newConns = [
+                ...newConns,
+                {
+                  id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  from: fromId,
+                  to: toId,
+                },
+              ];
+            }
+          }
+        }
+
+        // Update head/tail IDs based on new connection set and remaining circles
+        if (remaining.length === 0) {
+          setHeadCircleId(null);
+          setTailCircleId(null);
+        } else {
+          const headNode = remaining.find(c => !newConns.some(conn => conn.to === c.id));
+          const tailNode = remaining.find(c => !newConns.some(conn => conn.from === c.id));
+          setHeadCircleId(headNode ? headNode.id : remaining[0].id);
+          setTailCircleId(tailNode ? tailNode.id : remaining[remaining.length - 1].id);
+        }
+
+        return newConns;
+      });
+
+      return remaining;
+    });
+  }, [setConnections, setHeadCircleId, setTailCircleId]);
+
+  const handleCircleClick = useCallback((circleId, e) => {
+    e.stopPropagation();
+
+
+    setCircles(prev => {
+      const updated = prev.map(c => {
+        if (c.id === circleId) {
+          // Do not change clickCount for initial circles
+          if (c.isInitial) return c;
+          const nextCount = Math.min(5, (c.clickCount || 0) + 1);
+          return { ...c, clickCount: nextCount, deletionReady: nextCount >= 5 ? true : (c.deletionReady || false) };
+        }
+        return c;
+      });
+
+      const clicked = updated.find(c => c.id === circleId);
+      // If clicked circle is initial, do nothing further
+      if (clicked && clicked.isInitial) {
+        return updated;
+      }
+
+      // If deletionReady just became true, schedule the actual deletion after a short delay
+      if (clicked && clicked.deletionReady) {
+        setTimeout(() => {
+          performDelete(circleId);
+        }, 420); // small delay so user sees the filled background
+      }
+
+      return updated;
+    });
+  }, [performDelete]);
 
 
 
@@ -1687,6 +1767,7 @@ function GalistGameInsertionNode() {
 
       {circles.map((circle) => {
         const label = getCircleLabel(circle.id);
+        const clickProgress = circle.isInitial ? 0 : Math.max(0, Math.min(1, (circle.clickCount || 0) / 5));
         return (
           <div
             key={circle.id}
@@ -1696,21 +1777,53 @@ function GalistGameInsertionNode() {
             style={{
               left: `${circle.x - 30}px`,
               top: `${circle.y - 30}px`,
-              cursor: circle.isLaunched 
+              cursor: circle.isInitial ? 'default' : (circle.isLaunched 
                 ? "default" 
                 : (draggedCircle && circle.id === draggedCircle.id
                   ? "grabbing"
-                  : "grab"),
+                  : "grab")),
               opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
               boxShadow: circle.isLaunched 
                 ? "0 0 15px rgba(255, 255, 0, 0.6)" 
                 : "0 4px 8px rgba(0, 0, 0, 0.3)", // Yellow glow for launched circles
             }}
             onMouseDown={(e) => handleMouseDown(e, circle)}
+            {...(!circle.isInitial ? { onClick: (e) => handleCircleClick(circle.id, e) } : {})}
             // Double click disabled
           >
-            <span className={styles.circleValue}>{circle.value}</span>
-            <span className={styles.circleAddress}>{circle.address}</span>
+            <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
+            <span className={styles.circleAddress} style={{ position: 'relative', zIndex: 2 }}>{circle.address}</span>
+
+            {/* Click-to-delete background circle fill (SVG) */}
+            <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
+              <svg width="60" height="60" viewBox="0 0 60 60">
+                <defs>
+                  <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffcfb8" />
+                    <stop offset="100%" stopColor="#ff6b35" />
+                  </linearGradient>
+                </defs>
+                <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
+                <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+                {/* foreground arc representing progress - use stroke-dasharray trick */}
+                <circle
+                  cx="30"
+                  cy="30"
+                  r="24"
+                  fill="none"
+                  stroke={`url(#grad-${circle.id})`}
+                  strokeWidth="12"
+                  strokeLinecap="round"
+                  transform="rotate(-90 30 30)"
+                  style={{
+                    strokeDasharray: 2 * Math.PI * 24,
+                    strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
+                    transition: 'stroke-dashoffset 120ms linear'
+                  }}
+                />
+              </svg>
+            </div>
+
             {label && (
               <div 
                 className={styles.headTailLabel}
