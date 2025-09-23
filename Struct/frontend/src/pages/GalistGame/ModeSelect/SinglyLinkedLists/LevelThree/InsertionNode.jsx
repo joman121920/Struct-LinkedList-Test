@@ -1005,10 +1005,70 @@ function GalistGameInsertionNode() {
                   shouldDeleteCircle = circle1IsHead ? circle2.id : circle1.id;
                   // ...existing code...
                 }
-                // Case 4: Hit middle node - delete ONLY isolated new circle  
+                // Case 4: Hit middle node - if a freshly launched isolated circle hits a middle node,
+                // treat this as an insertion: insert the new circle AFTER the hit node instead of deleting it.
                 else if ((circle1IsMiddle && circle2IsIsolated) || (circle2IsMiddle && circle1IsIsolated)) {
-                  shouldDeleteCircle = circle1IsMiddle ? circle2.id : circle1.id;
-                  // ...existing code...
+                  const existingNode = circle1IsMiddle ? circle1 : circle2; // node that's part of list
+                  const newNode = circle1IsMiddle ? circle2 : circle1; // isolated/new circle
+
+                  // Only perform insertion when the isolated circle was launched (player shot it)
+                  const newNodeIsLaunched = !!newNode.isLaunched;
+
+                  if (newNodeIsLaunched) {
+                    // Find the existing outgoing connection (if any)
+                    const oldNextConn = connections.find(conn => conn.from === existingNode.id);
+                    const oldNextId = oldNextConn ? oldNextConn.to : null;
+
+                    // Build new connections: existing -> newNode, newNode -> oldNext (if exists)
+                    setConnections(prev => {
+                      // Remove the old connection from existingNode to oldNextId (if present)
+                      let updated = prev.filter(c => !(c.from === existingNode.id && c.to === oldNextId));
+
+                      // Add connection existing -> newNode
+                      updated = [
+                        ...updated,
+                        {
+                          id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                          from: existingNode.id,
+                          to: newNode.id,
+                        },
+                      ];
+
+                      // If there was a previous next, add newNode -> oldNext
+                      if (oldNextId) {
+                        updated = [
+                          ...updated,
+                          {
+                            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            from: newNode.id,
+                            to: oldNextId,
+                          },
+                        ];
+                      }
+
+                      return updated;
+                    });
+
+                    // Ensure the new node exists in circles state (it should already be present, but ensure id stability)
+                    setCircles(prev => {
+                      if (prev.some(c => c.id === newNode.id)) return prev;
+                      return [...prev, newNode];
+                    });
+
+                    // Update head/tail ids if necessary
+                    setHeadCircleId(prev => prev || existingNode.id);
+                    if (!oldNextId) {
+                      // existingNode was tail, so newNode becomes new tail
+                      setTailCircleId(newNode.id);
+                    }
+
+                    // Prevent deletion logic from running for this collision
+                    shouldDeleteCircle = null;
+                    shouldConnect = false;
+                  } else {
+                    // Fallback: if new node wasn't launched, keep previous behavior (delete isolated)
+                    shouldDeleteCircle = newNode.id;
+                  }
                 }
                 // Case 5: Two connected nodes colliding - BOUNCE ONLY (no deletion)
                 else if (!circle1IsIsolated && !circle2IsIsolated) {
