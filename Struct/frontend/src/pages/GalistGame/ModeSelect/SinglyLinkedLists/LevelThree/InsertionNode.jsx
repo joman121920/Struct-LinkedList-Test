@@ -63,6 +63,28 @@ function GalistGameInsertionNode() {
   // Insertion mode: 'left' = insert before touched node, 'right' = insert after touched node
   const [insertionMode, setInsertionMode] = useState('right');
 
+  // Timer for the challenge (2 minutes)
+  const [timerSeconds, setTimerSeconds] = useState(120); // total seconds remaining
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [showMissionFailed, setShowMissionFailed] = useState(false);
+
+  // Countdown effect
+  useEffect(() => {
+    if (!timerRunning) return undefined;
+    const id = setInterval(() => {
+      setTimerSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(id);
+          setTimerRunning(false);
+          setShowMissionFailed(true);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerRunning]);
+
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
 
@@ -483,7 +505,7 @@ function GalistGameInsertionNode() {
 
   // No head/tail logic needed for node creation level
 
-  const loadExercise = useCallback((key = "exercise_one") => {
+  const loadExercise = useCallback((key = "exercise_one", launchInitial = false) => {
     // Always clear circles/connections and reset launch state before loading new exercise
     setCircles([]);
     setConnections([]);
@@ -515,7 +537,7 @@ function GalistGameInsertionNode() {
     };
 
     const templateInit = initialMap[key];
-    if (templateInit && templateInit.length > 0) {
+  if (templateInit && templateInit.length > 0) {
       // Create UI circle objects spaced horizontally and set up sequential connections
       const centerY = Math.floor(window.innerHeight / 2);
       const spacing = Math.max(100, Math.floor(window.innerWidth / (templateInit.length + 2)));
@@ -543,6 +565,27 @@ function GalistGameInsertionNode() {
       }
 
       setCircles(uiCircles);
+      if (launchInitial) {
+        // Promote the first template node to a launched protected initial
+        const firstId = uiCircles[0].id;
+        setTimeout(() => {
+          setCircles((prev) =>
+            (prev || []).map((c) =>
+              c && c.id === firstId
+                ? {
+                    ...c,
+                    isLaunched: true,
+                    velocityX: 4,
+                    velocityY: 0,
+                    launchTime: Date.now(),
+                    x: 120,
+                    y: centerY,
+                  }
+                : c
+            )
+          );
+        }, 20);
+      }
       setConnections(uiConnections);
       if (uiCircles.length > 0) {
         setHeadCircleId(uiCircles[0].id);
@@ -550,46 +593,71 @@ function GalistGameInsertionNode() {
       }
     }
   }, []);
-  // Function to spawn (and launch) an initial protected circle.
-  const spawnInitialCircle = useCallback(() => {
-    setCircles((prev) => {
-      const existing = prev || [];
-      // Avoid creating duplicates
-      if (existing.some((c) => c && c.isInitial)) return existing;
-
-      const initialCircle = {
-        id: `initial_${Date.now()}`,
-        x: 120,
-        y: Math.floor(window.innerHeight / 2),
-        value: (Math.floor(Math.random() * 100) + 1).toString(),
-        address: `init${Math.floor(Math.random() * 900) + 100}`,
-        velocityX: 4,
-        velocityY: 0,
-        isLaunched: true,
-        isInitial: true,
-        launchTime: Date.now(),
-      };
-
-      // set as head/tail initially
-      setHeadCircleId(initialCircle.id);
-      setTailCircleId(initialCircle.id);
-
-      return [...existing, initialCircle];
-    });
-  }, []);
+  // spawnInitialCircle removed - promotion handled via loadExercise(, launchInitial=true)
 
   const startExercise = useCallback(() => {
-    // Spawn and launch the protected initial circle when user clicks Continue
-    try {
-      spawnInitialCircle();
-    } catch (e) {
-      console.error('Failed to spawn initial circle:', e);
-    }
     setShowInstructionPopup(false);
-    if (!currentExercise) {
-      loadExercise();
-    }
-  }, [loadExercise, currentExercise, spawnInitialCircle]);
+    // Load the current exercise and request that the initial be launched
+    loadExercise(exerciseKey, true);
+    // Start or reset the timer whenever an exercise starts
+    setTimerSeconds(120);
+    setTimerRunning(true);
+    setShowMissionFailed(false);
+  }, [loadExercise, exerciseKey]);
+
+  // Handle retry from mission failed overlay: reset level state and restart without tutorial
+  const handleRetry = useCallback(() => {
+    // Clear runtime state
+    setCircles([]);
+    setConnections([]);
+    setSuckingCircles([]);
+    setSuckedCircles([]);
+    setCurrentEntryOrder([]);
+    entryOrderRef.current = [];
+    suckedCirclesRef.current = [];
+    setOriginalSubmission(null);
+    setValidationResult(null);
+    setShowValidationResult(false);
+    // Ensure tutorial does not show
+    setShowInstructionPopup(false);
+    // Restart exercise and timer
+    setTimerSeconds(120);
+    setTimerRunning(true);
+    setShowMissionFailed(false);
+    // Reload the current exercise and request promotion/launch of its template initial
+    loadExercise(exerciseKey, true);
+    // Ensure an initial launched circle exists after load (promote or create if needed)
+    setTimeout(() => {
+      setCircles((prev) => {
+        const existing = prev || [];
+        // If there's already an initial that is launched, keep it
+        if (existing.some((c) => c && c.isInitial && c.isLaunched)) return existing;
+        // If there's a template initial, promote the first one
+        const templateIdx = existing.findIndex((c) => c && c.isInitial && !c.isLaunched);
+        if (templateIdx >= 0) {
+          return existing.map((c, i) =>
+            i === templateIdx
+              ? { ...c, isLaunched: true, velocityX: 4, velocityY: 0, launchTime: Date.now(), x: 120, y: Math.floor(window.innerHeight / 2) }
+              : c
+          );
+        }
+        // Otherwise append a fresh initial launched circle
+        const initialCircle = {
+          id: `initial_${Date.now()}`,
+          x: 120,
+          y: Math.floor(window.innerHeight / 2),
+          value: (Math.floor(Math.random() * 100) + 1).toString(),
+          address: `init${Math.floor(Math.random() * 900) + 100}`,
+          velocityX: 4,
+          velocityY: 0,
+          isLaunched: true,
+          isInitial: true,
+          launchTime: Date.now(),
+        };
+        return [initialCircle, ...existing];
+      });
+    }, 60);
+  }, [loadExercise, exerciseKey]);
 
   // Initialize with basic exercise when instruction popup is closed
   useEffect(() => {
@@ -1794,9 +1862,9 @@ function GalistGameInsertionNode() {
 
       
 
-      {/* Exercise progress indicator (top right) */}
-      <div className={styles.exerciseProgressIndicator}>
-        {currentExerciseNumber}/{totalExercises}
+      {/* Countdown timer (top right) */}
+      <div className={styles.exerciseProgressIndicator} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {Math.floor(timerSeconds / 60).toString().padStart(1, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
       </div>
 
       {/* Insertion mode indicator (top-left) */}
@@ -2207,6 +2275,31 @@ function GalistGameInsertionNode() {
                   : "CONTINUE"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mission Failed Overlay */}
+      {showMissionFailed && (
+        <div className={styles.popupOverlay}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
+            <h2 style={{ color: '#ff6bff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
+            <p style={{ color: '#ddd', marginBottom: '20px' }}>You missed your chance to insert the node in the right spot. Reset and try again to master node insertion!</p>
+            <button
+              onClick={() => handleRetry()}
+              style={{
+                background: 'none',
+                border: '2px solid #ff00ff',
+                borderRadius: '10px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.2rem',
+                padding: '10px 30px',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
           </div>
         </div>
       )}
