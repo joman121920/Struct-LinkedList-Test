@@ -25,6 +25,9 @@ function MainGameComponent() {
   const [showValidationResult, setShowValidationResult] = useState(false);
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
 
+  // Multi-stage progress tracking
+  const [stageProgress, setStageProgress] = useState(null);
+
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
 
@@ -140,32 +143,82 @@ function MainGameComponent() {
       console.log("Expected structure:", expectedStructure);
       console.log("Target to delete:", targetNode);
 
+      // Debug: Show detailed comparison
+      console.log("🔍 Detailed comparison:");
+      playerLinkedList.forEach((playerNode, index) => {
+        const expectedNode = expectedStructure[index];
+        if (expectedNode) {
+          console.log(`Index ${index}:`);
+          console.log(`  Player: ${playerNode.value}(${playerNode.address})`);
+          console.log(
+            `  Expected: ${expectedNode.value}(${expectedNode.address})`
+          );
+          console.log(
+            `  Value match: ${playerNode.value === expectedNode.value}`
+          );
+          console.log(
+            `  Address match: ${playerNode.address === expectedNode.address}`
+          );
+        }
+      });
+
       // Use the provided floating circles or current state
       const currentFloatingCircles = updatedFloatingCircles || floatingCircles;
 
       // Check if the target node has been successfully excluded (deleted)
-      // It should not be in the player's linked list AND not in floating circles
+      // The target node should not be in the player's linked list
       const targetNodeInLinkedList = playerLinkedList.some(
         (node) =>
           node.value === targetNode.value && node.address === targetNode.address
       );
 
-      const targetNodeInFloatingCircles = currentFloatingCircles.some(
-        (circle) =>
-          circle.value === targetNode.value &&
-          circle.address === targetNode.address &&
-          circle.isInList // Only check list nodes, not distractors
-      );
+      // For challenge mode: if there are player connections, check if target node is connected
+      // If no connections exist, fall back to checking floating circles
+      let targetNodeDeleted = false;
 
-      const targetNodeDeleted =
-        !targetNodeInLinkedList && !targetNodeInFloatingCircles;
+      if (playerConnections.length > 0) {
+        // Check if target node is part of any player connection
+        const targetNodeId = currentFloatingCircles.find(
+          (c) =>
+            c.value === targetNode.value && c.address === targetNode.address
+        )?.id;
+
+        const targetNodeConnected =
+          targetNodeId &&
+          playerConnections.some(
+            (conn) => conn.from === targetNodeId || conn.to === targetNodeId
+          );
+
+        // Target is "deleted" if it's not in the linked list AND not connected
+        targetNodeDeleted = !targetNodeInLinkedList && !targetNodeConnected;
+      } else {
+        // Fallback: check floating circles (original logic)
+        const targetNodeInFloatingCircles = currentFloatingCircles.some(
+          (circle) =>
+            circle.value === targetNode.value &&
+            circle.address === targetNode.address &&
+            circle.isInList // Only check list nodes, not distractors
+        );
+        targetNodeDeleted =
+          !targetNodeInLinkedList && !targetNodeInFloatingCircles;
+      }
 
       console.log("🎯 Target node in linked list:", targetNodeInLinkedList);
-      console.log(
-        "🎯 Target node in floating circles:",
-        targetNodeInFloatingCircles
-      );
       console.log("🎯 Target node deleted:", targetNodeDeleted);
+
+      if (playerConnections.length > 0) {
+        const targetNodeId = currentFloatingCircles.find(
+          (c) =>
+            c.value === targetNode.value && c.address === targetNode.address
+        )?.id;
+
+        const targetNodeConnected =
+          targetNodeId &&
+          playerConnections.some(
+            (conn) => conn.from === targetNodeId || conn.to === targetNodeId
+          );
+        console.log("🎯 Target node connected:", targetNodeConnected);
+      }
 
       // Compare player's linked list with expected structure
       let isCorrect = false;
@@ -208,13 +261,51 @@ function MainGameComponent() {
       );
 
       if (isCorrect) {
-        pendingValidationRef.current = {
-          isCorrect: true,
-          message: "Perfect! Challenge completed successfully!",
-          score: 100,
-          expectedStructure,
-          userCircles: playerLinkedList,
-        };
+        // Check if this completes the current stage and advance if needed
+        const nextExercise = exerciseManagerRef.current.validateAndAdvanceStage(
+          playerLinkedList,
+          targetNode
+        );
+
+        if (nextExercise) {
+          // Advanced to next stage
+          console.log("🎉 Stage completed! Advancing to next stage...");
+          setCurrentExercise(nextExercise);
+          setStageProgress(exerciseManagerRef.current.getStageProgress());
+
+          // Clear current connections and activated nodes for new stage
+          setPlayerConnections([]);
+          setActivatedNodes(new Set());
+
+          if (nextExercise.isLastStage) {
+            // This was the final stage
+            pendingValidationRef.current = {
+              isCorrect: true,
+              message: "Perfect! All stages completed! Level finished!",
+              score: 100,
+              expectedStructure,
+              userCircles: playerLinkedList,
+            };
+          } else {
+            // More stages to go
+            pendingValidationRef.current = {
+              isCorrect: true,
+              message: `Stage ${nextExercise.currentStage}/${nextExercise.totalStages} completed! New target: Delete ${nextExercise.targetNode?.value}`,
+              score: 100,
+              expectedStructure: nextExercise.expectedStructure,
+              userCircles: playerLinkedList,
+            };
+          }
+        } else {
+          // Stage validation failed or no more stages
+          pendingValidationRef.current = {
+            isCorrect: true,
+            message: "Perfect! Challenge completed successfully!",
+            score: 100,
+            expectedStructure,
+            userCircles: playerLinkedList,
+          };
+        }
 
         // Auto-show validation result
         if (!showValidationResult) {
@@ -228,107 +319,9 @@ function MainGameComponent() {
         // Let player continue working
       }
     },
-    [currentExercise, showValidationResult, floatingCircles]
+    [currentExercise, showValidationResult, floatingCircles, playerConnections]
   );
 
-  // --- NEW: Function to update the linked list structure based on player connections ---
-  const updateLinkedListStructure = useCallback(
-    (connections) => {
-      if (!currentExercise || connections.length === 0) return;
-
-      // Get all nodes that are part of player connections
-      const connectedNodeIds = new Set();
-      connections.forEach((conn) => {
-        connectedNodeIds.add(conn.from);
-        connectedNodeIds.add(conn.to);
-      });
-
-      // Build new linked list structure from player connections
-      const newLinkedList = [];
-      const nodeMap = new Map();
-
-      // Create a map of connected nodes
-      connections.forEach((conn) => {
-        const fromNode = floatingCircles.find((c) => c.id === conn.from);
-        const toNode = floatingCircles.find((c) => c.id === conn.to);
-
-        if (fromNode && toNode) {
-          nodeMap.set(conn.from, {
-            id: conn.from,
-            value: fromNode.value,
-            address: fromNode.address,
-            next: conn.to,
-            isInList: fromNode.isInList,
-          });
-
-          // Ensure the destination node is also in the map
-          if (!nodeMap.has(conn.to)) {
-            nodeMap.set(conn.to, {
-              id: conn.to,
-              value: toNode.value,
-              address: toNode.address,
-              next: null,
-              isInList: toNode.isInList,
-            });
-          }
-        }
-      });
-
-      // Find the head node (node with no incoming connections)
-      const hasIncoming = new Set();
-      connections.forEach((conn) => hasIncoming.add(conn.to));
-
-      const headNodes = [...nodeMap.keys()].filter(
-        (nodeId) => !hasIncoming.has(nodeId)
-      );
-
-      if (headNodes.length === 1) {
-        // Traverse from head to build ordered linked list
-        let currentNodeId = headNodes[0];
-        while (currentNodeId && nodeMap.has(currentNodeId)) {
-          const currentNode = nodeMap.get(currentNodeId);
-          newLinkedList.push({
-            value: currentNode.value,
-            address: currentNode.address,
-          });
-          currentNodeId = currentNode.next;
-        }
-
-        console.log("🔗 New linked list structure:", newLinkedList);
-
-        // Remove unconnected nodes from floating circles
-        const updatedFloatingCircles = floatingCircles.filter((circle) => {
-          // Keep the circle if it's connected OR if it's a distractor (not in original list)
-          return connectedNodeIds.has(circle.id) || !circle.isInList;
-        });
-
-        console.log(
-          "🗑️ Removed unconnected nodes. Remaining:",
-          updatedFloatingCircles.length
-        );
-
-        setFloatingCircles(updatedFloatingCircles);
-
-        // Update the current exercise to reflect the new structure
-        setCurrentExercise((prev) => ({
-          ...prev,
-          initialList: newLinkedList,
-        }));
-
-        // Validate the challenge with the updated structure
-        validateChallengeCompletion(newLinkedList, updatedFloatingCircles);
-      } else {
-        console.log("⚠️ Multiple or no head nodes found:", headNodes.length);
-      }
-    },
-    [
-      currentExercise,
-      setCurrentExercise,
-      setFloatingCircles,
-      validateChallengeCompletion,
-      floatingCircles,
-    ]
-  );
   const createPlayerConnection = useCallback(
     (fromNodeId, toNodeId) => {
       const fromNode = floatingCircles.find(
@@ -363,18 +356,14 @@ function MainGameComponent() {
           console.log(
             `🔗 Player connection created: ${fromNode.value}(${fromNode.address}) → ${toNode.value}(${toNode.address})`
           );
-          const updatedConnections = [...prevConnections, newConnection];
-
-          // Update the linked list structure based on new connections
-          updateLinkedListStructure(updatedConnections);
-
-          return updatedConnections;
+          // Simply add the connection without triggering any game state changes
+          return [...prevConnections, newConnection];
         }
 
         return prevConnections;
       });
     },
-    [floatingCircles, updateLinkedListStructure]
+    [floatingCircles]
   );
 
   // No head/tail logic needed for node creation level
@@ -401,6 +390,7 @@ function MainGameComponent() {
     // Now load the new exercise
     const exercise = exerciseManagerRef.current.loadExercise(key);
     setCurrentExercise(exercise);
+    setStageProgress(exerciseManagerRef.current.getStageProgress());
     setExerciseKey(key);
   }, []);
 
@@ -947,21 +937,42 @@ function MainGameComponent() {
                 <td className={styles.expectedBarCell}>
                   <div className={styles.expectedOutputSquare}>
                     <div className={styles.squareSection}>
-                      <div className={styles.sectionLabel}>Target</div>
+                      <div className={styles.sectionLabel}>
+                        Stage {stageProgress?.currentStage || 1}/
+                        {stageProgress?.totalStages || 1}
+                      </div>
                       <div className={styles.squareNodeField}>
-                        {currentExercise.target?.type === "head"
-                          ? "Delete Head"
-                          : currentExercise.target?.type === "tail"
-                          ? "Delete Tail"
-                          : `Delete value ${currentExercise.target?.value}`}
+                        {(() => {
+                          // Get current stage target info
+                          const target = currentExercise.targetNode;
+                          if (!target) return "No Target";
+
+                          // Determine target type from the remaining list
+                          const remainingList =
+                            currentExercise.remainingList || [];
+                          if (remainingList.length === 0) return "Complete";
+
+                          const isHead =
+                            remainingList[0]?.value === target.value &&
+                            remainingList[0]?.address === target.address;
+                          const isTail =
+                            remainingList[remainingList.length - 1]?.value ===
+                              target.value &&
+                            remainingList[remainingList.length - 1]?.address ===
+                              target.address;
+
+                          if (isHead) return "Delete Head";
+                          if (isTail) return "Delete Tail";
+                          return `Delete ${target.value}`;
+                        })()}
                       </div>
                     </div>
                     <div className={styles.squareSection}>
-                      <div className={styles.sectionLabel}>Node</div>
+                      <div className={styles.sectionLabel}>Target Node</div>
                       <div className={styles.squareNodeField}>
-                        {currentExercise.target?.type === "value"
-                          ? "-"
-                          : `${currentExercise.targetNode?.value} / ${currentExercise.targetNode?.address}`}
+                        {currentExercise.targetNode
+                          ? `${currentExercise.targetNode.value} / ${currentExercise.targetNode.address}`
+                          : "N/A"}
                       </div>
                     </div>
                   </div>
@@ -991,7 +1002,7 @@ function MainGameComponent() {
         <div
           style={{ color: "#00ff88", fontWeight: "bold", marginBottom: "8px" }}
         >
-          🚀 Challenge Mode: Node Deletion
+          🚀 Progressive Deletion Challenge
         </div>
         <div>Right-click to shoot balls at nodes.</div>
         <div style={{ color: "#00ff88" }}>
@@ -1001,13 +1012,13 @@ function MainGameComponent() {
           • Second hit: Creates connection!
         </div>
         <div style={{ color: "#ff6600", fontSize: "12px", marginTop: "5px" }}>
-          🎯 Goal: Create the target structure by connecting the right nodes
+          🎯 Goal: Delete target node by excluding it from connections
         </div>
         <div style={{ color: "#ff6600", fontSize: "12px" }}>
-          🔗 Connected nodes become the new linked list
+          🔗 Connected nodes form the new linked list
         </div>
-        <div style={{ color: "#ff6600", fontSize: "12px" }}>
-          🗑️ Unconnected nodes are automatically deleted!
+        <div style={{ color: "#ffaa00", fontSize: "12px" }}>
+          ⭐ Complete each stage to unlock the next target!
         </div>
         <div style={{ color: "#ffaa00", fontSize: "12px", marginTop: "3px" }}>
           💡 Don&apos;t connect the target node to delete it
@@ -1042,6 +1053,13 @@ function MainGameComponent() {
         <button
           onClick={() => {
             // Manual validation
+            console.log("🔴 Manual validation triggered");
+            console.log("🔴 Current playerConnections:", playerConnections);
+            console.log(
+              "🔴 Current floatingCircles:",
+              floatingCircles.map((c) => `${c.value}(${c.address})`)
+            );
+
             if (currentExercise && playerConnections.length > 0) {
               // Build the current linked list from connections
               const connectedNodeIds = new Set();
@@ -1064,12 +1082,22 @@ function MainGameComponent() {
                 }
               });
 
+              console.log(
+                "🔴 NodeMap built:",
+                [...nodeMap.entries()].map(
+                  ([id, node]) =>
+                    `${id}: ${node.value}(${node.address}) -> ${node.next}`
+                )
+              );
+
               // Find head and build list
               const hasIncoming = new Set();
               playerConnections.forEach((conn) => hasIncoming.add(conn.to));
               const headNodes = [...nodeMap.keys()].filter(
                 (id) => !hasIncoming.has(id)
               );
+
+              console.log("🔴 Head nodes found:", headNodes);
 
               if (headNodes.length === 1) {
                 const linkedList = [];
@@ -1079,8 +1107,13 @@ function MainGameComponent() {
                   linkedList.push({ value: node.value, address: node.address });
                   currentId = node.next;
                 }
+                console.log("🔴 Built linked list:", linkedList);
                 validateChallengeCompletion(linkedList);
+              } else {
+                console.log("🔴 Invalid head count:", headNodes.length);
               }
+            } else {
+              console.log("🔴 No exercise or no connections");
             }
           }}
           style={{
