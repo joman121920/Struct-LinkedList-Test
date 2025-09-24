@@ -38,6 +38,11 @@ function GalistGameLinkingNode() {
   const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
   const totalExercises = EXERCISE_KEYS.length;
 
+  // Timer state (replace progress indicator)
+  const [timerSeconds, setTimerSeconds] = useState(120); // 2 minutes default
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [showMissionFailed, setShowMissionFailed] = useState(false);
+
   // --- Auto launch removed. No initial circles are launched automatically. ---
 
   // Use a unique key on the main container to force React to fully reset state on exerciseKey change
@@ -495,10 +500,17 @@ function GalistGameLinkingNode() {
 
   const startExercise = useCallback(() => {
     setShowInstructionPopup(false);
+    // Start timer only if it's not already running (preserve across exercises)
+    if (!timerRunning) {
+      // If timer had expired previously, reset to full duration
+      setTimerSeconds((s) => (s <= 0 ? 120 : s));
+      setTimerRunning(true);
+      setShowMissionFailed(false);
+    }
     if (!currentExercise) {
       loadExercise();
     }
-  }, [loadExercise, currentExercise]);
+  }, [loadExercise, currentExercise, timerRunning]);
 
   // Initialize with basic exercise when instruction popup is closed
   useEffect(() => {
@@ -1434,6 +1446,7 @@ function GalistGameLinkingNode() {
     if (currentExerciseNumber < totalExercises) {
       setShowLevelCompleteModal(false);
       const nextKey = EXERCISE_KEYS[currentExerciseNumber];
+      // Load next exercise (do not reset the timer)
       loadExercise(nextKey);
     } else {
       // All exercises completed: skip level complete modal for last exercise
@@ -1441,6 +1454,53 @@ function GalistGameLinkingNode() {
       setShowAllCompletedModal(true);
     }
   };
+
+  // Format seconds to MM:SS
+  const formatTime = useCallback((secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }, []);
+
+  // Countdown effect
+  useEffect(() => {
+    if (!timerRunning) return;
+    const tick = () => {
+      setTimerSeconds((s) => {
+        if (s <= 1) {
+          // timer expired
+          setTimerRunning(false);
+          setShowMissionFailed(true);
+          return 0;
+        }
+        return s - 1;
+      });
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [timerRunning]);
+
+  const handleRetry = useCallback(() => {
+    // Reset runtime state but keep tutorial hidden
+    setShowMissionFailed(false);
+    setCircles([]);
+    setConnections([]);
+    setSuckingCircles([]);
+    setSuckedCircles([]);
+    setCurrentEntryOrder([]);
+    if (entryOrderRef) entryOrderRef.current = [];
+    if (suckedCirclesRef) suckedCirclesRef.current = [];
+    setOriginalSubmission(null);
+    setShowValidationResult(false);
+    setValidationResult(null);
+    setHeadCircleId(null);
+    setTailCircleId(null);
+
+    // Reload the current exercise and restart timer
+    loadExercise(exerciseKey);
+    setTimerSeconds(120);
+    setTimerRunning(true);
+  }, [loadExercise, exerciseKey]);
 
   // Update currentExercise when exerciseKey changes
   useEffect(() => {
@@ -1481,10 +1541,34 @@ function GalistGameLinkingNode() {
 
       
 
-      {/* Exercise progress indicator (top right) */}
+      {/* Countdown timer (top right) */}
       <div className={styles.exerciseProgressIndicator}>
-        {currentExerciseNumber}/{totalExercises}
+        {formatTime(timerSeconds)}
       </div>
+
+      {showMissionFailed && (
+        <div className={styles.popupOverlay}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
+            <h2 style={{ color: '#ff6bff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
+            <p style={{ color: '#ddd', marginBottom: '20px' }}>You missed your chance to insert the node in the right spot. Reset and try again to master node insertion!</p>
+            <button
+              onClick={() => handleRetry()}
+              style={{
+                background: 'none',
+                border: '2px solid #ff00ff',
+                borderRadius: '10px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.2rem',
+                padding: '10px 30px',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Expected results bar */}
       {currentExercise && currentExercise.expectedStructure && (
