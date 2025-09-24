@@ -1113,6 +1113,12 @@ function MainGameComponent() {
         </div>
       </div>
 
+      {/* Angle Indicator */}
+      <div className={styles.angleIndicator}>
+        <div className={styles.angleValue}>{Math.round(cannonAngle)}°</div>
+        <div className={styles.angleLabel}>Angle</div>
+      </div>
+
       {/* Aim line guide: show ONLY the cannon preview when no bullets are active; hide after shot */}
       {(() => {
         // Shared segment computation for a start point and direction
@@ -1249,8 +1255,20 @@ function MainGameComponent() {
         const cannonBaseY = window.innerHeight - 1;
         const angleRad = cannonAngle * (Math.PI / 180);
         const tipDistance = 55;
-        const previewX = cannonBaseX + Math.sin(angleRad) * tipDistance;
-        const previewY = cannonBaseY - Math.cos(angleRad) * tipDistance;
+        const uncConstrainedX = cannonBaseX + Math.sin(angleRad) * tipDistance;
+        const uncConstrainedY = cannonBaseY - Math.cos(angleRad) * tipDistance;
+
+        // Apply the same constraint logic as bullet firing
+        const margin = 15;
+        const previewX = Math.max(
+          margin,
+          Math.min(window.innerWidth - margin, uncConstrainedX)
+        );
+        const previewY = Math.max(
+          margin,
+          Math.min(window.innerHeight - margin, uncConstrainedY)
+        );
+
         const previewDirX = Math.sin(angleRad);
         const previewDirY = -Math.cos(angleRad);
         const previewSegments = computeSegments(
