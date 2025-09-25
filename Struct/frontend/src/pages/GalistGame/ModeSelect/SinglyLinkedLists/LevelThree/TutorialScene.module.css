@@ -122,7 +122,7 @@
   width: 95vw;
   max-width: 1000px;
   height: 90vh;
-  max-height: 450px;
+  max-height: 600px; /* Increased from 450px to 600px */
   display: flex;
   flex-direction: column;
   text-align: center;

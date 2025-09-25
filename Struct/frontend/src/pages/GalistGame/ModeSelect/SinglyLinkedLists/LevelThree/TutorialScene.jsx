@@ -3,14 +3,17 @@ import PropTypes from "prop-types";
 import styles from "./InsertionNode.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
 
-// Tutorial Scene Component
+/// ...existing imports...
+
 function TutorialScene({ scene, onContinue, onValueShoot }) {
-  // State for tutorial floating circles (4 random values)
+  // State for tutorial circles and connections
   const [tutorialCircles, setTutorialCircles] = useState([]);
+  const [tutorialConnections, setTutorialConnections] = useState([]);
   const [cannonAngle, setCannonAngle] = useState(0);
-  const [squareNode, setSquareNode] = useState({ value: "", address: "" });
+  const [cannonCircle, setCannonCircle] = useState({ value: "30", address: "cc20" });
   const [tutorialBullets, setTutorialBullets] = useState([]);
-  // const [fadeIn, setFadeIn] = useState(false);
+  const [demoStep, setDemoStep] = useState(0);
+  const [insertionMode, setInsertionMode] = useState('right'); // Track insertion mode like main game
   const tutorialCirclesRef = useRef([]);
   
   // Update ref whenever tutorial circles change
@@ -18,104 +21,160 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     tutorialCirclesRef.current = tutorialCircles;
   }, [tutorialCircles]);
 
-  // Handle fade-in animation for scene4
-  // useEffect(() => {
-  //   if (scene === 'scene4') {
-  //     setFadeIn(false);
-  //     const timer = setTimeout(() => {
-  //       setFadeIn(true);
-  //     }, 5000);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [scene]);
-
-  // Generate 4 random tutorial circles
+  // Initialize tutorial circles for insertion demonstration
   useEffect(() => {
     if (scene === 'scene2') {
-      const randomValues = [];
-      while (randomValues.length < 4) {
-        const val = Math.floor(Math.random() * 100) + 1;
-        if (!randomValues.includes(val)) {
-          randomValues.push(val);
-        }
-      }
+      // Create initial head and tail nodes
+      const headNode = {
+        id: 'tutorial_head',
+        x: window.innerWidth * 0.3,
+        y: window.innerHeight / 2,
+        value: "10",
+        address: "aa10",
+        isHead: true
+      };
       
-      const circles = randomValues.map((value, index) => ({
-        id: Date.now() + index,
-        content: value.toString(),
-        type: 'value',
-        x: Math.random() * (window.innerWidth - 200) + 100,
-        y: Math.random() * (window.innerHeight - 300) + 150,
-        vx: (Math.random() - 0.5) * 1.0,
-        vy: (Math.random() - 0.5) * 1.0,
-      }));
+      const tailNode = {
+        id: 'tutorial_tail',
+        x: window.innerWidth * 0.7,
+        y: window.innerHeight / 2,
+        value: "50",
+        address: "ee50",
+        isTail: true
+      };
+
+      setTutorialCircles([headNode, tailNode]);
       
-      setTutorialCircles(circles);
+      // Create connection between head and tail
+      setTutorialConnections([{
+        id: 'head_to_tail',
+        from: 'tutorial_head',
+        to: 'tutorial_tail'
+      }]);
+      
+      setDemoStep(0);
     } else if (scene === 'scene3') {
-      // Generate 4 random address circles for scene 3
-      const addressLetters = ['a', 'b', 'c', 'd', 'e', 'f'];
-      const randomAddresses = [];
-      while (randomAddresses.length < 4) {
-        const letter = addressLetters[Math.floor(Math.random() * addressLetters.length)];
-        const number = Math.floor(Math.random() * 9) + 1;
-        const address = `${letter}b${number}`;
-        if (!randomAddresses.includes(address)) {
-          randomAddresses.push(address);
-        }
-      }
+      // Reset for interactive scene
+      const headNode = {
+        id: 'tutorial_head_3',
+        x: window.innerWidth * 0.25,
+        y: window.innerHeight / 2,
+        value: "10",
+        address: "aa10",
+        isHead: true
+      };
       
-      const circles = randomAddresses.map((address, index) => ({
-        id: Date.now() + index,
-        content: address,
-        type: 'address',
-        x: Math.random() * (window.innerWidth - 200) + 100,
-        y: Math.random() * (window.innerHeight - 300) + 150,
-        vx: (Math.random() - 0.5) * 1.0,
-        vy: (Math.random() - 0.5) * 1.0,
-      }));
+      const tailNode = {
+        id: 'tutorial_tail_3',
+        x: window.innerWidth * 0.75,
+        y: window.innerHeight / 2,
+        value: "50",
+        address: "ee50",
+        isTail: true
+      };
+
+      setTutorialCircles([headNode, tailNode]);
+      setTutorialConnections([{
+        id: 'head_to_tail_3',
+        from: 'tutorial_head_3',
+        to: 'tutorial_tail_3'
+      }]);
       
-      setTutorialCircles(circles);
-      // Reset bullets for new scene
       setTutorialBullets([]);
+      setDemoStep(0);
     }
   }, [scene]);
 
-  // Animate tutorial circles
+  // Demo animation for scene2 - show automatic insertion
   useEffect(() => {
-    if (scene !== 'scene2' && scene !== 'scene3') return;
-    
-    const animateInterval = setInterval(() => {
-      setTutorialCircles(prev => prev.map(circle => {
-        let newX = circle.x + circle.vx;
-        let newY = circle.y + circle.vy;
-        let newVx = circle.vx;
-        let newVy = circle.vy;
-
-        // Bounce off walls
-        if (newX <= 60 || newX >= window.innerWidth - 120) {
-          newVx = -newVx;
-          newX = Math.max(60, Math.min(window.innerWidth - 120, newX));
-        }
-        if (newY <= 100 || newY >= window.innerHeight - 200) {
-          newVy = -newVy;
-          newY = Math.max(100, Math.min(window.innerHeight - 200, newY));
-        }
-
-        return { ...circle, x: newX, y: newY, vx: newVx, vy: newVy };
-      }));
-    }, 16);
-
-    return () => clearInterval(animateInterval);
-  }, [scene]);
+    if (scene === 'scene2' && demoStep === 0) {
+      const timer = setTimeout(() => {
+        // Create a demo bullet that will hit the head node
+        const demoBullet = {
+          id: 'demo_bullet',
+          x: window.innerWidth * 0.15,
+          y: window.innerHeight / 2,
+          value: "25",
+          address: "bb25",
+          velocityX: 3,
+          velocityY: 0,
+          isDemoBullet: true
+        };
+        
+        setTutorialBullets([demoBullet]);
+        
+        // Animate the bullet moving toward the head node
+        const animateDemo = () => {
+          setTutorialBullets(prev => {
+            const bullet = prev[0];
+            if (!bullet) return prev;
+            
+            const newX = bullet.x + bullet.velocityX;
+            const headNode = tutorialCircles.find(c => c.id === 'tutorial_head');
+            
+            // Check if bullet reached the head node
+            if (newX >= headNode.x - 40) {
+              // Simulate insertion after head node
+              setTimeout(() => {
+                // Add the new node between head and tail
+                const newNode = {
+                  id: 'inserted_node',
+                  x: window.innerWidth * 0.5,
+                  y: window.innerHeight / 2,
+                  value: bullet.value,
+                  address: bullet.address,
+                  isInserted: true
+                };
+                
+                setTutorialCircles(prev => [...prev, newNode]);
+                
+                // Update connections: head -> newNode -> tail
+                setTutorialConnections([
+                  {
+                    id: 'head_to_new',
+                    from: 'tutorial_head',
+                    to: 'inserted_node'
+                  },
+                  {
+                    id: 'new_to_tail',
+                    from: 'inserted_node',
+                    to: 'tutorial_tail'
+                  }
+                ]);
+                
+                setTutorialBullets([]);
+                setDemoStep(1);
+              }, 300);
+              
+              return [];
+            }
+            
+            return [{...bullet, x: newX}];
+          });
+        };
+        
+        const demoInterval = setInterval(() => {
+          animateDemo();
+          if (demoStep === 1) {
+            clearInterval(demoInterval);
+          }
+        }, 16);
+        
+        setTimeout(() => clearInterval(demoInterval), 3000);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [scene, demoStep, tutorialCircles]);
 
   // Handle right-click shooting in tutorial
   const handleTutorialRightClick = useCallback((e) => {
-    if (scene !== 'scene2' && scene !== 'scene3') return;
+    if (scene !== 'scene3') return;
     
     e.preventDefault();
     
     // Calculate launch position from cannon tip
-    const cannonTipX = window.innerWidth + 40 - 35;
+    const cannonTipX = window.innerWidth - 35;
     const cannonTipY = window.innerHeight - 1;
     
     // Calculate tip position based on cannon angle
@@ -125,15 +184,17 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
     
     // Calculate launch velocity based on cannon direction
-    const launchSpeed = 8;
+    const launchSpeed = 6;
     const velocityX = Math.sin(angleRad) * launchSpeed;
     const velocityY = -Math.cos(angleRad) * launchSpeed;
     
-    // Create new bullet
+    // Create new bullet with cannon values
     const newBullet = {
       id: Date.now(),
-      x: tipX - 15,
-      y: tipY - 15,
+      x: tipX - 30,
+      y: tipY - 30,
+      value: cannonCircle.value,
+      address: cannonCircle.address,
       velocityX: velocityX,
       velocityY: velocityY,
       isBullet: true,
@@ -141,11 +202,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     };
     
     setTutorialBullets(prev => [...prev, newBullet]);
-  }, [scene, cannonAngle]);
+  }, [scene, cannonAngle, cannonCircle]);
 
   // Bullet animation and collision detection for tutorial
   useEffect(() => {
-    if (scene !== 'scene2' && scene !== 'scene3') return;
+    if (scene !== 'scene3') return;
     
     const animateFrame = () => {
       setTutorialBullets(prevBullets => {
@@ -156,73 +217,103 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           const newX = bullet.x + bullet.velocityX;
           const newY = bullet.y + bullet.velocityY;
           
-          // Screen boundary collision detection - bullets bounce off edges
-          let bounceVelocityX = bullet.velocityX;
-          let bounceVelocityY = bullet.velocityY;
+          // Boundary collision - bullets bounce off edges
+          let newVelocityX = bullet.velocityX;
+          let newVelocityY = bullet.velocityY;
           let finalX = newX;
           let finalY = newY;
           
-          // Check horizontal boundaries
           if (newX <= 15 || newX >= window.innerWidth - 15) {
-            bounceVelocityX = -bounceVelocityX;
+            newVelocityX = -newVelocityX;
             finalX = newX <= 15 ? 15 : window.innerWidth - 15;
           }
           
-          // Check vertical boundaries
           if (newY <= 15 || newY >= window.innerHeight - 15) {
-            bounceVelocityY = -bounceVelocityY;
+            newVelocityY = -newVelocityY;
             finalY = newY <= 15 ? 15 : window.innerHeight - 15;
           }
           
-          const updatedBullet = {
-            ...bullet,
-            x: finalX,
-            y: finalY,
-            velocityX: bounceVelocityX,
-            velocityY: bounceVelocityY
-          };
-
-          // Check for collisions with tutorial circles
-          let bulletHitSomething = false;
+          // Check collision with existing nodes for insertion
+          const currentCircles = tutorialCirclesRef.current;
+          let bulletHit = false;
           
-          const currentTutorialCircles = tutorialCirclesRef.current;
-          for (let i = 0; i < currentTutorialCircles.length; i++) {
-            const circle = currentTutorialCircles[i];
-
-            const bulletRadius = 15;
-            const circleRadius = 30;
-            const combinedRadius = bulletRadius + circleRadius;
+          for (const circle of currentCircles) {
+            const dx = finalX - circle.x;
+            const dy = finalY - circle.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
             
-            const dx = updatedBullet.x - circle.x;
-            const dy = updatedBullet.y - circle.y;
-            const centerDistance = Math.sqrt(dx * dx + dy * dy);
-
-            const collisionThreshold = combinedRadius * 0.9;
-            
-            if (centerDistance < collisionThreshold) {
-              bulletHitSomething = true;
-
-              // Add value or address to square node based on scene
-              if (scene === 'scene2' && circle.type === 'value') {
-                setSquareNode(prev => ({ ...prev, value: circle.content }));
-              } else if (scene === 'scene3' && circle.type === 'address') {
-                setSquareNode(prev => ({ ...prev, address: circle.content }));
-              }
+            if (distance < 70) { // Collision threshold
+              bulletHit = true;
               
-              // Remove hit circle
-              setTutorialCircles(prevCircles =>
-                prevCircles.filter(c => c.id !== circle.id)
-              );
-
-              // Notify parent component
-              onValueShoot?.(circle.content);
+              // Simulate insertion logic
+              if (circle.isHead || circle.isTail) {
+                // Insert new node
+                const newNodeX = insertionMode === 'right' 
+                  ? (circle.isHead ? window.innerWidth * 0.5 : window.innerWidth * 0.6)
+                  : (circle.isHead ? window.innerWidth * 0.4 : window.innerWidth * 0.5);
+                
+                const insertedNode = {
+                  id: `inserted_${Date.now()}`,
+                  x: newNodeX,
+                  y: circle.y,
+                  value: bullet.value,
+                  address: bullet.address,
+                  isInserted: true
+                };
+                
+                setTutorialCircles(prev => [...prev, insertedNode]);
+                
+                // Update connections based on insertion mode and target
+                setTimeout(() => {
+                  const currentTutorialCircles = tutorialCirclesRef.current;
+                  if (insertionMode === 'right') {
+                    if (circle.isHead) {
+                      // Insert after head: head -> new -> tail
+                      setTutorialConnections([
+                        {
+                          id: 'head_to_new',
+                          from: circle.id,
+                          to: insertedNode.id
+                        },
+                        {
+                          id: 'new_to_tail',
+                          from: insertedNode.id,
+                          to: currentTutorialCircles.find(c => c.isTail)?.id
+                        }
+                      ]);
+                    }
+                  } else {
+                    if (circle.isTail) {
+                      // Insert before tail: head -> new -> tail
+                      setTutorialConnections([
+                        {
+                          id: 'head_to_new',
+                          from: currentTutorialCircles.find(c => c.isHead)?.id,
+                          to: insertedNode.id
+                        },
+                        {
+                          id: 'new_to_tail',
+                          from: insertedNode.id,
+                          to: circle.id
+                        }
+                      ]);
+                    }
+                  }
+                }, 0);
+              }
               break;
             }
           }
-
-          // Only keep bullet if it didn't hit anything
-          if (!bulletHitSomething) {
-            updatedBullets.push(updatedBullet);
+          
+          // Only keep the bullet if it didn't hit anything
+          if (!bulletHit) {
+            updatedBullets.push({
+              ...bullet,
+              x: finalX,
+              y: finalY,
+              velocityX: newVelocityX,
+              velocityY: newVelocityY
+            });
           }
         });
         
@@ -230,16 +321,16 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       });
     };
 
-    const intervalId = setInterval(animateFrame, 8);
+    const intervalId = setInterval(animateFrame, 16);
     return () => clearInterval(intervalId);
-  }, [scene, onValueShoot]);
+  }, [scene, insertionMode]);
 
-  // Mouse movement for cannon rotation
+  // Mouse movement for cannon rotation and insertion mode
   useEffect(() => {
-    if (scene !== 'scene2' && scene !== 'scene3') return;
+    if (scene !== 'scene3') return;
     
     const handleMouseMove = (e) => {
-      const cannonBaseX = window.innerWidth + 40 - 35;
+      const cannonBaseX = window.innerWidth - 35;
       const cannonBaseY = window.innerHeight - 1;
       
       const deltaX = e.clientX - cannonBaseX;
@@ -249,12 +340,23 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       setCannonAngle(angle);
     };
 
+    const handleWheel = (e) => {
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        setInsertionMode('left');
+      } else {
+        setInsertionMode('right');
+      }
+    };
+
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("contextmenu", handleTutorialRightClick);
+    document.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("contextmenu", handleTutorialRightClick);
+      document.removeEventListener("wheel", handleWheel);
     };
   }, [scene, handleTutorialRightClick]);
 
@@ -269,7 +371,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           playsInline
           preload="auto"
         >
-          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          <source src="./video/bubble_bg.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
@@ -277,33 +379,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         <div className={tutorialStyles.tutorialOverlay}>
           <div className={tutorialStyles.tutorialPopup}>
             <div className={tutorialStyles.tutorialContent}>
-              <h2>Welcome to Linking Nodes!</h2>
-              <p>In a linked list, each node connects to the next through its address, forming a chain that grows as new nodes are added.</p>
-              <p>Let&apos;s link your nodes together and see how the chain is formed!</p>
+              <h2>Welcome to Node Insertion!</h2>
+              <p>In this level, you'll learn to insert new nodes into an existing linked list chain.</p>
+              <p>You can insert nodes before or after existing nodes, expanding your linked list strategically.</p>
               <button 
                 onClick={onContinue}
                 className={tutorialStyles.tutorialButton}
               >
                 Continue
               </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Interactive Square Node (bottom-center) */}
-        <div className={styles.interactiveSquareWrapper}>
-          <div className={styles.squareNode}>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Value</div>
-              <div className={`${styles.squareNodeField} ${styles.empty}`}>
-                -
-              </div>
-            </div>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Address</div>
-              <div className={`${styles.squareNodeField} ${styles.empty}`}>
-                -
-              </div>
             </div>
           </div>
         </div>
@@ -322,46 +406,62 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           playsInline
           preload="auto"
         >
-          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          <source src="./video/bubble_bg.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
         {/* Tutorial instruction bar */}
         <div className={tutorialStyles.tutorialInstructionBar}>
-          <h3>Shoot any value to add in your node</h3>
+          <h3>Watch how a new node inserts between existing nodes</h3>
         </div>
 
-        {/* Cannon */}
-        <div 
-          className={styles.rightSquare} 
-          style={{ 
-            outlineOffset: "5px",
-            transform: `rotate(${cannonAngle}deg)`,
-            transformOrigin: "bottom center"
-          }} 
-        >
-          <div className={styles.cannonCircle}>
-            <span style={{ fontSize: '12px', color: '#fff' }}>
-              •
-            </span>
-          </div>
-        </div>
-
-        {/* Tutorial Floating Circles */}
+        {/* Tutorial Circles */}
         {tutorialCircles.map(circle => (
           <div
             key={circle.id}
-            className={`${styles.floatingCircle} ${styles.valueCircle}`}
+            className={styles.animatedCircle}
             style={{
-              left: `${circle.x}px`,
-              top: `${circle.y}px`,
+              left: `${circle.x - 30}px`,
+              top: `${circle.y - 30}px`,
+              cursor: 'default',
+              opacity: circle.isInserted ? 1 : 0.9,
+              boxShadow: circle.isInserted 
+                ? '0 0 15px rgba(0, 255, 0, 0.6)' 
+                : circle.isHead 
+                  ? '0 0 15px rgba(255, 100, 0, 0.6)'
+                  : circle.isTail 
+                    ? '0 0 15px rgba(0, 100, 255, 0.6)'
+                    : '0 4px 8px rgba(0, 0, 0, 0.3)'
             }}
           >
-            {circle.content}
+            <span className={styles.circleValue}>{circle.value}</span>
+            <span className={styles.circleAddress}>{circle.address}</span>
+            
+            {/* Head/Tail labels */}
+            {(circle.isHead || circle.isTail) && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: circle.isHead ? '#ff6435' : '#3564ff',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  whiteSpace: 'nowrap',
+                  zIndex: 1000
+                }}
+              >
+                {circle.isHead ? 'head' : 'tail'}
+              </div>
+            )}
           </div>
         ))}
 
-        {/* Tutorial Bullets */}
+        {/* Demo Bullets */}
         {tutorialBullets.map(bullet => (
           <div
             key={bullet.id}
@@ -369,55 +469,63 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             style={{
               left: `${bullet.x}px`,
               top: `${bullet.y}px`,
-              width: '30px',
-              height: '30px',
-              backgroundColor: '#ff6b6b',
               cursor: 'default',
               opacity: 0.9,
               boxShadow: '0 0 15px rgba(255, 255, 0, 0.6)',
             }}
-          />
+          >
+            <span className={styles.circleValue}>{bullet.value}</span>
+            <span className={styles.circleAddress}>{bullet.address}</span>
+          </div>
         ))}
 
-        {/* Interactive Square Node (bottom-center) */}
-        <div className={styles.interactiveSquareWrapper}>
-          <div className={styles.squareNode}>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Value</div>
-              <div className={`${styles.squareNodeField} ${!squareNode.value ? styles.empty : ''}`}>
-                {squareNode.value || "-"}
-              </div>
-            </div>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Address</div>
-              <div className={`${styles.squareNodeField} ${styles.empty}`}>
-                -
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Tutorial Connections */}
+        <svg className={styles.connectionLines}>
+          {tutorialConnections.map((connection) => {
+            const fromCircle = tutorialCircles.find(c => c.id === connection.from);
+            const toCircle = tutorialCircles.find(c => c.id === connection.to);
+            
+            if (!fromCircle || !toCircle) return null;
+            
+            return (
+              <g key={connection.id}>
+                <line
+                  x1={fromCircle.x}
+                  y1={fromCircle.y}
+                  x2={toCircle.x}
+                  y2={toCircle.y}
+                  className={styles.animatedLine}
+                  markerEnd="url(#arrowhead)"
+                />
+              </g>
+            );
+          })}
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="8"
+              markerHeight="8"
+              refX="16"
+              refY="4"
+              orient="auto"
+              fill="#fff"
+              stroke="#fff"
+              strokeWidth="0.5"
+            >
+              <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
+            </marker>
+          </defs>
+        </svg>
 
-        {/* Continue button appears after shooting a value */}
-        {squareNode.value && (
+        {/* Continue button appears after demo insertion */}
+        {demoStep >= 1 && (
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <h2>Good job!</h2>
-                <div className={styles.expectedOutputSquare} style={{ marginBottom: '20px' }}>
-                  <div className={styles.squareSection}>
-                    <div className={styles.sectionLabel}>Value</div>
-                    <div className={styles.squareNodeField}>
-                      {squareNode.value}
-                    </div>
-                  </div>
-                  <div className={styles.squareSection}>
-                    <div className={styles.sectionLabel}>Address</div>
-                    <div className={`${styles.squareNodeField} ${styles.empty}`}>
-                      -
-                    </div>
-                  </div>
-                </div>
-                <p>You&apos;ve added a value to your node. Now let&apos;s add an address to your node.</p>
+                <h2>Perfect!</h2>
+                <p>You can see how the new node was inserted between the head and tail nodes.</p>
+                <p>The connections were automatically updated: Head → New Node → Tail</p>
+                <p>Now let's try it yourself with manual control!</p>
                 <button 
                   onClick={onContinue}
                   className={tutorialStyles.tutorialButton}
@@ -433,6 +541,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   }
 
   if (scene === 'scene3') {
+    const hasInsertedNode = tutorialCircles.some(c => c.isInserted);
+    
     return (
       <div className={styles.app}>
         <video
@@ -443,13 +553,29 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           playsInline
           preload="auto"
         >
-          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          <source src="./video/bubble_bg.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
         {/* Tutorial instruction bar */}
         <div className={tutorialStyles.tutorialInstructionBar}>
-          <h3>Shoot any address to add in your node</h3>
+          <h3>Right-click to insert a node. Scroll to change insertion mode!</h3>
+        </div>
+
+        {/* Insertion mode indicator */}
+        <div style={{ 
+          position: 'absolute', 
+          top: 12, 
+          left: 12, 
+          zIndex: 1000, 
+          background: 'rgba(0,0,0,0.8)', 
+          color: '#fff', 
+          padding: '6px 12px', 
+          borderRadius: 12, 
+          fontSize: '14px',
+          fontWeight: 'bold'
+        }}>
+          Insert: {insertionMode === 'left' ? 'Before (←)' : 'After (→)'}
         </div>
 
         {/* Cannon */}
@@ -462,23 +588,58 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           }} 
         >
           <div className={styles.cannonCircle}>
-            <span style={{ fontSize: '12px', color: '#fff' }}>
-              •
+            <span style={{ fontSize: '10px' }}>
+              {cannonCircle.value}
+            </span>
+            <span style={{ fontSize: '8px' }}>
+              {cannonCircle.address}
             </span>
           </div>
         </div>
 
-        {/* Tutorial Floating Circles (Addresses) */}
+        {/* Tutorial Circles */}
         {tutorialCircles.map(circle => (
           <div
             key={circle.id}
-            className={`${styles.floatingCircle} ${styles.addressCircle}`}
+            className={styles.animatedCircle}
             style={{
-              left: `${circle.x}px`,
-              top: `${circle.y}px`,
+              left: `${circle.x - 30}px`,
+              top: `${circle.y - 30}px`,
+              cursor: 'default',
+              opacity: circle.isInserted ? 1 : 0.9,
+              boxShadow: circle.isInserted 
+                ? '0 0 15px rgba(0, 255, 0, 0.6)' 
+                : circle.isHead 
+                  ? '0 0 15px rgba(255, 100, 0, 0.6)'
+                  : circle.isTail 
+                    ? '0 0 15px rgba(0, 100, 255, 0.6)'
+                    : '0 4px 8px rgba(0, 0, 0, 0.3)'
             }}
           >
-            {circle.content}
+            <span className={styles.circleValue}>{circle.value}</span>
+            <span className={styles.circleAddress}>{circle.address}</span>
+            
+            {/* Head/Tail labels */}
+            {(circle.isHead || circle.isTail) && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: circle.isHead ? '#ff6435' : '#3564ff',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  whiteSpace: 'nowrap',
+                  zIndex: 1000
+                }}
+              >
+                {circle.isHead ? 'head' : 'tail'}
+              </div>
+            )}
           </div>
         ))}
 
@@ -490,61 +651,68 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             style={{
               left: `${bullet.x}px`,
               top: `${bullet.y}px`,
-              width: '30px',
-              height: '30px',
-              backgroundColor: '#ff6b6b',
               cursor: 'default',
               opacity: 0.9,
               boxShadow: '0 0 15px rgba(255, 255, 0, 0.6)',
             }}
-          />
+          >
+            <span className={styles.circleValue}>{bullet.value}</span>
+            <span className={styles.circleAddress}>{bullet.address}</span>
+          </div>
         ))}
 
-        {/* Interactive Square Node (bottom-center) */}
-        <div className={styles.interactiveSquareWrapper}>
-          <div className={styles.squareNode}>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Value</div>
-              <div className={styles.squareNodeField}>
-                {squareNode.value || "-"}
-              </div>
-            </div>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Address</div>
-              <div className={`${styles.squareNodeField} ${!squareNode.address ? styles.empty : ''}`}>
-                {squareNode.address || "-"}
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Tutorial Connections */}
+        <svg className={styles.connectionLines}>
+          {tutorialConnections.map((connection) => {
+            const fromCircle = tutorialCircles.find(c => c.id === connection.from);
+            const toCircle = tutorialCircles.find(c => c.id === connection.to);
+            
+            if (!fromCircle || !toCircle) return null;
+            
+            return (
+              <g key={connection.id}>
+                <line
+                  x1={fromCircle.x}
+                  y1={fromCircle.y}
+                  x2={toCircle.x}
+                  y2={toCircle.y}
+                  className={styles.animatedLine}
+                  markerEnd="url(#arrowhead)"
+                />
+              </g>
+            );
+          })}
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="8"
+              markerHeight="8"
+              refX="16"
+              refY="4"
+              orient="auto"
+              fill="#fff"
+              stroke="#fff"
+              strokeWidth="0.5"
+            >
+              <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
+            </marker>
+          </defs>
+        </svg>
 
-        {/* Continue button appears after shooting an address */}
-        {squareNode.address && (
+        {/* Continue button appears after successful insertion */}
+        {hasInsertedNode && (
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <h2>Perfect!</h2>
-                <div className={styles.expectedOutputSquare} style={{ marginBottom: '30px' }}>
-                  <div className={styles.squareSection}>
-                    <div className={styles.sectionLabel}>Value</div>
-                    <div className={styles.squareNodeField}>
-                      {squareNode.value}
-                    </div>
-                  </div>
-                  <div className={styles.squareSection}>
-                    <div className={styles.sectionLabel}>Address</div>
-                    <div className={styles.squareNodeField}>
-                      {squareNode.address}
-                    </div>
-                  </div>
-                </div>
-                <p>You created your first node with both data and address. Remember a node always needs both data and address.</p>
-                <p><strong>Let&apos;s head to the game.</strong></p>
+                <h2>Excellent!</h2>
+                <p>You successfully inserted a new node into the existing chain!</p>
+                <p>Notice how the connections automatically updated to include your new node in the sequence.</p>
+                <p>Now you're ready for the real insertion challenges!</p>
                 <button 
                   onClick={onContinue}
                   className={tutorialStyles.tutorialButton}
                 >
-                  Continue
+                  Start Game
                 </button>
               </div>
             </div>
@@ -556,14 +724,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   if (scene === 'scene4') {
     return (
-      <div 
-        className={styles.app} 
-        // style={{
-        //   opacity: fadeIn ? 1 : 0,
-        //   transition: 'opacity 1.2s ease-in-out',
-        //   transform: fadeIn ? 'scale(1)' : 'scale(0.95)',
-        // }}
-            >
+      <div className={styles.app}>
         <video
           className={styles.videoBackground}
           autoPlay
@@ -572,7 +733,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           playsInline
           preload="auto"
         >
-          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          <source src="./video/bubble_bg.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
@@ -581,16 +742,18 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           <div className={tutorialStyles.gameInstructionsPopup}>
             <div className={tutorialStyles.gameInstructionsContent}>
               <div className={tutorialStyles.gameInstructionsHeader}>
-                <h2>Game Instruction</h2>
+                <h2>Node Insertion - Game Instructions</h2>
               </div>
               
               <div className={tutorialStyles.gameInstructionsBody}>
                 <ul>
-                  <li><strong>Objective:</strong> Create nodes by shooting values and addresses into the square node</li>
-                  <li><strong>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets</li>
-                  <li><strong>Levels:</strong> Complete 3 challenging levels</li>
-                  <li><strong>Scoring:</strong> Earn points for each successful node creation</li>
-                  <li><strong>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
+                  <li><strong>Objective:</strong> Insert nodes into the existing linked list to match the expected structure</li>
+                  <li><strong>Controls:</strong> Click the cannon to select bullets, right-click to shoot</li>
+                  <li><strong>Insertion Modes:</strong> Scroll wheel to switch between "Before" and "After" insertion</li>
+                  <li><strong>Strategy:</strong> Hit head/tail nodes to extend the list, hit middle nodes to insert between</li>
+                  <li><strong>Deletion:</strong> Click any node 5 times to remove it (bridges connections automatically)</li>
+                  <li><strong>Challenges:</strong> Avoid black holes and manage the 2-minute timer!</li>
+                  <li><strong>Portal:</strong> Complete chains get sucked into the portal for validation</li>
                 </ul>
               </div>
               
@@ -598,28 +761,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 <button 
                   onClick={onContinue}
                   className={tutorialStyles.tutorialButton}
-                  
                 >
-                  Continue
+                  Continue to Practice
                 </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Interactive Square Node (bottom-center) - Show completed node from tutorial */}
-        <div className={styles.interactiveSquareWrapper}>
-          <div className={styles.squareNode}>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Value</div>
-              <div className={styles.squareNodeField}>
-                {squareNode.value || "42"}
-              </div>
-            </div>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Address</div>
-              <div className={styles.squareNodeField}>
-                {squareNode.address || "ab3"}
               </div>
             </div>
           </div>
@@ -630,6 +774,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   return null;
 }
+
 
 TutorialScene.propTypes = {
   scene: PropTypes.string.isRequired,

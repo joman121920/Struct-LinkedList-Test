@@ -10,6 +10,7 @@ import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 
 function GalistGameInsertionNode() {
+  const [tutorialScene, setTutorialScene] = useState("scene1");
   // Completion modal state for all exercises done
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
 
@@ -593,6 +594,8 @@ function GalistGameInsertionNode() {
       }
     }
   }, []);
+
+  
   // spawnInitialCircle removed - promotion handled via loadExercise(, launchInitial=true)
 
   const startExercise = useCallback(() => {
@@ -605,6 +608,21 @@ function GalistGameInsertionNode() {
     setShowMissionFailed(false);
   }, [loadExercise, exerciseKey]);
 
+  const handleTutorialContinue = useCallback(() => {
+    if (tutorialScene === "scene1") {
+      setTutorialScene("scene2");
+    } else if (tutorialScene === "scene2") {
+      setTutorialScene("scene3"); 
+    } else if (tutorialScene === "scene3") {
+      setTutorialScene("scene4"); 
+    } else {
+      // scene4 -> start game
+      setShowInstructionPopup(false);
+      startExercise();
+      setTutorialScene("scene1"); 
+    }
+  }, [tutorialScene, startExercise]);
+  
   // Handle retry from mission failed overlay: reset level state and restart without tutorial
   const handleRetry = useCallback(() => {
     // Clear runtime state
@@ -659,6 +677,12 @@ function GalistGameInsertionNode() {
     }, 60);
   }, [loadExercise, exerciseKey]);
 
+  useEffect(() => {
+    if (showInstructionPopup) {
+      setTutorialScene("scene1");
+    }
+  }, [showInstructionPopup]);
+  
   // Initialize with basic exercise when instruction popup is closed
   useEffect(() => {
     if (!showInstructionPopup && !currentExercise) {
@@ -1904,11 +1928,11 @@ function GalistGameInsertionNode() {
       )}
 
       {showInstructionPopup && (
-          <TutorialScene 
-            scene="scene1" 
-            onContinue={startExercise}
-          />
-        )}
+        <TutorialScene 
+          scene={tutorialScene} 
+          onContinue={handleTutorialContinue}
+        />
+      )}
 
       {/* Portal particles for vacuum effect */}
       <PortalParticles 

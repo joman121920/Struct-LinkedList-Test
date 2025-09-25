@@ -10,6 +10,7 @@ import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 
 function GalistGameLinkingNode() {
+  const [tutorialScene, setTutorialScene] = useState("scene1");
   // Completion modal state for all exercises done
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
 
@@ -195,6 +196,78 @@ function GalistGameLinkingNode() {
     
     return options;
   }, [currentExercise]);
+
+
+  const performDelete = useCallback((circleId) => {
+  setCircles(prev => {
+    const remaining = prev.filter(c => c.id !== circleId);
+
+    // Clean up from suction-related state
+    setSuckingCircles(prevS => prevS.filter(id => id !== circleId));
+    setSuckedCircles(prevS => prevS.filter(id => id !== circleId));
+    setCurrentEntryOrder(prevO => prevO.filter(id => id !== circleId));
+
+    setConnections(prevConns => {
+      const incoming = prevConns.filter(conn => conn.to === circleId);
+      const outgoing = prevConns.filter(conn => conn.from === circleId);
+
+      let newConns = prevConns.filter(conn => conn.from !== circleId && conn.to !== circleId);
+
+      for (const inConn of incoming) {
+        for (const outConn of outgoing) {
+          const fromId = inConn.from;
+          const toId = outConn.to;
+          const exists = newConns.some(c => c.from === fromId && c.to === toId);
+          if (fromId && toId && fromId !== toId && !exists) {
+            newConns = [
+              ...newConns,
+              {
+                id: `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+                from: fromId,
+                to: toId,
+              },
+            ];
+          }
+        }
+      }
+
+      if (remaining.length === 0) {
+        setHeadCircleId(null);
+        setTailCircleId(null);
+      } else {
+        const headNode = remaining.find(c => !newConns.some(conn => conn.to === c.id));
+        const tailNode = remaining.find(c => !newConns.some(conn => conn.from === c.id));
+        setHeadCircleId(headNode ? headNode.id : remaining[0].id);
+        setTailCircleId(tailNode ? tailNode.id : remaining[remaining.length - 1].id);
+      }
+
+      return newConns;
+    });
+
+    return remaining;
+  });
+}, []);
+
+ const handleCircleClick = useCallback((circleId, e) => {
+  e.stopPropagation();
+
+  setCircles(prev => {
+    const updated = prev.map(c => {
+      if (c.id !== circleId) return c;
+      // Allow deletion for any circle (even if isLaunched)
+      const nextCount = Math.min(5, (c.clickCount || 0) + 1);
+      return { ...c, clickCount: nextCount, deletionReady: nextCount >= 5 };
+    });
+
+    const clicked = updated.find(c => c.id === circleId);
+    if (clicked && clicked.deletionReady) {
+      setTimeout(() => {
+        performDelete(circleId);
+      }, 300);
+    }
+    return updated;
+  });
+}, [performDelete]);
 
   // Handle cannon circle click to open bullet selection modal
   const handleCannonClick = useCallback(() => {
@@ -511,6 +584,29 @@ function GalistGameLinkingNode() {
       loadExercise();
     }
   }, [loadExercise, currentExercise, timerRunning]);
+
+  const handleTutorialContinue = useCallback(() => {
+  if (tutorialScene === "scene1") {
+    setTutorialScene("scene2");
+  } else if (tutorialScene === "scene2") {
+    setTutorialScene("scene3"); 
+  } else if (tutorialScene === "scene3") {
+    setTutorialScene("scene4"); 
+  } else {
+    // scene3 -> start game
+    setShowInstructionPopup(false);
+    startExercise();
+    setTutorialScene("scene1"); 
+  }
+}, [tutorialScene, startExercise]);
+
+
+
+  useEffect(() => {
+    if (showInstructionPopup) {
+      setTutorialScene("scene1");
+    }
+  }, [showInstructionPopup]);
 
   // Initialize with basic exercise when instruction popup is closed
   useEffect(() => {
@@ -1127,7 +1223,7 @@ function GalistGameLinkingNode() {
       setSuckingCircles([]);
     }
   }, [portalInfo.isVisible, circles, connections, isHeadNode, startChainSuction]);
-
+  
   // Mouse event handlers for dragging
   const handleMouseDown = (e, circle) => {
     // Prevent dragging launched circles
@@ -1214,6 +1310,9 @@ function GalistGameLinkingNode() {
   }, [cannonCircle, cannonAngle]);
 
   useEffect(() => {
+
+    if (showInstructionPopup) return;
+
     const handleMouseMoveGlobal = (e) => {
       const cannonBaseX = window.innerWidth + 40 - 35; // Right edge + 40px offset - half width (35px)
       const cannonBaseY = window.innerHeight - 1; // Bottom edge position (bottom: 1px)
@@ -1370,14 +1469,8 @@ function GalistGameLinkingNode() {
             velocityY = ((recent.y - older.y) / timeDiff) * 16;
 
             const maxVelocity = 15;
-            velocityX = Math.max(
-              -maxVelocity,
-              Math.min(maxVelocity, velocityX)
-            );
-            velocityY = Math.max(
-              -maxVelocity,
-              Math.min(maxVelocity, velocityY)
-            );
+            velocityX = Math.max(-maxVelocity, Math.min(maxVelocity, velocityX));
+            velocityY = Math.max(-maxVelocity, Math.min(maxVelocity, velocityY));
           }
         }
 
@@ -1404,7 +1497,7 @@ function GalistGameLinkingNode() {
       document.removeEventListener("mouseup", handleMouseUpGlobal);
       document.removeEventListener("contextmenu", handleGlobalRightClick);
     };
-  }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick]);
+  }, [showInstructionPopup, draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick]);
 
   // Helper: Get current linked list structure as array of {value, address}
   const getCurrentLinkedList = useCallback(() => {
@@ -1602,11 +1695,11 @@ function GalistGameLinkingNode() {
       )}
 
       {showInstructionPopup && (
-          <TutorialScene 
-            scene="scene1" 
-            onContinue={startExercise}
-          />
-        )}
+      <TutorialScene 
+        scene={tutorialScene}
+        onContinue={handleTutorialContinue}
+      />
+    )}
 
       {/* Portal particles for vacuum effect */}
       <PortalParticles 
@@ -1619,55 +1712,82 @@ function GalistGameLinkingNode() {
 
       
       
-      <div 
-        className={styles.rightSquare} 
-        style={{ 
-          outlineOffset: "5px",
-          transform: `rotate(${cannonAngle}deg)`,
-          transformOrigin: "bottom center"
-        }} 
-      >
-        {/* Cannon Circle */}
+      {!showInstructionPopup && (
         <div 
-          className={styles.cannonCircle}
-          onClick={handleCannonClick}
-          style={{ cursor: 'pointer' }}
+          className={styles.rightSquare} 
+          style={{ 
+            outlineOffset: "5px",
+            transform: `rotate(${cannonAngle}deg)`,
+            transformOrigin: "bottom center"
+          }} 
         >
-          <span style={{ fontSize: '10px' }}>
-            {cannonCircle.value}
-          </span>
-          <span style={{ fontSize: '8px' }}>
-            {cannonCircle.address}
-          </span>
-        </div>
-      </div>
-
-      {circles.map((circle) => {
-        const label = getCircleLabel(circle.id);
-        return (
-          <div
-            key={circle.id}
-            className={`${styles.animatedCircle} ${
-              suckingCircles.includes(circle.id) ? styles.beingSucked : ""
-            }`}
-            style={{
-              left: `${circle.x - 30}px`,
-              top: `${circle.y - 30}px`,
-              cursor: circle.isLaunched 
-                ? "default" 
-                : (draggedCircle && circle.id === draggedCircle.id
-                  ? "grabbing"
-                  : "grab"),
-              opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
-              boxShadow: circle.isLaunched 
-                ? "0 0 15px rgba(255, 255, 0, 0.6)" 
-                : "0 4px 8px rgba(0, 0, 0, 0.3)", // Yellow glow for launched circles
-            }}
-            onMouseDown={(e) => handleMouseDown(e, circle)}
-            // Double click disabled
+          {/* Cannon Circle */}
+          <div 
+            className={styles.cannonCircle}
+            onClick={handleCannonClick}
+            style={{ cursor: 'pointer' }}
           >
-            <span className={styles.circleValue}>{circle.value}</span>
-            <span className={styles.circleAddress}>{circle.address}</span>
+            <span style={{ fontSize: '10px' }}>
+              {cannonCircle.value}
+            </span>
+            <span style={{ fontSize: '8px' }}>
+              {cannonCircle.address}
+            </span>
+          </div>
+        </div>
+      )}
+
+       {circles.map((circle) => {
+  const label = getCircleLabel(circle.id);
+  const clickProgress = Math.max(0, Math.min(1, (circle.clickCount || 0) / 5));
+  return (
+    <div
+      key={circle.id}
+      className={`${styles.animatedCircle} ${suckingCircles.includes(circle.id) ? styles.beingSucked : ""}`}
+      style={{
+        left: `${circle.x - 30}px`,
+        top: `${circle.y - 30}px`,
+        cursor: (draggedCircle && circle.id === draggedCircle.id) ? "grabbing" : "grab",
+        opacity: circle.isLaunched ? 0.9 : 1,
+        boxShadow: circle.isLaunched 
+          ? "0 0 15px rgba(255, 255, 0, 0.6)" 
+          : "0 4px 8px rgba(0, 0, 0, 0.3)",
+      }}
+      onMouseDown={(e) => handleMouseDown(e, circle)}
+      onClick={(e) => handleCircleClick(circle.id, e)}
+    >
+            <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
+            <span className={styles.circleAddress} style={{ position: 'relative', zIndex: 2 }}>{circle.address}</span>
+
+            {/* Click-to-delete background circle fill (SVG) */}
+            <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
+              <svg width="60" height="60" viewBox="0 0 60 60">
+                <defs>
+                  <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffcfb8" />
+                    <stop offset="100%" stopColor="#ff6b35" />
+                  </linearGradient>
+                </defs>
+                <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
+                <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+                <circle
+        cx="30"
+        cy="30"
+        r="24"
+        fill="none"
+        stroke={`url(#grad-${circle.id})`}
+        strokeWidth="12"
+        strokeLinecap="round"
+        transform="rotate(-90 30 30)"
+        style={{
+          strokeDasharray: 2 * Math.PI * 24,
+          strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
+          transition: 'stroke-dashoffset 120ms linear'
+        }}
+      />
+              </svg>
+            </div>
+
             {label && (
               <div 
                 className={styles.headTailLabel}
