@@ -612,14 +612,11 @@ function GalistGameInsertionNode() {
     if (tutorialScene === "scene1") {
       setTutorialScene("scene2");
     } else if (tutorialScene === "scene2") {
-      setTutorialScene("scene3"); 
-    } else if (tutorialScene === "scene3") {
-      setTutorialScene("scene4"); 
+      setTutorialScene("scene3");
     } else {
-      // scene4 -> start game
       setShowInstructionPopup(false);
       startExercise();
-      setTutorialScene("scene1"); 
+      setTutorialScene("scene1");
     }
   }, [tutorialScene, startExercise]);
   
@@ -1552,8 +1549,9 @@ function GalistGameInsertionNode() {
   // Global right-click handler for launching circles
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
+    if (showInstructionPopup) return;
     
-    
+
     // Launch circle from cannon if values are set
     if (cannonCircle.value && cannonCircle.address) {
       // Calculate launch position from cannon tip
@@ -1857,6 +1855,11 @@ function GalistGameInsertionNode() {
   // Black hole repositioning timer - every 20 seconds
   useEffect(() => {
     const repositionBlackHoles = () => {
+      // Don't generate black holes during tutorial
+      if (showInstructionPopup) {
+        setBlackHoles([]);
+        return;
+      }
       setBlackHoles(generateBlackHoles());
     };
 
@@ -1867,7 +1870,7 @@ function GalistGameInsertionNode() {
     const interval = setInterval(repositionBlackHoles, Math.random() * 5000 + 5000); // Random interval between 5-10 seconds
 
     return () => clearInterval(interval);
-  }, [generateBlackHoles]); // Include generateBlackHoles dependency
+  }, [generateBlackHoles, showInstructionPopup]); // Include generateBlackHoles dependency
 
   return (
     <div className={styles.app}>

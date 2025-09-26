@@ -1,391 +1,465 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
+import { collisionDetection } from "../../../CollisionDetection";
 import styles from "./InsertionNode.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
 
-/// ...existing imports...
-
 function TutorialScene({ scene, onContinue, onValueShoot }) {
-  // State for tutorial circles and connections
+  const [typedInstruction, setTypedInstruction] = useState("");
+  const [instructionStep, setInstructionStep] = useState(0);
+  const [insertionMode, setInsertionMode] = useState("after");
+
+
+  const instructionText =
+    "Insertion happens where you aim. Hit a node and the new value is placed into the chain.";
+  const secondText =
+    "Shoot the highlighted node to insert the cannon value after it.";
+  const collisionText =
+    "Pointers shift to make room. The new node now follows the one you hit.";
+  const nextText =
+    "Scroll to switch direction. Try inserting another node before the head.";
+
+  useEffect(() => {
+    if (scene !== "scene2") {
+      setTypedInstruction("");
+      setInstructionStep(0);
+      return;
+    }
+
+    let interval;
+    const runTypewriter = (text, nextStep, duration = 2200) => {
+      let idx = 0;
+      setTypedInstruction("");
+      interval = setInterval(() => {
+        idx++;
+        setTypedInstruction(text.slice(0, idx));
+        if (idx >= text.length) {
+          clearInterval(interval);
+          if (typeof nextStep === "number") {
+            setTimeout(() => setInstructionStep(nextStep), 1800);
+          }
+        }
+      }, duration / text.length);
+    };
+
+    if (instructionStep === 0) runTypewriter(instructionText, 1, 3200);
+    else if (instructionStep === 1) runTypewriter(secondText, null, 2000);
+    else if (instructionStep === 2) runTypewriter(collisionText, 3, 2200);
+    else if (instructionStep === 3) runTypewriter(nextText, null, 2000);
+
+    return () => clearInterval(interval);
+  }, [scene, instructionStep]);
+
   const [tutorialCircles, setTutorialCircles] = useState([]);
   const [tutorialConnections, setTutorialConnections] = useState([]);
   const [cannonAngle, setCannonAngle] = useState(0);
-  const [cannonCircle, setCannonCircle] = useState({ value: "30", address: "cc20" });
+  const [cannonCircle, setCannonCircle] = useState({ value: "18", address: "aa40" });
   const [tutorialBullets, setTutorialBullets] = useState([]);
-  const [demoStep, setDemoStep] = useState(0);
-  const [insertionMode, setInsertionMode] = useState('right'); // Track insertion mode like main game
   const tutorialCirclesRef = useRef([]);
-  
-  // Update ref whenever tutorial circles change
+
+  useEffect(() => {
+    if (scene !== "scene2") return;
+    const handleWheel = ev => {
+      if (Math.abs(ev.deltaY) < 1) return;
+      setInsertionMode(ev.deltaY < 0 ? "before" : "after");
+      setInstructionStep(prev => (prev < 3 ? 3 : prev));
+    };
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [scene]);
+
+  const isHeadNode = useCallback(
+    (id) => {
+      const hasOut = tutorialConnections.some(c => c.from === id);
+      const hasIn = tutorialConnections.some(c => c.to === id);
+      return hasOut && !hasIn;
+    },
+    [tutorialConnections]
+  );
+
+  const isTailNode = useCallback(
+    (id) => {
+      const hasOut = tutorialConnections.some(c => c.from === id);
+      const hasIn = tutorialConnections.some(c => c.to === id);
+      return hasIn && !hasOut;
+    },
+    [tutorialConnections]
+  );
+
   useEffect(() => {
     tutorialCirclesRef.current = tutorialCircles;
   }, [tutorialCircles]);
 
-  // Initialize tutorial circles for insertion demonstration
+  const randAddress = () => {
+    const letters = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj"];
+    const digits = ["10", "20", "30", "40", "50", "60", "70", "80", "90"];
+    return letters[Math.floor(Math.random() * letters.length)] + digits[Math.floor(Math.random() * digits.length)];
+  };
+
   useEffect(() => {
-    if (scene === 'scene2') {
-      // Create initial head and tail nodes
+    if (scene === "scene2") {
       const headNode = {
-        id: 'tutorial_head',
-        x: window.innerWidth * 0.3,
-        y: window.innerHeight / 2,
-        value: "10",
-        address: "aa10",
-        isHead: true
+        id: "headNode",
+        x: 260,
+        y: 220,
+        value: (Math.floor(Math.random() * 90) + 10).toString(),
+        address: randAddress(),
+        velocityX: 0,
+        velocityY: 0,
+        isLaunched: false,
       };
-      
       const tailNode = {
-        id: 'tutorial_tail',
-        x: window.innerWidth * 0.7,
-        y: window.innerHeight / 2,
-        value: "50",
-        address: "ee50",
-        isTail: true
+        id: "tailNode",
+        x: 410,
+        y: 220,
+        value: (Math.floor(Math.random() * 90) + 10).toString(),
+        address: randAddress(),
+        velocityX: 0,
+        velocityY: 0,
+        isLaunched: false,
       };
-
       setTutorialCircles([headNode, tailNode]);
-      
-      // Create connection between head and tail
-      setTutorialConnections([{
-        id: 'head_to_tail',
-        from: 'tutorial_head',
-        to: 'tutorial_tail'
-      }]);
-      
-      setDemoStep(0);
-    } else if (scene === 'scene3') {
-      // Reset for interactive scene
-      const headNode = {
-        id: 'tutorial_head_3',
-        x: window.innerWidth * 0.25,
-        y: window.innerHeight / 2,
-        value: "10",
-        address: "aa10",
-        isHead: true
-      };
-      
-      const tailNode = {
-        id: 'tutorial_tail_3',
-        x: window.innerWidth * 0.75,
-        y: window.innerHeight / 2,
-        value: "50",
-        address: "ee50",
-        isTail: true
-      };
-
-      setTutorialCircles([headNode, tailNode]);
-      setTutorialConnections([{
-        id: 'head_to_tail_3',
-        from: 'tutorial_head_3',
-        to: 'tutorial_tail_3'
-      }]);
-      
-      setTutorialBullets([]);
-      setDemoStep(0);
+      setTutorialConnections([{ id: "conn_init", from: headNode.id, to: tailNode.id }]);
+      setCannonCircle({
+        value: (Math.floor(Math.random() * 90) + 10).toString(),
+        address: randAddress(),
+      });
     }
   }, [scene]);
 
-  // Demo animation for scene2 - show automatic insertion
   useEffect(() => {
-    if (scene === 'scene2' && demoStep === 0) {
-      const timer = setTimeout(() => {
-        // Create a demo bullet that will hit the head node
-        const demoBullet = {
-          id: 'demo_bullet',
-          x: window.innerWidth * 0.15,
-          y: window.innerHeight / 2,
-          value: "25",
-          address: "bb25",
-          velocityX: 3,
-          velocityY: 0,
-          isDemoBullet: true
-        };
-        
-        setTutorialBullets([demoBullet]);
-        
-        // Animate the bullet moving toward the head node
-        const animateDemo = () => {
-          setTutorialBullets(prev => {
-            const bullet = prev[0];
-            if (!bullet) return prev;
-            
-            const newX = bullet.x + bullet.velocityX;
-            const headNode = tutorialCircles.find(c => c.id === 'tutorial_head');
-            
-            // Check if bullet reached the head node
-            if (newX >= headNode.x - 40) {
-              // Simulate insertion after head node
-              setTimeout(() => {
-                // Add the new node between head and tail
-                const newNode = {
-                  id: 'inserted_node',
-                  x: window.innerWidth * 0.5,
-                  y: window.innerHeight / 2,
-                  value: bullet.value,
-                  address: bullet.address,
-                  isInserted: true
-                };
-                
-                setTutorialCircles(prev => [...prev, newNode]);
-                
-                // Update connections: head -> newNode -> tail
-                setTutorialConnections([
-                  {
-                    id: 'head_to_new',
-                    from: 'tutorial_head',
-                    to: 'inserted_node'
-                  },
-                  {
-                    id: 'new_to_tail',
-                    from: 'inserted_node',
-                    to: 'tutorial_tail'
-                  }
-                ]);
-                
-                setTutorialBullets([]);
-                setDemoStep(1);
-              }, 300);
-              
-              return [];
-            }
-            
-            return [{...bullet, x: newX}];
-          });
-        };
-        
-        const demoInterval = setInterval(() => {
-          animateDemo();
-          if (demoStep === 1) {
-            clearInterval(demoInterval);
+    if (scene !== "scene2") return;
+    const interval = setInterval(() => {
+      setTutorialCircles(prev =>
+        prev.map(circle => {
+          let { floatVelocityX: fx, floatVelocityY: fy } = circle;
+          if (fx === undefined || fy === undefined) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.2 + Math.random() * 0.4;
+            fx = Math.cos(angle) * speed;
+            fy = Math.sin(angle) * speed;
           }
-        }, 16);
-        
-        setTimeout(() => clearInterval(demoInterval), 3000);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [scene, demoStep, tutorialCircles]);
+          let newX = circle.x + fx;
+          let newY = circle.y + fy;
+          let newFx = fx;
+          let newFy = fy;
+          if (newX <= 30 || newX >= window.innerWidth - 30) newFx = -newFx;
+          if (newY <= 30 || newY >= window.innerHeight - 30) newFy = -newFy;
+          newX = Math.max(30, Math.min(window.innerWidth - 30, newX));
+          newY = Math.max(30, Math.min(window.innerHeight - 30, newY));
+          let vx = circle.velocityX || 0;
+          let vy = circle.velocityY || 0;
+          const speedMag = Math.sqrt(vx * vx + vy * vy);
+          if (circle.isLaunched && speedMag < 0.12) {
+            vx += newFx * 0.5;
+            vy += newFy * 0.5;
+          } else {
+            vx *= 0.99;
+            vy *= 0.99;
+          }
+          return {
+            ...circle,
+            x: newX,
+            y: newY,
+            floatVelocityX: newFx,
+            floatVelocityY: newFy,
+            velocityX: vx,
+            velocityY: vy,
+          };
+        })
+      );
+    }, 16);
+    return () => clearInterval(interval);
+  }, [scene]);
 
-  // Handle right-click shooting in tutorial
-  const handleTutorialRightClick = useCallback((e) => {
-    if (scene !== 'scene3') return;
-    
-    e.preventDefault();
-    
-    // Calculate launch position from cannon tip
-    const cannonTipX = window.innerWidth - 35;
-    const cannonTipY = window.innerHeight - 1;
-    
-    // Calculate tip position based on cannon angle
-    const tipDistance = 55;
-    const angleRad = (cannonAngle) * (Math.PI / 180);
-    const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
-    const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
-    
-    // Calculate launch velocity based on cannon direction
-    const launchSpeed = 6;
-    const velocityX = Math.sin(angleRad) * launchSpeed;
-    const velocityY = -Math.cos(angleRad) * launchSpeed;
-    
-    // Create new bullet with cannon values
-    const newBullet = {
-      id: Date.now(),
-      x: tipX - 30,
-      y: tipY - 30,
-      value: cannonCircle.value,
-      address: cannonCircle.address,
-      velocityX: velocityX,
-      velocityY: velocityY,
-      isBullet: true,
-      isLaunched: true,
-    };
-    
-    setTutorialBullets(prev => [...prev, newBullet]);
-  }, [scene, cannonAngle, cannonCircle]);
-
-  // Bullet animation and collision detection for tutorial
   useEffect(() => {
-    if (scene !== 'scene3') return;
-    
-    const animateFrame = () => {
-      setTutorialBullets(prevBullets => {
-        const updatedBullets = [];
-        
-        prevBullets.forEach(bullet => {
-          // Update bullet position
-          const newX = bullet.x + bullet.velocityX;
-          const newY = bullet.y + bullet.velocityY;
-          
-          // Boundary collision - bullets bounce off edges
-          let newVelocityX = bullet.velocityX;
-          let newVelocityY = bullet.velocityY;
-          let finalX = newX;
-          let finalY = newY;
-          
-          if (newX <= 15 || newX >= window.innerWidth - 15) {
-            newVelocityX = -newVelocityX;
-            finalX = newX <= 15 ? 15 : window.innerWidth - 15;
-          }
-          
-          if (newY <= 15 || newY >= window.innerHeight - 15) {
-            newVelocityY = -newVelocityY;
-            finalY = newY <= 15 ? 15 : window.innerHeight - 15;
-          }
-          
-          // Check collision with existing nodes for insertion
-          const currentCircles = tutorialCirclesRef.current;
-          let bulletHit = false;
-          
-          for (const circle of currentCircles) {
-            const dx = finalX - circle.x;
-            const dy = finalY - circle.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < 70) { // Collision threshold
-              bulletHit = true;
-              
-              // Simulate insertion logic
-              if (circle.isHead || circle.isTail) {
-                // Insert new node
-                const newNodeX = insertionMode === 'right' 
-                  ? (circle.isHead ? window.innerWidth * 0.5 : window.innerWidth * 0.6)
-                  : (circle.isHead ? window.innerWidth * 0.4 : window.innerWidth * 0.5);
-                
-                const insertedNode = {
-                  id: `inserted_${Date.now()}`,
-                  x: newNodeX,
-                  y: circle.y,
-                  value: bullet.value,
-                  address: bullet.address,
-                  isInserted: true
-                };
-                
-                setTutorialCircles(prev => [...prev, insertedNode]);
-                
-                // Update connections based on insertion mode and target
-                setTimeout(() => {
-                  const currentTutorialCircles = tutorialCirclesRef.current;
-                  if (insertionMode === 'right') {
-                    if (circle.isHead) {
-                      // Insert after head: head -> new -> tail
-                      setTutorialConnections([
-                        {
-                          id: 'head_to_new',
-                          from: circle.id,
-                          to: insertedNode.id
-                        },
-                        {
-                          id: 'new_to_tail',
-                          from: insertedNode.id,
-                          to: currentTutorialCircles.find(c => c.isTail)?.id
-                        }
-                      ]);
-                    }
-                  } else {
-                    if (circle.isTail) {
-                      // Insert before tail: head -> new -> tail
-                      setTutorialConnections([
-                        {
-                          id: 'head_to_new',
-                          from: currentTutorialCircles.find(c => c.isHead)?.id,
-                          to: insertedNode.id
-                        },
-                        {
-                          id: 'new_to_tail',
-                          from: insertedNode.id,
-                          to: circle.id
-                        }
-                      ]);
-                    }
-                  }
-                }, 0);
-              }
-              break;
-            }
-          }
-          
-          // Only keep the bullet if it didn't hit anything
-          if (!bulletHit) {
-            updatedBullets.push({
-              ...bullet,
-              x: finalX,
-              y: finalY,
-              velocityX: newVelocityX,
-              velocityY: newVelocityY
-            });
-          }
+    if (scene !== "scene2") return;
+    const interval = setInterval(() => {
+      setTutorialCircles(prev => {
+        const now = Date.now();
+        return prev.filter(circle => {
+          const linked = tutorialConnections.some(conn => conn.from === circle.id || conn.to === circle.id);
+          if (circle.isLaunched && !linked && now - (circle.launchTime || 0) > 3000) return false;
+          return true;
         });
-        
-        return updatedBullets;
       });
-    };
+    }, 200);
+    return () => clearInterval(interval);
+  }, [scene, tutorialConnections]);
 
-    const intervalId = setInterval(animateFrame, 16);
-    return () => clearInterval(intervalId);
-  }, [scene, insertionMode]);
-
-  // Mouse movement for cannon rotation and insertion mode
   useEffect(() => {
-    if (scene !== 'scene3') return;
-    
-    const handleMouseMove = (e) => {
+    tutorialCirclesRef.current = tutorialCircles;
+  }, [tutorialCircles]);
+
+  useEffect(() => {
+    if (scene === "scene2") {
+      setInsertionMode("after");
+    }
+  }, [scene]);
+
+  useEffect(() => {
+    if (scene !== "scene2") return undefined;
+    const handleWheel = (ev) => {
+      if (Math.abs(ev.deltaY) < 1 || instructionStep < 3) return;
+      setInsertionMode(ev.deltaY < 0 ? "before" : "after");
+    };
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [scene, instructionStep]);
+
+  useEffect(() => {
+    if (scene !== "scene2") return;
+    let frameId;
+    const animate = () => {
+      setTutorialBullets(prevBullets => {
+        const updated = [];
+        let inserted = false;
+
+        prevBullets.forEach(bullet => {
+          let newX = bullet.x + bullet.velocityX;
+          let newY = bullet.y + bullet.velocityY;
+          let vX = bullet.velocityX;
+          let vY = bullet.velocityY;
+          if (newX <= 0 || newX >= window.innerWidth - 60) {
+            vX = -vX;
+            newX = Math.max(0, Math.min(window.innerWidth - 60, newX));
+          }
+          if (newY <= 0 || newY >= window.innerHeight - 60) {
+            vY = -vY;
+            newY = Math.max(0, Math.min(window.innerHeight - 60, newY));
+          }
+          const updatedBullet = { ...bullet, x: newX, y: newY, velocityX: vX, velocityY: vY };
+          
+          if (!inserted) {
+            const circlesNow = tutorialCirclesRef.current;
+            for (let i = 0; i < circlesNow.length; i++) {
+              const target = circlesNow[i];
+              const dx = updatedBullet.x - target.x;
+              const dy = updatedBullet.y - target.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              
+              if (dist < 72) {
+                inserted = true;
+                const effectiveMode = bullet.insertionMode ?? insertionMode;
+                // Determine effective insertion mode based on tutorial step and current mode
+                // let effectiveMode = insertionMode;
+                // if (instructionStep < 2) {
+                //   effectiveMode = "after"; // Force "after" for initial demonstration
+                // }
+
+                // Create new node
+                const newCircle = {
+                  id: `inserted_${Date.now()}`,
+                  x: target.x + (effectiveMode === "after" ? 80 : -80),
+                  y: target.y,
+                  value: bullet.value,
+                  address: bullet.address,
+                  velocityX: updatedBullet.velocityX * 0.3,
+                  velocityY: updatedBullet.velocityY * 0.3,
+                  isLaunched: true,
+                  launchTime: Date.now(),
+                };
+
+                // Update circles and connections based on insertion mode
+                setTutorialCircles(prev => {
+                  const targetIndex = prev.findIndex(c => c.id === target.id);
+                  if (targetIndex === -1) return prev;
+
+                  let updatedCircles;
+                  if (effectiveMode === "after") {
+                    updatedCircles = [
+                      ...prev.slice(0, targetIndex + 1),
+                      newCircle,
+                      ...prev.slice(targetIndex + 1),
+                    ];
+                  } else {
+                    updatedCircles = [
+                      ...prev.slice(0, targetIndex),
+                      newCircle,
+                      ...prev.slice(targetIndex),
+                    ];
+                  }
+
+                  const minDist = 60;
+                  for (let j = 0; j < updatedCircles.length - 1; j++) {
+                    const a = updatedCircles[j];
+                    const b = updatedCircles[j + 1];
+                    let ddx = b.x - a.x;
+                    let ddy = b.y - a.y;
+                    const d = Math.sqrt(ddx * ddx + ddy * ddy) || 0.0001;
+                    if (d < minDist) {
+                      const overlap = (minDist - d) + 4;
+                      const unitX = ddx / d;
+                      const unitY = ddy / d;
+                      a.x -= unitX * (overlap / 2);
+                      a.y -= unitY * (overlap / 2);
+                      b.x += unitX * (overlap / 2);
+                      b.y += unitY * (overlap / 2);
+                      a.velocityX = (a.velocityX || 0) - unitX * 1.1;
+                      a.velocityY = (a.velocityY || 0) - unitY * 1.1;
+                      b.velocityX = (b.velocityX || 0) + unitX * 1.1;
+                      b.velocityY = (b.velocityY || 0) + unitY * 1.1;
+                    }
+                  }
+
+                  try {
+                    return collisionDetection.updatePhysics(updatedCircles);
+                  } catch {
+                    return updatedCircles;
+                  }
+                });
+
+                // Update connections using the same logic as InsertionNode.jsx
+                setTutorialConnections(prev => {
+                  if (effectiveMode === "after") {
+                    // Find existing outgoing connection from target
+                    const oldNextConn = prev.find(conn => conn.from === target.id);
+                    const oldNextId = oldNextConn ? oldNextConn.to : null;
+
+                    // Remove old connection and create new ones
+                    let updated = prev.filter(c => !(c.from === target.id && c.to === oldNextId));
+                    
+                    // Add target -> newNode
+                    updated.push({ 
+                      id: `conn_${Date.now()}_a`, 
+                      from: target.id, 
+                      to: newCircle.id 
+                    });
+                    
+                    // Add newNode -> oldNext (if exists)
+                    if (oldNextId) {
+                      updated.push({ 
+                        id: `conn_${Date.now()}_b`, 
+                        from: newCircle.id, 
+                        to: oldNextId 
+                      });
+                    }
+                    
+                    return updated;
+                  } else {
+                    // Insert before: find incoming connection to target
+                    const incomingConn = prev.find(conn => conn.to === target.id);
+                    const incomingFrom = incomingConn ? incomingConn.from : null;
+
+                    // Remove old connection and create new ones
+                    let updated = prev.filter(c => !(c.from === incomingFrom && c.to === target.id));
+                    
+                    // Add incoming -> newNode (if incoming exists)
+                    if (incomingFrom) {
+                      updated.push({ 
+                        id: `conn_${Date.now()}_c`, 
+                        from: incomingFrom, 
+                        to: newCircle.id 
+                      });
+                    }
+                    
+                    // Add newNode -> target
+                    updated.push({ 
+                      id: `conn_${Date.now()}_d`, 
+                      from: newCircle.id, 
+                      to: target.id 
+                    });
+                    
+                    return updated;
+                  }
+                });
+
+                if (instructionStep < 2) setInstructionStep(2);
+                onValueShoot?.("collision");
+                break;
+              }
+            }
+          }
+          if (!inserted) updated.push(updatedBullet);
+        });
+        return updated;
+      });
+
+      setTutorialCircles(prev => {
+        const now = Date.now();
+        const filtered = prev.filter(circle => {
+          const linked = tutorialConnections.some(conn => conn.from === circle.id || conn.to === circle.id);
+          if (circle.isLaunched && !linked && now - (circle.launchTime || 0) > 3000) return false;
+          return true;
+        });
+        if (filtered.length > 1) {
+          return collisionDetection.updatePhysics(filtered);
+        }
+        return filtered;
+      });
+
+      frameId = requestAnimationFrame(animate);
+    };
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, [scene, instructionStep, insertionMode, onValueShoot, tutorialConnections]);
+
+  const handleTutorialRightClick = useCallback(
+    e => {
+      if (scene !== "scene2" && scene !== "scene3") return;
+      e.preventDefault();
+
+      const cannonTipX = window.innerWidth - 35;
+      const cannonTipY = window.innerHeight - 1;
+      const tipDistance = 55;
+      const angleRad = (cannonAngle * Math.PI) / 180;
+      const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
+      const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
+      const speed = 11;
+      const velocityX = Math.sin(angleRad) * speed;
+      const velocityY = -Math.cos(angleRad) * speed;
+
+     const newBullet = {
+        id: Date.now(),
+        x: tipX - 30,
+        y: tipY - 30,
+        value: (Math.floor(Math.random() * 90) + 10).toString(),
+        address: randAddress(),
+        velocityX,
+        velocityY,
+        isLaunched: true,
+        insertionMode,
+      };
+      setTutorialBullets(prev => [...prev, newBullet]);
+    },
+    [scene, cannonAngle, insertionMode]
+  );
+  
+  useEffect(() => {
+    if (scene !== "scene2" && scene !== "scene3") return;
+    const handleMouseMove = e => {
       const cannonBaseX = window.innerWidth - 35;
       const cannonBaseY = window.innerHeight - 1;
-      
       const deltaX = e.clientX - cannonBaseX;
       const deltaY = e.clientY - cannonBaseY;
-      
       let angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI) + 90;
+      angle = Math.max(-90, Math.min(90, angle));
       setCannonAngle(angle);
     };
-
-    const handleWheel = (e) => {
-      e.preventDefault();
-      if (e.deltaY < 0) {
-        setInsertionMode('left');
-      } else {
-        setInsertionMode('right');
-      }
-    };
-
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("contextmenu", handleTutorialRightClick);
-    document.addEventListener("wheel", handleWheel, { passive: false });
-
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("contextmenu", handleTutorialRightClick);
-      document.removeEventListener("wheel", handleWheel);
     };
   }, [scene, handleTutorialRightClick]);
 
-  if (scene === 'scene1') {
+  if (scene === "scene1") {
     return (
       <div className={styles.app}>
-        <video
-          className={styles.videoBackground}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-        >
+        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
           <source src="./video/bubble_bg.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
         </video>
 
-        {/* Tutorial Popup for Scene 1 */}
         <div className={tutorialStyles.tutorialOverlay}>
           <div className={tutorialStyles.tutorialPopup}>
             <div className={tutorialStyles.tutorialContent}>
               <h2>Welcome to Node Insertion!</h2>
-              <p>In this level, you'll learn to insert new nodes into an existing linked list chain.</p>
-              <p>You can insert nodes before or after existing nodes, expanding your linked list strategically.</p>
-              <button 
-                onClick={onContinue}
-                className={tutorialStyles.tutorialButton}
-              >
+              <p>
+                Insertion lets you drop new nodes before or after any target. The list rewires itself so the chain stays intact.
+              </p>
+              <p>Let&apos;s practice hitting nodes and watching the pointers adjust.</p>
+              <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
                 Continue
               </button>
             </div>
@@ -395,73 +469,72 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     );
   }
 
-  if (scene === 'scene2') {
+  if (scene === "scene2") {
     return (
       <div className={styles.app}>
-        <video
-          className={styles.videoBackground}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-        >
+        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
           <source src="./video/bubble_bg.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
         </video>
 
-        {/* Tutorial instruction bar */}
         <div className={tutorialStyles.tutorialInstructionBar}>
-          <h3>Watch how a new node inserts between existing nodes</h3>
+          <h3>{typedInstruction}</h3>
+        </div>
+        
+        <div
+          className={styles.rightSquare}
+          style={{
+            outlineOffset: "5px",
+            transform: `rotate(${cannonAngle}deg)`,
+            transformOrigin: "bottom center",
+          }}
+        >
+          <div className={styles.cannonCircle}>
+            <span style={{ fontSize: "10px" }}>{cannonCircle.value}</span>
+            <span style={{ fontSize: "8px" }}>{cannonCircle.address}</span>
+          </div>
         </div>
 
-        {/* Tutorial Circles */}
-        {tutorialCircles.map(circle => (
-          <div
-            key={circle.id}
-            className={styles.animatedCircle}
-            style={{
-              left: `${circle.x - 30}px`,
-              top: `${circle.y - 30}px`,
-              cursor: 'default',
-              opacity: circle.isInserted ? 1 : 0.9,
-              boxShadow: circle.isInserted 
-                ? '0 0 15px rgba(0, 255, 0, 0.6)' 
-                : circle.isHead 
-                  ? '0 0 15px rgba(255, 100, 0, 0.6)'
-                  : circle.isTail 
-                    ? '0 0 15px rgba(0, 100, 255, 0.6)'
-                    : '0 4px 8px rgba(0, 0, 0, 0.3)'
-            }}
-          >
-            <span className={styles.circleValue}>{circle.value}</span>
-            <span className={styles.circleAddress}>{circle.address}</span>
-            
-            {/* Head/Tail labels */}
-            {(circle.isHead || circle.isTail) && (
-              <div 
-                style={{
-                  position: 'absolute',
-                  top: '-25px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: circle.isHead ? '#ff6435' : '#3564ff',
-                  color: 'white',
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  whiteSpace: 'nowrap',
-                  zIndex: 1000
-                }}
-              >
-                {circle.isHead ? 'head' : 'tail'}
-              </div>
-            )}
-          </div>
-        ))}
+        {tutorialCircles.map(circle => {
+          const head = isHeadNode(circle.id);
+          const tail = isTailNode(circle.id);
+          let label = null;
+            if (head && tail) label = "head/tail";
+            else if (head) label = "head";
+            else if (tail) label = "tail";
+          return (
+            <div
+              key={circle.id}
+              className={styles.animatedCircle}
+              style={{ left: `${circle.x - 30}px`, top: `${circle.y - 30}px`, cursor: "default" }}
+            >
+              <span className={styles.circleValue}>{circle.value}</span>
+              <span className={styles.circleAddress}>{circle.address}</span>
+              {label && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-25px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#ff6b35',
+                    color: 'white',
+                    padding: '2px 6px',
+                    borderRadius: '10px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    whiteSpace: 'nowrap',
+                    zIndex: 1000,
+                    border: '1px solid #fff',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  {label}
+                </div>
+              )}
+            </div>
+          );
+        })}
 
-        {/* Demo Bullets */}
         {tutorialBullets.map(bullet => (
           <div
             key={bullet.id}
@@ -469,9 +542,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             style={{
               left: `${bullet.x}px`,
               top: `${bullet.y}px`,
-              cursor: 'default',
+              cursor: "default",
               opacity: 0.9,
-              boxShadow: '0 0 15px rgba(255, 255, 0, 0.6)',
+              boxShadow: "0 0 15px rgba(255, 255, 0, 0.6)",
             }}
           >
             <span className={styles.circleValue}>{bullet.value}</span>
@@ -479,14 +552,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </div>
         ))}
 
-        {/* Tutorial Connections */}
         <svg className={styles.connectionLines}>
-          {tutorialConnections.map((connection) => {
+          {tutorialConnections.map(connection => {
             const fromCircle = tutorialCircles.find(c => c.id === connection.from);
             const toCircle = tutorialCircles.find(c => c.id === connection.to);
-            
             if (!fromCircle || !toCircle) return null;
-            
             return (
               <g key={connection.id}>
                 <line
@@ -501,35 +571,22 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             );
           })}
           <defs>
-            <marker
-              id="arrowhead"
-              markerWidth="8"
-              markerHeight="8"
-              refX="16"
-              refY="4"
-              orient="auto"
-              fill="#fff"
-              stroke="#fff"
-              strokeWidth="0.5"
-            >
+            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="16" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
               <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
             </marker>
           </defs>
         </svg>
 
-        {/* Continue button appears after demo insertion */}
-        {demoStep >= 1 && (
+        {tutorialCircles.length >= 5 && (
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <h2>Perfect!</h2>
-                <p>You can see how the new node was inserted between the head and tail nodes.</p>
-                <p>The connections were automatically updated: Head → New Node → Tail</p>
-                <p>Now let's try it yourself with manual control!</p>
-                <button 
-                  onClick={onContinue}
-                  className={tutorialStyles.tutorialButton}
-                >
+                <h2>Insertion Mastered</h2>
+                <p>
+                  Great shots! You inserted nodes in different positions and kept the list ordered.
+                  Time to apply this skill in the mission.
+                </p>
+                <button className={tutorialStyles.tutorialButton} onClick={onContinue}>
                   Continue
                 </button>
               </div>
@@ -540,211 +597,18 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     );
   }
 
-  if (scene === 'scene3') {
-    const hasInsertedNode = tutorialCircles.some(c => c.isInserted);
-    
+  if (scene === "scene3") {
     return (
       <div className={styles.app}>
-        <video
-          className={styles.videoBackground}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-        >
+        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
           <source src="./video/bubble_bg.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
         </video>
 
-        {/* Tutorial instruction bar */}
-        <div className={tutorialStyles.tutorialInstructionBar}>
-          <h3>Right-click to insert a node. Scroll to change insertion mode!</h3>
-        </div>
+        <div className={tutorialStyles.tutorialOverlay}>
+          <div className={tutorialStyles.tutorialPopup}>
+            <div className={tutorialStyles.tutorialContent}>
+              <h2>Node Insertion - Game Instructions</h2>
 
-        {/* Insertion mode indicator */}
-        <div style={{ 
-          position: 'absolute', 
-          top: 12, 
-          left: 12, 
-          zIndex: 1000, 
-          background: 'rgba(0,0,0,0.8)', 
-          color: '#fff', 
-          padding: '6px 12px', 
-          borderRadius: 12, 
-          fontSize: '14px',
-          fontWeight: 'bold'
-        }}>
-          Insert: {insertionMode === 'left' ? 'Before (←)' : 'After (→)'}
-        </div>
-
-        {/* Cannon */}
-        <div 
-          className={styles.rightSquare} 
-          style={{ 
-            outlineOffset: "5px",
-            transform: `rotate(${cannonAngle}deg)`,
-            transformOrigin: "bottom center"
-          }} 
-        >
-          <div className={styles.cannonCircle}>
-            <span style={{ fontSize: '10px' }}>
-              {cannonCircle.value}
-            </span>
-            <span style={{ fontSize: '8px' }}>
-              {cannonCircle.address}
-            </span>
-          </div>
-        </div>
-
-        {/* Tutorial Circles */}
-        {tutorialCircles.map(circle => (
-          <div
-            key={circle.id}
-            className={styles.animatedCircle}
-            style={{
-              left: `${circle.x - 30}px`,
-              top: `${circle.y - 30}px`,
-              cursor: 'default',
-              opacity: circle.isInserted ? 1 : 0.9,
-              boxShadow: circle.isInserted 
-                ? '0 0 15px rgba(0, 255, 0, 0.6)' 
-                : circle.isHead 
-                  ? '0 0 15px rgba(255, 100, 0, 0.6)'
-                  : circle.isTail 
-                    ? '0 0 15px rgba(0, 100, 255, 0.6)'
-                    : '0 4px 8px rgba(0, 0, 0, 0.3)'
-            }}
-          >
-            <span className={styles.circleValue}>{circle.value}</span>
-            <span className={styles.circleAddress}>{circle.address}</span>
-            
-            {/* Head/Tail labels */}
-            {(circle.isHead || circle.isTail) && (
-              <div 
-                style={{
-                  position: 'absolute',
-                  top: '-25px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: circle.isHead ? '#ff6435' : '#3564ff',
-                  color: 'white',
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  whiteSpace: 'nowrap',
-                  zIndex: 1000
-                }}
-              >
-                {circle.isHead ? 'head' : 'tail'}
-              </div>
-            )}
-          </div>
-        ))}
-
-        {/* Tutorial Bullets */}
-        {tutorialBullets.map(bullet => (
-          <div
-            key={bullet.id}
-            className={styles.animatedCircle}
-            style={{
-              left: `${bullet.x}px`,
-              top: `${bullet.y}px`,
-              cursor: 'default',
-              opacity: 0.9,
-              boxShadow: '0 0 15px rgba(255, 255, 0, 0.6)',
-            }}
-          >
-            <span className={styles.circleValue}>{bullet.value}</span>
-            <span className={styles.circleAddress}>{bullet.address}</span>
-          </div>
-        ))}
-
-        {/* Tutorial Connections */}
-        <svg className={styles.connectionLines}>
-          {tutorialConnections.map((connection) => {
-            const fromCircle = tutorialCircles.find(c => c.id === connection.from);
-            const toCircle = tutorialCircles.find(c => c.id === connection.to);
-            
-            if (!fromCircle || !toCircle) return null;
-            
-            return (
-              <g key={connection.id}>
-                <line
-                  x1={fromCircle.x}
-                  y1={fromCircle.y}
-                  x2={toCircle.x}
-                  y2={toCircle.y}
-                  className={styles.animatedLine}
-                  markerEnd="url(#arrowhead)"
-                />
-              </g>
-            );
-          })}
-          <defs>
-            <marker
-              id="arrowhead"
-              markerWidth="8"
-              markerHeight="8"
-              refX="16"
-              refY="4"
-              orient="auto"
-              fill="#fff"
-              stroke="#fff"
-              strokeWidth="0.5"
-            >
-              <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
-            </marker>
-          </defs>
-        </svg>
-
-        {/* Continue button appears after successful insertion */}
-        {hasInsertedNode && (
-          <div className={tutorialStyles.tutorialOverlay}>
-            <div className={tutorialStyles.tutorialPopup}>
-              <div className={tutorialStyles.tutorialContent}>
-                <h2>Excellent!</h2>
-                <p>You successfully inserted a new node into the existing chain!</p>
-                <p>Notice how the connections automatically updated to include your new node in the sequence.</p>
-                <p>Now you're ready for the real insertion challenges!</p>
-                <button 
-                  onClick={onContinue}
-                  className={tutorialStyles.tutorialButton}
-                >
-                  Start Game
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (scene === 'scene4') {
-    return (
-      <div className={styles.app}>
-        <video
-          className={styles.videoBackground}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-        >
-          <source src="./video/bubble_bg.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-
-        {/* Game Instructions Popup */}
-        <div className={tutorialStyles.gameInstructionsOverlay}>
-          <div className={tutorialStyles.gameInstructionsPopup}>
-            <div className={tutorialStyles.gameInstructionsContent}>
-              <div className={tutorialStyles.gameInstructionsHeader}>
-                <h2>Node Insertion - Game Instructions</h2>
-              </div>
-              
               <div className={tutorialStyles.gameInstructionsBody}>
                 <ul>
                   <li><strong>Objective:</strong> Insert nodes into the existing linked list to match the expected structure</li>
@@ -756,15 +620,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   <li><strong>Portal:</strong> Complete chains get sucked into the portal for validation</li>
                 </ul>
               </div>
-              
-              <div className={tutorialStyles.gameInstructionsFooter}>
-                <button 
-                  onClick={onContinue}
-                  className={tutorialStyles.tutorialButton}
-                >
-                  Continue to Practice
-                </button>
-              </div>
+
+              <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
+                Continue
+              </button>
             </div>
           </div>
         </div>
@@ -774,7 +633,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   return null;
 }
-
 
 TutorialScene.propTypes = {
   scene: PropTypes.string.isRequired,
