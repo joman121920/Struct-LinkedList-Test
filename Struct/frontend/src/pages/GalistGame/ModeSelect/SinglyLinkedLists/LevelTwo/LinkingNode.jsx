@@ -65,6 +65,9 @@ function GalistGameLinkingNode() {
   const [showValidationResult, setShowValidationResult] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [showInstructionPopup, setShowInstructionPopup] = useState(true);
+  // New instruction modal shown after finishing tutorial scene2. Game only starts when
+  // the user clicks Continue inside this modal.
+  const [showInstructionModal, setShowInstructionModal] = useState(false);
 
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
@@ -590,9 +593,10 @@ function GalistGameLinkingNode() {
     // move from intro popup to the hands-on tutorial
     setTutorialScene("scene2");
   } else if (tutorialScene === "scene2") {
-    // user finished the scene-2 tutorial: close tutorial and start the real game
+    // user finished the scene-2 tutorial: show the instruction modal first.
+    // The actual game will only start when the user clicks Continue inside that modal.
     setShowInstructionPopup(false);
-    startExercise();
+    setShowInstructionModal(true);
     // reset tutorial scene state so reopening tutorial starts at beginning
     setTutorialScene("scene1");
   } else if (tutorialScene === "scene3") {
@@ -605,6 +609,13 @@ function GalistGameLinkingNode() {
     setTutorialScene("scene1");
   }
 }, [tutorialScene, startExercise]);
+
+  // Handler for when user clicks Continue on the instruction modal: start the game.
+  const handleInstructionModalStart = useCallback(() => {
+    setShowInstructionModal(false);
+    // Ensure exercise is initialized and timer started
+    startExercise();
+  }, [startExercise]);
 
 
 
@@ -1654,8 +1665,8 @@ function GalistGameLinkingNode() {
         Your browser does not support the video tag.
       </video>
 
-      {/* Countdown timer (top right) - HIDE DURING TUTORIAL */}
-      {!showInstructionPopup && (
+      {/* Countdown timer (top right) - HIDE DURING TUTORIAL and when instruction modal is open */}
+      {!showInstructionPopup && !showInstructionModal && (
         <div className={styles.exerciseProgressIndicator}>
           {formatTime(timerSeconds)}
         </div>
@@ -1686,8 +1697,8 @@ function GalistGameLinkingNode() {
         </div>
       )}
 
-      {/* Expected results bar */}
-      {currentExercise && currentExercise.expectedStructure && (
+      {/* Expected results bar (hidden during tutorial or instruction modal) */}
+      {currentExercise && currentExercise.expectedStructure && !showInstructionPopup && !showInstructionModal && (
         <div className={styles.expectedBarWrapper}>
           <table className={styles.expectedBarTable}>
             <tbody>
@@ -1723,6 +1734,37 @@ function GalistGameLinkingNode() {
         onContinue={handleTutorialContinue}
       />
     )}
+
+      {/* Instruction modal shown once after tutorial scene2 Continue */}
+      {showInstructionModal && (
+        <div className={styles.popupOverlay}>
+          <div
+            className={styles.instructionModalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className={styles.instructionTitle}>Game Instruction</h2>
+            <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
+              <ul className={styles.instructionList}>
+                <li><strong>Objective:</strong> Meet the expected linked list</li>
+                <li><strong>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets, To change the bullets, Click the circle at the middle of the cannon.</li>
+                <li><strong>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
+                <li><strong>Scoring:</strong> Earn points for each successful node creation</li>
+                <li><strong>Obstacles:</strong> Watch out for the black hole, freshly created node that collides with it will be destroyed!</li>
+                <li><strong>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
+              </ul>
+            </div>
+
+            <div className={styles.instructionButtonWrapper}>
+              <button
+                onClick={handleInstructionModalStart}
+                className={styles.instructionContinueBtn}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Portal particles for vacuum effect */}
       <PortalParticles 
@@ -1838,8 +1880,8 @@ function GalistGameLinkingNode() {
         );
       })}
 
-      {/* Black holes for challenge - HIDE DURING TUTORIAL */}
-      {!showInstructionPopup && blackHoles.map((blackHole) => (
+      {/* Black holes for challenge - HIDE DURING TUTORIAL or instruction modal */}
+      {!showInstructionPopup && !showInstructionModal && blackHoles.map((blackHole) => (
         <div
           key={blackHole.id}
           style={{

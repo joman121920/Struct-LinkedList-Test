@@ -81,7 +81,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     if (instructionStep === 0) {
       // Initial typewriter effect
       let currentIdx = 0;
-      const totalDuration = 4000;
+      const totalDuration = 3000;
       const intervalTime = totalDuration / instructionText.length;
       setTypedInstruction("");
       interval = setInterval(() => {
