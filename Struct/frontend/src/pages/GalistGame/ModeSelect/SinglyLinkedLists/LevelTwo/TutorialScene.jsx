@@ -116,55 +116,70 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   }, [scene]);
 
     // Typewriting effect for instruction bar (scene2)
-    const instructionText = "The first node in a linked list is called the head. If it’s the only node, it also acts as the tail.";
-    const secondText = "Shoot the node to see what happens.";
+  const instructionText = "The first node in a linked list is called the head. If it’s the only node, it also acts as the tail.";
+  const secondText = "Shoot the node to see what happens.";
+  const collisionText = "A new node is added. The tail now points to this node, making it the end of the list.";
+  const nextText = "Now add another node. Watch how the list grows longer.";
   const [typedInstruction, setTypedInstruction] = useState("");
-  const [nodeAdded, setNodeAdded] = useState(false);
-    useEffect(() => {
-      if (scene !== 'scene2') {
-        setTypedInstruction("");
-        setNodeAdded(false);
-        return;
-      }
-      if (nodeAdded) {
-        // Typing effect for collision instruction
-        const collisionText = "A new node is added. The tail now points to this node, making it the end of the list.";
-        let idx = 0;
-        setTypedInstruction("");
-        const interval = setInterval(() => {
-          idx++;
-          setTypedInstruction(collisionText.slice(0, idx));
-          if (idx >= collisionText.length) {
-            clearInterval(interval);
-          }
-        }, 2000 / collisionText.length); // 2 seconds total duration
-        return () => clearInterval(interval);
-      }
+  const [instructionStep, setInstructionStep] = useState(0); // 0: initial, 1: secondText, 2: collision, 3: prompt add another
+  useEffect(() => {
+    if (scene !== 'scene2') {
+      setTypedInstruction("");
+      setInstructionStep(0);
+      return;
+    }
+    let interval;
+    if (instructionStep === 0) {
+      // Initial typewriter effect
       let currentIdx = 0;
       const totalDuration = 4000;
       const intervalTime = totalDuration / instructionText.length;
       setTypedInstruction("");
-      let interval = setInterval(() => {
+      interval = setInterval(() => {
         currentIdx++;
         setTypedInstruction(instructionText.slice(0, currentIdx));
         if (currentIdx >= instructionText.length) {
           clearInterval(interval);
-          setTimeout(() => {
-            let secondIdx = 0;
-            const secondDuration = 2000;
-            const secondIntervalTime = secondDuration / secondText.length;
-            interval = setInterval(() => {
-              secondIdx++;
-              setTypedInstruction(secondText.slice(0, secondIdx));
-              if (secondIdx >= secondText.length) {
-                clearInterval(interval);
-              }
-            }, secondIntervalTime);
-          }, 3000);
+          setTimeout(() => setInstructionStep(1), 2000);
         }
       }, intervalTime);
-      return () => clearInterval(interval);
-    }, [scene, nodeAdded]);
+    } else if (instructionStep === 1) {
+      // Second text typewriter effect
+      let idx = 0;
+      setTypedInstruction("");
+      interval = setInterval(() => {
+        idx++;
+        setTypedInstruction(secondText.slice(0, idx));
+        if (idx >= secondText.length) {
+          clearInterval(interval);
+        }
+      }, 2000 / secondText.length);
+    } else if (instructionStep === 2) {
+      // Collision text typewriter effect
+      let idx = 0;
+      setTypedInstruction("");
+      interval = setInterval(() => {
+        idx++;
+        setTypedInstruction(collisionText.slice(0, idx));
+        if (idx >= collisionText.length) {
+          clearInterval(interval);
+          setTimeout(() => setInstructionStep(3), 2000);
+        }
+      }, 2000 / collisionText.length);
+    } else if (instructionStep === 3) {
+      // Prompt to add another node
+      let idx = 0;
+      setTypedInstruction("");
+      interval = setInterval(() => {
+        idx++;
+        setTypedInstruction(nextText.slice(0, idx));
+        if (idx >= nextText.length) {
+          clearInterval(interval);
+        }
+      }, 2000 / nextText.length);
+    }
+    return () => clearInterval(interval);
+  }, [scene, instructionStep]);
   // State for tutorial circles and connections
   const [tutorialCircles, setTutorialCircles] = useState([]);
   const [tutorialConnections, setTutorialConnections] = useState([]);
@@ -233,8 +248,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             newY = Math.max(0, Math.min(window.innerHeight - 60, newY));
           }
           const updatedBullet = { ...bullet, x: newX, y: newY, velocityX: newVelocityX, velocityY: newVelocityY };
-          const headNode = tutorialCirclesRef.current[0];
-          if (headNode) {
+          // Head node collision (first addition)
+          if (tutorialCirclesRef.current.length === 1) {
+            const headNode = tutorialCirclesRef.current[0];
             const dx = updatedBullet.x - headNode.x;
             const dy = updatedBullet.y - headNode.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -261,12 +277,52 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 };
                 return [
                   updatedHead,
-                  ...prevCircles.slice(1),
                   newCircle
                 ];
               });
-              setNodeAdded(true);
+              setInstructionStep(2); // Show collision text only after hit
               setTutorialConnections([{ id: `conn_${Date.now()}`, from: headNode.id, to: newCircle.id }]);
+              onValueShoot?.('collision');
+            }
+          } else if (tutorialCirclesRef.current.length > 1) {
+            // Tail node collision (repeated addition)
+            const tailIdx = tutorialCirclesRef.current.length - 1;
+            const tailNode = tutorialCirclesRef.current[tailIdx];
+            const dx = updatedBullet.x - tailNode.x;
+            const dy = updatedBullet.y - tailNode.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 70 && !didConnect) {
+              didConnect = true;
+              const amplify = 0.5;
+              const retain = 0.7;
+              const newCircle = {
+                id: `inserted_${Date.now()}`,
+                x: tailNode.x + 100,
+                y: tailNode.y,
+                value: bullet.value,
+                address: bullet.address,
+                velocityX: updatedBullet.velocityX * retain,
+                velocityY: updatedBullet.velocityY * retain,
+                isLaunched: true,
+                launchTime: Date.now()
+              };
+              setTutorialCircles(prevCircles => {
+                const updatedTail = {
+                  ...prevCircles[tailIdx],
+                  velocityX: updatedBullet.velocityX * amplify,
+                  velocityY: updatedBullet.velocityY * amplify
+                };
+                return [
+                  ...prevCircles.slice(0, tailIdx),
+                  updatedTail,
+                  newCircle
+                ];
+              });
+              setTutorialConnections(prevConns => [
+                ...prevConns,
+                { id: `conn_${Date.now()}`, from: tailNode.id, to: newCircle.id }
+              ]);
+              setInstructionStep(3); // Show prompt after repeated addition
               onValueShoot?.('collision');
             }
           }
@@ -499,11 +555,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         {/* Tutorial Circles with floating and label */}
         {tutorialCircles.map((circle, idx) => {
           let label = null;
-          if (tutorialCircles.length === 1 && idx === 0) {
+          const len = tutorialCircles.length;
+          if (len === 1 && idx === 0) {
             label = 'Head/Tail';
-          } else if (tutorialCircles.length === 2) {
+          } else if (len === 2) {
             if (idx === 0) label = 'Head';
             if (idx === 1) label = 'Tail';
+          } else if (len > 2) {
+            if (idx === 0) label = 'Head';
+            if (idx === len - 1) label = 'Tail';
           }
           return (
             <div
