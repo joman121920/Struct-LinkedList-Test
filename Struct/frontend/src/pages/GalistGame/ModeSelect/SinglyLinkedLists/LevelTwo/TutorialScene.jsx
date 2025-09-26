@@ -716,7 +716,26 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </defs>
         </svg>
 
-        
+        {/* Modal for 5 or more nodes */}
+        {tutorialCircles.length >= 5 && (
+          <div className={tutorialStyles.tutorialOverlay}>
+            <div className={tutorialStyles.tutorialPopup}>
+              <div className={tutorialStyles.tutorialContent}>
+                <h2>Perfect</h2>
+                <p>
+                  You’ve built a linked list with multiple nodes! Notice how the head stays at the start, and the tail always points to the newest node.<br /><br />
+                  Now, let’s put your skills to the test in the next challenge!
+                </p>
+                <button
+                  className={tutorialStyles.tutorialButton}
+                  onClick={onContinue}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

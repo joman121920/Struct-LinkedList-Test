@@ -587,16 +587,22 @@ function GalistGameLinkingNode() {
 
   const handleTutorialContinue = useCallback(() => {
   if (tutorialScene === "scene1") {
+    // move from intro popup to the hands-on tutorial
     setTutorialScene("scene2");
   } else if (tutorialScene === "scene2") {
-    setTutorialScene("scene3"); 
-  } else if (tutorialScene === "scene3") {
-    setTutorialScene("scene4"); 
-  } else {
-    // scene3 -> start game
+    // user finished the scene-2 tutorial: close tutorial and start the real game
     setShowInstructionPopup(false);
     startExercise();
-    setTutorialScene("scene1"); 
+    // reset tutorial scene state so reopening tutorial starts at beginning
+    setTutorialScene("scene1");
+  } else if (tutorialScene === "scene3") {
+    // keep existing flow for deeper tutorial steps
+    setTutorialScene("scene4");
+  } else {
+    // fallback: start the game
+    setShowInstructionPopup(false);
+    startExercise();
+    setTutorialScene("scene1");
   }
 }, [tutorialScene, startExercise]);
 
