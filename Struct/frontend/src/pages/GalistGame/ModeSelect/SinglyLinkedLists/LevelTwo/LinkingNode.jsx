@@ -1557,7 +1557,7 @@ function GalistGameLinkingNode() {
 
   // Countdown effect
   useEffect(() => {
-    if (!timerRunning) return;
+    if (showInstructionPopup || !timerRunning) return;
     const tick = () => {
       setTimerSeconds((s) => {
         if (s <= 1) {
@@ -1571,7 +1571,7 @@ function GalistGameLinkingNode() {
     };
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [timerRunning]);
+  }, [timerRunning, showInstructionPopup]);
 
   const handleRetry = useCallback(() => {
     // Reset runtime state but keep tutorial hidden
@@ -1602,20 +1602,36 @@ function GalistGameLinkingNode() {
     setCurrentExercise(exercise);
   }, [exerciseKey]);
 
-  // Black hole repositioning timer - every 20 seconds
+  // Black hole repositioning timer - every 20 seconds (DISABLED DURING TUTORIAL)
   useEffect(() => {
+    if (showInstructionPopup) {
+      setBlackHoles([]);
+      return;
+    }
     const repositionBlackHoles = () => {
       setBlackHoles(generateBlackHoles());
     };
-
-    // Initial positioning
     repositionBlackHoles();
-
-    // Set up interval for repositioning every 20 seconds
-    const interval = setInterval(repositionBlackHoles, Math.random() * 5000 + 5000); // Random interval between 5-10 seconds
-
+    const interval = setInterval(repositionBlackHoles, Math.random() * 5000 + 5000);
     return () => clearInterval(interval);
-  }, [generateBlackHoles]); // Include generateBlackHoles dependency
+  }, [generateBlackHoles, showInstructionPopup]);
+
+  // Countdown effect (DISABLED DURING TUTORIAL)
+  useEffect(() => {
+    if (showInstructionPopup || !timerRunning) return;
+    const tick = () => {
+      setTimerSeconds((s) => {
+        if (s <= 1) {
+          setTimerRunning(false);
+          setShowMissionFailed(true);
+          return 0;
+        }
+        return s - 1;
+      });
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [timerRunning, showInstructionPopup]);
 
   return (
     <div className={styles.app}>
@@ -1632,14 +1648,15 @@ function GalistGameLinkingNode() {
         Your browser does not support the video tag.
       </video>
 
-      
+      {/* Countdown timer (top right) - HIDE DURING TUTORIAL */}
+      {!showInstructionPopup && (
+        <div className={styles.exerciseProgressIndicator}>
+          {formatTime(timerSeconds)}
+        </div>
+      )}
 
-      {/* Countdown timer (top right) */}
-      <div className={styles.exerciseProgressIndicator}>
-        {formatTime(timerSeconds)}
-      </div>
-
-      {showMissionFailed && (
+      {/* Mission Failed - HIDE DURING TUTORIAL */}
+      {!showInstructionPopup && showMissionFailed && (
         <div className={styles.popupOverlay}>
           <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
             <h2 style={{ color: '#ff6bff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
@@ -1815,8 +1832,8 @@ function GalistGameLinkingNode() {
         );
       })}
 
-      {/* Black holes for challenge */}
-      {blackHoles.map((blackHole) => (
+      {/* Black holes for challenge - HIDE DURING TUTORIAL */}
+      {!showInstructionPopup && blackHoles.map((blackHole) => (
         <div
           key={blackHole.id}
           style={{
@@ -1938,6 +1955,7 @@ function GalistGameLinkingNode() {
                           <React.Fragment
                             key={`expected-${expectedNode.value}`}
                           >
+
                             <td className={styles.expectedCell}>
                               <div className={styles.expectedValue}>
                                 {expectedNode.value}

@@ -70,7 +70,7 @@
   font-size: 18px;
   font-weight: 600;
   z-index: 100;
-  border: 2px solid #f609e2;
+  text-align: center;
 }
 
 .tutorialInstructionBar h3 {
