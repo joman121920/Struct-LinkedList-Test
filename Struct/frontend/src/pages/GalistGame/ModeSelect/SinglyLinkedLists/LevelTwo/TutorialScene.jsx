@@ -422,21 +422,27 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const velocityY = -Math.cos(angleRad) * launchSpeed;
 
     // Create new bullet with cannon values
-    const newBullet = {
-      id: Date.now(),
-      x: tipX - 30,
-      y: tipY - 30,
-      value: cannonCircle.value,
-      address: cannonCircle.address,
-      velocityX: velocityX,
-      velocityY: velocityY,
-      isBullet: true,
-      connected: false,
-      isLaunched: true,
-    };
+      // Generate random value and address for each bullet (scene2 requirement)
+      const addressTypes = ['aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg', 'hh', 'ii', 'jj'];
+      const numbers = ['10', '20', '30', '40', '50', '60', '70', '80', '90'];
+      const randomValue = Math.floor(Math.random() * 100) + 1;
+      const randomAddress = addressTypes[Math.floor(Math.random() * addressTypes.length)] + numbers[Math.floor(Math.random() * numbers.length)];
+
+      const newBullet = {
+        id: Date.now(),
+        x: tipX - 30,
+        y: tipY - 30,
+        value: randomValue.toString(),
+        address: randomAddress,
+        velocityX: velocityX,
+        velocityY: velocityY,
+        isBullet: true,
+        connected: false,
+        isLaunched: true,
+      };
 
     setTutorialBullets(prev => [...prev, newBullet]);
-  }, [scene, cannonAngle, cannonCircle]);
+  }, [scene, cannonAngle]);
 
   // Bullet animation and collision detection for tutorial (scene3, smooth)
   useEffect(() => {
@@ -553,9 +559,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           <div className={tutorialStyles.tutorialPopup}>
             <div className={tutorialStyles.tutorialContent}>
               <h2>Welcome to Linking Nodes!</h2>
-              <p>In this level, you will learn how to connect nodes together to form a linked list.</p>
-              <p>When two nodes collide, they automatically link together, creating a chain of connected data.</p>
-              <p>Your goal is to create the exact linked list structure shown in the expected results.</p>
+              <p>In linked lists, each node connects to the next through a pointer, forming a chain that grows as new nodes are added.</p>
+              <p>Let&apos;s link your nodes together and see how chains are formed!</p>
               <button 
                 onClick={onContinue}
                 className={tutorialStyles.tutorialButton}
