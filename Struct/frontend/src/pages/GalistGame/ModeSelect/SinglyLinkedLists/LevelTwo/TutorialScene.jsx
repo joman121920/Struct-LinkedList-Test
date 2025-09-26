@@ -1,4 +1,4 @@
-  // Floating mechanism for tutorial circles (scene2 only)
+
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { collisionDetection } from "../../../CollisionDetection";
@@ -8,107 +8,56 @@ import tutorialStyles from "./TutorialScene.module.css";
 
 // Tutorial Scene Component for Linking Nodes
 function TutorialScene({ scene, onContinue, onValueShoot }) {
-    useEffect(() => {
-    if (scene !== 'scene2') return;
-    const interval = setInterval(() => {
-      setTutorialCircles(prevCircles => {
-        return prevCircles.map((circle, idx) => {
-          // Only float the initial head node
-          if (idx === 0) {
-            // Initialize gentle floating if not already set
-            if (!circle.floatVelocityX || !circle.floatVelocityY) {
-              const angle = Math.random() * 2 * Math.PI;
-              const speed = 0.7 + Math.random() * 0.5; // Increased speed
-              circle.floatVelocityX = Math.cos(angle) * speed;
-              circle.floatVelocityY = Math.sin(angle) * speed;
-            }
-            // Apply gentle floating movement
-            let newX = circle.x + circle.floatVelocityX;
-            let newY = circle.y + circle.floatVelocityY;
-            let newFloatVelocityX = circle.floatVelocityX;
-            let newFloatVelocityY = circle.floatVelocityY;
-            if (newX <= 30 || newX >= window.innerWidth - 30) {
-              newFloatVelocityX = -newFloatVelocityX;
-            }
-            if (newY <= 30 || newY >= window.innerHeight - 30) {
-              newFloatVelocityY = -newFloatVelocityY;
-            }
-            newX = Math.max(30, Math.min(window.innerWidth - 30, newX));
-            newY = Math.max(30, Math.min(window.innerHeight - 30, newY));
-            return {
-              ...circle,
-              x: newX,
-              y: newY,
-              floatVelocityX: newFloatVelocityX,
-              floatVelocityY: newFloatVelocityY
-            };
-          }
-          return circle;
-        });
-      });
-    }, 16);
-    return () => clearInterval(interval);
-  }, [scene]);
-  // Floating mechanism for tutorial circles (scene2 only)
+  // Consolidated floating mechanism for tutorial circles (scene2 only)
   useEffect(() => {
     if (scene !== 'scene2') return;
     const interval = setInterval(() => {
       setTutorialCircles(prevCircles => {
-        return prevCircles.map((circle, idx) => {
-          // Only float the initial head node
-          if (idx === 0) {
-            // Initialize gentle floating if not already set
-            if (!circle.floatVelocityX || !circle.floatVelocityY) {
-              const angle = Math.random() * 2 * Math.PI;
-              const speed = 0.2 + Math.random() * 0.3;
-              circle.floatVelocityX = Math.cos(angle) * speed;
-              circle.floatVelocityY = Math.sin(angle) * speed;
-            }
-            // Apply gentle floating movement
-            let newX = circle.x + circle.floatVelocityX;
-            let newY = circle.y + circle.floatVelocityY;
-            let newFloatVelocityX = circle.floatVelocityX;
-            let newFloatVelocityY = circle.floatVelocityY;
-            if (newX <= 30 || newX >= window.innerWidth - 30) {
-              newFloatVelocityX = -newFloatVelocityX;
-            }
-            if (newY <= 30 || newY >= window.innerHeight - 30) {
-              newFloatVelocityY = -newFloatVelocityY;
-            }
-            newX = Math.max(30, Math.min(window.innerWidth - 30, newX));
-            newY = Math.max(30, Math.min(window.innerHeight - 30, newY));
-            return {
-              ...circle,
-              x: newX,
-              y: newY,
-              floatVelocityX: newFloatVelocityX,
-              floatVelocityY: newFloatVelocityY
-            };
+        return prevCircles.map((circle) => {
+          // Ensure every circle has a gentle float velocity so it never becomes static
+          let floatVx = circle.floatVelocityX;
+          let floatVy = circle.floatVelocityY;
+          if (floatVx === undefined || floatVy === undefined) {
+            const angle = Math.random() * 2 * Math.PI;
+            const speed = 0.2 + Math.random() * 0.5; // enough to keep motion
+            floatVx = Math.cos(angle) * speed;
+            floatVy = Math.sin(angle) * speed;
           }
-          // Nudge and bounce effect for the new node (scene2 only)
-          if (scene === 'scene2' && circle.isLaunched && Math.abs(circle.velocityX) > 0.1) {
-            const friction = 0.85;
-            let velocityX = circle.velocityX * friction;
-            let newX = circle.x + velocityX;
-            // Bounce off the initial node if close
-            const headNode = prevCircles[0];
-            if (headNode) {
-              const dx = newX - headNode.x;
-              const dy = circle.y - headNode.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-              if (distance < 60 && Math.abs(velocityX) > 1) {
-                velocityX = -velocityX * 0.7; // reverse and dampen velocity
-                newX = circle.x + velocityX;
-              }
-            }
-            if (Math.abs(velocityX) < 0.1) velocityX = 0;
-            return {
-              ...circle,
-              x: newX,
-              velocityX
-            };
+
+          // Apply float to position
+          let newX = circle.x + floatVx;
+          let newY = circle.y + floatVy;
+          let newFloatVx = floatVx;
+          let newFloatVy = floatVy;
+          if (newX <= 30 || newX >= window.innerWidth - 30) newFloatVx = -newFloatVx;
+          if (newY <= 30 || newY >= window.innerHeight - 30) newFloatVy = -newFloatVy;
+          newX = Math.max(30, Math.min(window.innerWidth - 30, newX));
+          newY = Math.max(30, Math.min(window.innerHeight - 30, newY));
+
+          // Keep launched nodes moving: if their velocity decays near zero, add a small impulse from float
+          let vx = circle.velocityX || 0;
+          let vy = circle.velocityY || 0;
+          const speedMag = Math.sqrt(vx * vx + vy * vy);
+          const minSpeed = 0.15;
+          if (circle.isLaunched && speedMag < minSpeed) {
+            // inject a small consistent impulse so nodes don't become static
+            vx += newFloatVx * 0.6;
+            vy += newFloatVy * 0.6;
+          } else {
+            // gentle damping so motion decays slowly
+            vx *= 0.99;
+            vy *= 0.99;
           }
-          return circle;
+
+          return {
+            ...circle,
+            x: newX,
+            y: newY,
+            floatVelocityX: newFloatVx,
+            floatVelocityY: newFloatVy,
+            velocityX: vx,
+            velocityY: vy
+          };
         });
       });
     }, 16);
@@ -187,6 +136,26 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [cannonCircle, setCannonCircle] = useState({ value: "42", address: "aa10" });
   const [tutorialBullets, setTutorialBullets] = useState([]);
   const tutorialCirclesRef = useRef([]);
+
+
+  // Central expiry interval: scan for unlinked nodes older than 3s and remove instantly
+  useEffect(() => {
+    if (scene !== 'scene2') return;
+    const interval = setInterval(() => {
+      setTutorialCircles(prev => {
+        const now = Date.now();
+        const filtered = prev.filter(circle => {
+           const isLinked = tutorialConnections.some(conn => conn.from === circle.id || conn.to === circle.id);
+          if (circle.isLaunched && !isLinked && now - (circle.launchTime || 0) > 3000) {
+            return false;
+          }
+          return true;
+        });
+        return filtered;
+      });
+    }, 200); // check 5x per second for instant removal
+    return () => clearInterval(interval);
+  }, [scene, tutorialConnections]);
   
   // Update ref whenever tutorial circles change
   useEffect(() => {
@@ -258,16 +227,24 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               didConnect = true;
               const amplify = 0.5;
               const retain = 0.7;
+              // Place the new node along the approach vector so it doesn't overlap and stick
+              const approachNorm = Math.max(0.0001, Math.sqrt(dx * dx + dy * dy));
+              const offset = 60; // place new node just outside collision radius
+              const nx = dx / approachNorm;
+              const ny = dy / approachNorm;
+              const newX = headNode.x + nx * offset;
+              const newY = headNode.y + ny * offset;
               const newCircle = {
                 id: `inserted_${Date.now()}`,
-                x: headNode.x + 100,
-                y: headNode.y,
+                x: newX,
+                y: newY,
                 value: bullet.value,
                 address: bullet.address,
-                velocityX: updatedBullet.velocityX * retain,
-                velocityY: updatedBullet.velocityY * retain,
+                velocityX: updatedBullet.velocityX * retain + nx * 2,
+                velocityY: updatedBullet.velocityY * retain + ny * 2,
                 isLaunched: true,
-                launchTime: Date.now()
+                launchTime: Date.now(),
+                connected: true // Mark as connected
               };
               setTutorialCircles(prevCircles => {
                 const updatedHead = {
@@ -275,11 +252,41 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   velocityX: updatedBullet.velocityX * amplify,
                   velocityY: updatedBullet.velocityY * amplify
                 };
-                return [
-                  updatedHead,
-                  newCircle
-                ];
+                let arr = [updatedHead, newCircle];
+                // Immediate separation pass for adjacent nodes to avoid overlap/sticking
+                const minDist = 60;
+                for (let i = 0; i < arr.length - 1; i++) {
+                  const a = arr[i];
+                  const b = arr[i + 1];
+                  let dx = b.x - a.x;
+                  let dy = b.y - a.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+                  if (dist < minDist) {
+                    const overlap = (minDist - dist) + 4; // stronger push to avoid sticking
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    // Move them apart equally
+                    a.x -= nx * (overlap / 2);
+                    a.y -= ny * (overlap / 2);
+                    b.x += nx * (overlap / 2);
+                    b.y += ny * (overlap / 2);
+                    // Stronger nudge velocities so they separate and bounce
+                    a.velocityX = (a.velocityX || 0) - nx * 1.2;
+                    a.velocityY = (a.velocityY || 0) - ny * 1.2;
+                    b.velocityX = (b.velocityX || 0) + nx * 1.2;
+                    b.velocityY = (b.velocityY || 0) + ny * 1.2;
+                  }
+                }
+                // Run the physics solver immediately so the pair will bounce/separate this frame
+                try {
+                  const solved = collisionDetection.updatePhysics(arr);
+                  return solved;
+                } catch {
+                  // Fallback: return the manually adjusted array if solver fails
+                  return arr;
+                }
               });
+              // No expiry call needed; central interval handles removal
               setInstructionStep(2); // Show collision text only after hit
               setTutorialConnections([{ id: `conn_${Date.now()}`, from: headNode.id, to: newCircle.id }]);
               onValueShoot?.('collision');
@@ -295,16 +302,24 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               didConnect = true;
               const amplify = 0.5;
               const retain = 0.7;
+              // Place the new node along the approach vector so it doesn't overlap and stick
+              const approachNorm = Math.max(0.0001, Math.sqrt(dx * dx + dy * dy));
+              const offset = 60;
+              const nx = dx / approachNorm;
+              const ny = dy / approachNorm;
+              const newX = tailNode.x + nx * offset;
+              const newY = tailNode.y + ny * offset;
               const newCircle = {
                 id: `inserted_${Date.now()}`,
-                x: tailNode.x + 100,
-                y: tailNode.y,
+                x: newX,
+                y: newY,
                 value: bullet.value,
                 address: bullet.address,
-                velocityX: updatedBullet.velocityX * retain,
-                velocityY: updatedBullet.velocityY * retain,
+                velocityX: updatedBullet.velocityX * retain + nx * 2,
+                velocityY: updatedBullet.velocityY * retain + ny * 2,
                 isLaunched: true,
-                launchTime: Date.now()
+                launchTime: Date.now(),
+                connected: true // Mark as connected
               };
               setTutorialCircles(prevCircles => {
                 const updatedTail = {
@@ -312,12 +327,42 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   velocityX: updatedBullet.velocityX * amplify,
                   velocityY: updatedBullet.velocityY * amplify
                 };
-                return [
+                let arr = [
                   ...prevCircles.slice(0, tailIdx),
                   updatedTail,
                   newCircle
                 ];
+                // Immediate separation pass for adjacent nodes to avoid overlap/sticking
+                const minDist = 60;
+                for (let i = 0; i < arr.length - 1; i++) {
+                  const a = arr[i];
+                  const b = arr[i + 1];
+                  let dx = b.x - a.x;
+                  let dy = b.y - a.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+                  if (dist < minDist) {
+                    const overlap = (minDist - dist) + 4;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    a.x -= nx * (overlap / 2);
+                    a.y -= ny * (overlap / 2);
+                    b.x += nx * (overlap / 2);
+                    b.y += ny * (overlap / 2);
+                    a.velocityX = (a.velocityX || 0) - nx * 1.2;
+                    a.velocityY = (a.velocityY || 0) - ny * 1.2;
+                    b.velocityX = (b.velocityX || 0) + nx * 1.2;
+                    b.velocityY = (b.velocityY || 0) + ny * 1.2;
+                  }
+                }
+                // Run the physics solver immediately so the pair will bounce/separate this frame
+                try {
+                  const solved = collisionDetection.updatePhysics(arr);
+                  return solved;
+                } catch {
+                  return arr;
+                }
               });
+              // No expiry call needed; central interval handles removal
               setTutorialConnections(prevConns => [
                 ...prevConns,
                 { id: `conn_${Date.now()}`, from: tailNode.id, to: newCircle.id }
@@ -334,10 +379,20 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       });
       // After bullet animation, apply collisionDetection to all tutorial circles for bouncing
       setTutorialCircles(prevCircles => {
-        if (prevCircles.length > 1) {
-          return collisionDetection.updatePhysics(prevCircles);
+        // Remove orphaned nodes after 3 seconds
+        const now = Date.now();
+        const filtered = prevCircles.filter(circle => {
+          // Remove node if it is launched, not connected, and older than 3 seconds
+          if (circle.isLaunched && (!circle.connected || circle.connected === false) && now - (circle.launchTime || 0) > 3000) {
+            return false;
+          }
+          return true;
+        });
+        // Update physics for remaining nodes
+        if (filtered.length > 1) {
+          return collisionDetection.updatePhysics(filtered);
         }
-        return prevCircles;
+        return filtered;
       });
       animationFrameId = requestAnimationFrame(animate);
     };
@@ -376,6 +431,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       velocityX: velocityX,
       velocityY: velocityY,
       isBullet: true,
+      connected: false,
       isLaunched: true,
     };
 
@@ -422,9 +478,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 address: bullet.address,
                 velocityX: 0,
                 velocityY: 0,
+                connected: true,
                 isLaunched: false
               };
               setTutorialCircles(prevCircles => [...prevCircles, newCircle]);
+              // expiry handled by central interval
               setTutorialConnections(prevConns => [
                 ...prevConns,
                 {
