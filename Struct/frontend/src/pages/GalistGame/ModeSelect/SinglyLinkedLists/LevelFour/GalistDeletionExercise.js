@@ -16,7 +16,7 @@ const exerciseDefinitions = {
     // Multi-stage format: each stage has a target and expected result after that deletion
     stages: [
       {
-        target: { type: "head" }, // First target is head
+        target: { type: "head" }, // Stage 1: delete head (10) via adjacency of its next two nodes
         expectedStructure: [
           { value: "25", address: "x2c" },
           { value: "33", address: "f9d" },
@@ -25,18 +25,20 @@ const exerciseDefinitions = {
         ],
       },
       {
-        target: { type: "tail" }, // Second target is tail of remaining list
+        // Stage 2: delete middle node 33 by connecting 25 and 42 (distance > 1 deletes strictly between)
+        target: { type: "value", value: "33" },
         expectedStructure: [
           { value: "25", address: "x2c" },
-          { value: "33", address: "f9d" },
           { value: "42", address: "k5m" },
+          { value: "58", address: "p9r" },
         ],
       },
       {
-        target: { type: "value", value: "33" }, // Third target is specific value
+        // Stage 3: delete middle node 42 by connecting 25 and 58 (distance > 1 deletes 42)
+        target: { type: "value", value: "42" },
         expectedStructure: [
           { value: "25", address: "x2c" },
-          { value: "42", address: "k5m" },
+          { value: "58", address: "p9r" },
         ],
       },
     ],
