@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 
 import styles from "./GalistDeletion.module.css";
 import { ExerciseManager } from "./GalistDeletionExercise.js";
@@ -6,6 +7,7 @@ import TutorialScene from "./TutorialScene.jsx";
 
 // Main Game Component (your existing game)
 function MainGameComponent() {
+  const navigate = useNavigate();
   const entryOrderRef = useRef([]);
   const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
   // Track which exercise is active
@@ -49,6 +51,12 @@ function MainGameComponent() {
   const [activatedNodes, setActivatedNodes] = useState(new Set());
   // Track player-created connections
   const [playerConnections, setPlayerConnections] = useState([]);
+
+  // Level completion UI states
+  const [showLevelCompletion, setShowLevelCompletion] = useState(false);
+  const [completedLevelKey, setCompletedLevelKey] = useState(null);
+  const [allLevelsComplete, setAllLevelsComplete] = useState(false);
+  const nextLevelTimerRef = useRef(null); // manage auto transition timer
 
   // Update ref whenever floating circles change
   useEffect(() => {
@@ -139,6 +147,39 @@ function MainGameComponent() {
   );
 
   // Validation function removed; immediate deletion now drives gameplay.
+
+  // Define loadExercise BEFORE createPlayerConnection to avoid temporal dead zone when referenced inside callbacks.
+  const loadExercise = useCallback((key = "level_1") => {
+    setCircles([]);
+    setConnections([]);
+    setSuckingCircles([]);
+    if (entryOrderRef) entryOrderRef.current = [];
+    if (suckedCirclesRef) suckedCirclesRef.current = [];
+    setShowValidationResult(false);
+    setPlayerConnections([]);
+    setActivatedNodes(new Set());
+    setBulletHitSequences(new Map());
+    pendingValidationRef.current = null;
+    correctHitRef.current = false;
+    // FULL RESET for (re)starting a level or replaying from start
+    // Clear any persisted deletion metadata so a replay shows the original full list
+    if (deletedNodeKeysRef?.current) {
+      deletedNodeKeysRef.current.clear();
+    }
+    // Clear manager-level deletedNodes so augmentation recalculates from a pristine list
+    if (exerciseManagerRef.current) {
+      exerciseManagerRef.current.deletedNodes = [];
+    }
+    // Reset passive auto-advance sentinel so first stage can advance normally later
+    lastAutoAdvanceRef.current = { level: null, stage: -1 };
+    // Clear floating circles explicitly so generation hook repopulates with fresh node objects
+    setFloatingCircles([]);
+    const exercise = exerciseManagerRef.current.loadExercise(key);
+    setCurrentExercise(exercise);
+    setStageProgress(exerciseManagerRef.current.getStageProgress());
+    setExerciseKey(key);
+    generatedLevelRef.current = null; // force regeneration
+  }, []);
 
   const createPlayerConnection = useCallback(
     (fromNodeId, toNodeId) => {
@@ -452,6 +493,22 @@ function MainGameComponent() {
               setStageProgress(exerciseMgr.getStageProgress());
             } else {
               console.log("✅ Level complete – no more stages.");
+              // Trigger level completion UI overlay
+              setCompletedLevelKey(levelKey);
+              const nextLevel = exerciseMgr.getNextLevel(levelKey);
+              const allDone = !nextLevel;
+              setAllLevelsComplete(allDone);
+              setShowLevelCompletion(true);
+              // Schedule auto advance if there is a next level
+              if (nextLevel) {
+                if (nextLevelTimerRef.current)
+                  clearTimeout(nextLevelTimerRef.current);
+                nextLevelTimerRef.current = setTimeout(() => {
+                  // Safety: hide overlay then load
+                  setShowLevelCompletion(false);
+                  loadExercise(nextLevel);
+                }, 3000);
+              }
             }
           }
         }
@@ -479,38 +536,12 @@ function MainGameComponent() {
         console.error("Error applying deletion rule after connection:", err);
       }
     },
-    [floatingCircles, currentExercise, playerConnections]
+    [floatingCircles, currentExercise, playerConnections, loadExercise]
   );
 
   // No head/tail logic needed for node creation level
 
-  const loadExercise = useCallback((key = "level_1") => {
-    // Always clear circles/connections and reset launch state before loading new exercise
-    setCircles([]);
-    setConnections([]);
-    setSuckingCircles([]);
-    // Clear persistent refs to avoid stale data between runs
-    if (entryOrderRef) entryOrderRef.current = [];
-    if (suckedCirclesRef) suckedCirclesRef.current = [];
-    setShowValidationResult(false);
-
-    // Reset challenge mode states
-    setPlayerConnections([]);
-    setActivatedNodes(new Set());
-    setBulletHitSequences(new Map());
-
-    pendingValidationRef.current = null;
-    correctHitRef.current = false;
-    // Reset validation-related UI
-
-    // Now load the new exercise
-    const exercise = exerciseManagerRef.current.loadExercise(key);
-    setCurrentExercise(exercise);
-    setStageProgress(exerciseManagerRef.current.getStageProgress());
-    setExerciseKey(key);
-    // Force regeneration for this level on next effect run
-    generatedLevelRef.current = null;
-  }, []);
+  // (loadExercise declared earlier)
 
   // Initialize exercise on component mount
   useEffect(() => {
@@ -1138,11 +1169,37 @@ function MainGameComponent() {
         };
         setCurrentExercise(advanced);
         setStageProgress(exerciseMgr.getStageProgress());
+      } else {
+        // No more stages: level completed via passive check
+        console.log("✅ Level complete (passive) – no more stages.");
+        setCompletedLevelKey(currentLevel);
+        const nextLevel = exerciseMgr.getNextLevel(currentLevel);
+        const allDone = !nextLevel;
+        setAllLevelsComplete(allDone);
+        setShowLevelCompletion(true);
+        if (nextLevel) {
+          if (nextLevelTimerRef.current)
+            clearTimeout(nextLevelTimerRef.current);
+          nextLevelTimerRef.current = setTimeout(() => {
+            setShowLevelCompletion(false);
+            loadExercise(nextLevel);
+          }, 3000);
+        }
       }
     } catch (e) {
       console.warn("Passive auto-advance check failed (non-fatal)", e);
     }
-  }, [floatingCircles, currentExercise]);
+  }, [floatingCircles, currentExercise, loadExercise]);
+
+  // Cleanup any pending next-level transition timer when component unmounts or level changes
+  useEffect(() => {
+    return () => {
+      if (nextLevelTimerRef.current) {
+        clearTimeout(nextLevelTimerRef.current);
+        nextLevelTimerRef.current = null;
+      }
+    };
+  }, [exerciseKey]);
 
   return (
     <div className={styles.app}>
@@ -1937,6 +1994,90 @@ function MainGameComponent() {
                   ? "Continue"
                   : "Try Again"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Level Completion Overlay */}
+      {showLevelCompletion && (
+        <div className={styles.completionOverlay}>
+          <div className={styles.completionPopup}>
+            <div className={styles.completionContent}>
+              <h2 style={{ textAlign: "center" }}>
+                {allLevelsComplete
+                  ? "🥳 All Deletion Levels Complete!"
+                  : `Level ${completedLevelKey?.split("_")[1]} Complete!`}
+              </h2>
+              {!allLevelsComplete && (
+                <p style={{ textAlign: "center", marginTop: 10 }}>
+                  Loading next level in <strong>3</strong> seconds...
+                </p>
+              )}
+              {allLevelsComplete && (
+                <p style={{ textAlign: "center", marginTop: 10 }}>
+                  You mastered progressive, mixed, and advanced deletions.
+                </p>
+              )}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: "18px",
+                  marginTop: 30,
+                  flexWrap: "wrap",
+                }}
+              >
+                {!allLevelsComplete && (
+                  <button
+                    className={styles.completionButton}
+                    onClick={() => {
+                      // Skip timer & go now
+                      if (nextLevelTimerRef.current)
+                        clearTimeout(nextLevelTimerRef.current);
+                      const mgr = exerciseManagerRef.current;
+                      const nextLevel = mgr.getNextLevel(completedLevelKey);
+                      setShowLevelCompletion(false);
+                      if (nextLevel) loadExercise(nextLevel);
+                    }}
+                  >
+                    Skip Wait → Next Level
+                  </button>
+                )}
+                {allLevelsComplete && (
+                  <button
+                    className={styles.completionButton}
+                    onClick={() => {
+                      // Restart first level for replay
+                      setShowLevelCompletion(false);
+                      setAllLevelsComplete(false);
+                      setCompletedLevelKey(null);
+                      loadExercise("level_1");
+                    }}
+                  >
+                    Replay From Start
+                  </button>
+                )}
+                <button
+                  className={styles.completionButton}
+                  style={{ background: "#555" }}
+                  onClick={() => {
+                    if (nextLevelTimerRef.current)
+                      clearTimeout(nextLevelTimerRef.current);
+                    setShowLevelCompletion(false);
+                    // Navigate back to previous page (main menu / selection)
+                    try {
+                      navigate(-1);
+                    } catch (e) {
+                      // Fallback if navigation not available
+                      console.warn("Navigation failed, reloading root", e);
+                      window.location.href = "/";
+                    }
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

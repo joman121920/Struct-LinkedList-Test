@@ -46,42 +46,42 @@ const exerciseDefinitions = {
   },
   level_2: {
     id: "level_2",
-    name: "Level 2: Mixed Deletion",
-    description: "Delete nodes using different strategies",
+    name: "Level 2: Progressive Deletion II",
+    description:
+      "Repeat the progressive head & middle deletions with new values",
     initialList: [
-      { value: "67", address: "c4k" },
-      { value: "54", address: "m8n" },
-      { value: "71", address: "p2q" },
-      { value: "89", address: "t7v" },
-      { value: "94", address: "w1x" },
-      { value: "103", address: "z3a" },
+      { value: "70", address: "a1b" },
+      { value: "85", address: "c2d" },
+      { value: "90", address: "e3f" },
+      { value: "105", address: "g4h" },
+      { value: "120", address: "i5j" },
     ],
     stages: [
       {
-        target: { type: "value", value: "54" }, // Delete specific value first
+        // Stage 1: delete head (70)
+        target: { type: "head" },
         expectedStructure: [
-          { value: "67", address: "c4k" },
-          { value: "71", address: "p2q" },
-          { value: "89", address: "t7v" },
-          { value: "94", address: "w1x" },
-          { value: "103", address: "z3a" },
+          { value: "85", address: "c2d" },
+          { value: "90", address: "e3f" },
+          { value: "105", address: "g4h" },
+          { value: "120", address: "i5j" },
         ],
       },
       {
-        target: { type: "head" }, // Then delete head
+        // Stage 2: delete middle node 90 (connect 85 and 105)
+        target: { type: "value", value: "90" },
         expectedStructure: [
-          { value: "71", address: "p2q" },
-          { value: "89", address: "t7v" },
-          { value: "94", address: "w1x" },
-          { value: "103", address: "z3a" },
+          { value: "85", address: "c2d" },
+          { value: "105", address: "g4h" },
+          { value: "120", address: "i5j" },
         ],
       },
       {
-        target: { type: "tail" }, // Finally delete tail
+        // Stage 3: delete middle node 105 (connect 85 and 120)
+        target: { type: "value", value: "105" },
         expectedStructure: [
-          { value: "71", address: "p2q" },
-          { value: "89", address: "t7v" },
-          { value: "94", address: "w1x" },
+          { value: "85", address: "c2d" },
+          { value: "120", address: "i5j" },
         ],
       },
     ],
@@ -89,54 +89,41 @@ const exerciseDefinitions = {
   },
   level_3: {
     id: "level_3",
-    name: "Level 3: Advanced Deletion",
-    description: "Master multiple deletion techniques",
+    name: "Level 3: Progressive Deletion III",
+    description: "Final progressive deletion challenge",
     initialList: [
-      { value: "142", address: "x9z" },
-      { value: "176", address: "r5t" },
-      { value: "85", address: "h8j" },
-      { value: "127", address: "d2g" },
-      { value: "199", address: "n6p" },
-      { value: "234", address: "b4c" },
-      { value: "156", address: "y8u" },
+      { value: "200", address: "j9k" },
+      { value: "215", address: "l8m" },
+      { value: "230", address: "n7o" },
+      { value: "245", address: "p6q" },
+      { value: "260", address: "r5s" },
     ],
     stages: [
       {
-        target: { type: "value", value: "85" }, // Delete middle value
+        // Stage 1: delete head (200)
+        target: { type: "head" },
         expectedStructure: [
-          { value: "142", address: "x9z" },
-          { value: "176", address: "r5t" },
-          { value: "127", address: "d2g" },
-          { value: "199", address: "n6p" },
-          { value: "234", address: "b4c" },
-          { value: "156", address: "y8u" },
+          { value: "215", address: "l8m" },
+          { value: "230", address: "n7o" },
+          { value: "245", address: "p6q" },
+          { value: "260", address: "r5s" },
         ],
       },
       {
-        target: { type: "tail" }, // Delete tail
+        // Stage 2: delete middle node 230
+        target: { type: "value", value: "230" },
         expectedStructure: [
-          { value: "142", address: "x9z" },
-          { value: "176", address: "r5t" },
-          { value: "127", address: "d2g" },
-          { value: "199", address: "n6p" },
-          { value: "234", address: "b4c" },
+          { value: "215", address: "l8m" },
+          { value: "245", address: "p6q" },
+          { value: "260", address: "r5s" },
         ],
       },
       {
-        target: { type: "head" }, // Delete head
+        // Stage 3: delete middle node 245
+        target: { type: "value", value: "245" },
         expectedStructure: [
-          { value: "176", address: "r5t" },
-          { value: "127", address: "d2g" },
-          { value: "199", address: "n6p" },
-          { value: "234", address: "b4c" },
-        ],
-      },
-      {
-        target: { type: "value", value: "199" }, // Delete another specific value
-        expectedStructure: [
-          { value: "176", address: "r5t" },
-          { value: "127", address: "d2g" },
-          { value: "234", address: "b4c" },
+          { value: "215", address: "l8m" },
+          { value: "260", address: "r5s" },
         ],
       },
     ],
