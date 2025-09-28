@@ -52,6 +52,26 @@ function MainGameComponent() {
   // Track player-created connections
   const [playerConnections, setPlayerConnections] = useState([]);
 
+  // --- Drag (one-time reposition) for list nodes ---
+  // Track what collection initiated the drag ('floating' vs default circle bullets)
+  const dragSourceRef = useRef(null);
+  // Set of node ids that have already been repositioned once
+  const draggedOnceIdsRef = useRef(new Set());
+  // Starting position of current drag (for movement distance measuring)
+  const dragStartPosRef = useRef(null);
+  // Version bump to force re-render when a node consumes its drag
+  const [draggedOnceVersion, setDraggedOnceVersion] = useState(0);
+  // Fixed drag allowance (non-configurable by player)
+  const MAX_DRAGS = 1;
+  // History of completed drags for undo (stack)
+  const dragHistoryRef = useRef([]);
+  // Tooltip state for locked nodes
+  const [lockedTooltip, setLockedTooltip] = useState(null); // {x,y,text}
+  // Track if undo has been consumed (single-use undo)
+  const [undoUsed, setUndoUsed] = useState(false);
+  // Collapsible instructions panel state
+  const [instructionsCollapsed, setInstructionsCollapsed] = useState(false);
+
   // Level completion UI states
   const [showLevelCompletion, setShowLevelCompletion] = useState(false);
   const [completedLevelKey, setCompletedLevelKey] = useState(null);
@@ -174,6 +194,13 @@ function MainGameComponent() {
     lastAutoAdvanceRef.current = { level: null, stage: -1 };
     // Clear floating circles explicitly so generation hook repopulates with fresh node objects
     setFloatingCircles([]);
+    // Reset per-level drag usage (allow one node drag again)
+    if (draggedOnceIdsRef.current) {
+      draggedOnceIdsRef.current.clear();
+      setDraggedOnceVersion((v) => v + 1);
+    }
+    // Reset single-use undo availability
+    setUndoUsed(false);
     const exercise = exerciseManagerRef.current.loadExercise(key);
     setCurrentExercise(exercise);
     setStageProgress(exerciseManagerRef.current.getStageProgress());
@@ -558,6 +585,27 @@ function MainGameComponent() {
   }, [showInstructionPopup, currentExercise, loadExercise]);
 
   // Mouse event handlers for dragging
+  // Start drag for floating (list) nodes with one-time restriction
+  const handleFloatingMouseDown = (e, circle) => {
+    if (!circle || circle.isBullet) return;
+    // Block if drag allowance consumed
+    if (draggedOnceIdsRef.current.size >= MAX_DRAGS) return;
+    // Only allow a single reposition per node
+    if (draggedOnceIdsRef.current.has(circle.id)) return;
+    dragSourceRef.current = "floating";
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDraggedCircle(circle);
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    dragStartPosRef.current = { x: circle.x, y: circle.y };
+    mouseHistoryRef.current = [
+      { x: e.clientX, y: e.clientY, time: Date.now() },
+    ];
+  };
+
   const handleMouseDown = (e, circle) => {
     // Prevent dragging launched circles
     if (circle.isLaunched) {
@@ -941,8 +989,25 @@ function MainGameComponent() {
       // Update cannon angle
       setCannonAngle(angle);
 
-      // Existing circle dragging logic (only for non-launched circles)
-      if (draggedCircle && !draggedCircle.isLaunched) {
+      // Drag logic
+      if (draggedCircle) {
+        // Floating list node drag path (top-left anchored)
+        if (dragSourceRef.current === "floating") {
+          const newX = e.clientX - dragOffset.x;
+          const newY = e.clientY - dragOffset.y;
+          const maxX = window.innerWidth - 60;
+          const maxY = window.innerHeight - 60;
+          const clampedX = Math.min(Math.max(0, newX), maxX);
+          const clampedY = Math.min(Math.max(0, newY), maxY);
+          setFloatingCircles((prev) =>
+            prev.map((c) =>
+              c.id === draggedCircle.id ? { ...c, x: clampedX, y: clampedY } : c
+            )
+          );
+          return; // Skip bullet/list circle path below
+        }
+        // Existing circle dragging logic (only for non-launched circles)
+        if (draggedCircle.isLaunched) return;
         const newX = e.clientX - dragOffset.x;
         const newY = e.clientY - dragOffset.y;
 
@@ -1068,42 +1133,63 @@ function MainGameComponent() {
 
     const handleMouseUpGlobal = () => {
       if (draggedCircle) {
-        let velocityX = 0;
-        let velocityY = 0;
-
-        if (mouseHistoryRef.current.length >= 2) {
-          const recent =
-            mouseHistoryRef.current[mouseHistoryRef.current.length - 1];
-          const older = mouseHistoryRef.current[0];
-          const timeDiff = recent.time - older.time;
-
-          if (timeDiff > 0) {
-            velocityX = ((recent.x - older.x) / timeDiff) * 16;
-            velocityY = ((recent.y - older.y) / timeDiff) * 16;
-
-            const maxVelocity = 15;
-            velocityX = Math.max(
-              -maxVelocity,
-              Math.min(maxVelocity, velocityX)
-            );
-            velocityY = Math.max(
-              -maxVelocity,
-              Math.min(maxVelocity, velocityY)
-            );
+        // Floating node finalization: mark one-time drag if moved
+        if (dragSourceRef.current === "floating") {
+          const start = dragStartPosRef.current;
+          const current = floatingCirclesRef.current.find(
+            (c) => c.id === draggedCircle.id
+          );
+          if (start && current) {
+            const dx = current.x - start.x;
+            const dy = current.y - start.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 3 && !draggedOnceIdsRef.current.has(draggedCircle.id)) {
+              draggedOnceIdsRef.current.add(draggedCircle.id);
+              setDraggedOnceVersion((v) => v + 1);
+              // Record in history
+              dragHistoryRef.current.push({
+                nodeId: draggedCircle.id,
+                from: { x: start.x, y: start.y },
+                to: { x: current.x, y: current.y },
+              });
+            }
           }
+        } else {
+          // Original fling inertia for non-floating circles
+          let velocityX = 0;
+          let velocityY = 0;
+          if (mouseHistoryRef.current.length >= 2) {
+            const recent =
+              mouseHistoryRef.current[mouseHistoryRef.current.length - 1];
+            const older = mouseHistoryRef.current[0];
+            const timeDiff = recent.time - older.time;
+            if (timeDiff > 0) {
+              velocityX = ((recent.x - older.x) / timeDiff) * 16;
+              velocityY = ((recent.y - older.y) / timeDiff) * 16;
+              const maxVelocity = 15;
+              velocityX = Math.max(
+                -maxVelocity,
+                Math.min(maxVelocity, velocityX)
+              );
+              velocityY = Math.max(
+                -maxVelocity,
+                Math.min(maxVelocity, velocityY)
+              );
+            }
+          }
+          setCircles((prevCircles) =>
+            prevCircles.map((circle) =>
+              circle.id === draggedCircle.id
+                ? { ...circle, velocityX, velocityY }
+                : circle
+            )
+          );
         }
-
-        setCircles((prevCircles) =>
-          prevCircles.map((circle) =>
-            circle.id === draggedCircle.id
-              ? { ...circle, velocityX, velocityY }
-              : circle
-          )
-        );
       }
-
       setDraggedCircle(null);
       setDragOffset({ x: 0, y: 0 });
+      dragSourceRef.current = null;
+      dragStartPosRef.current = null;
       mouseHistoryRef.current = [];
     };
 
@@ -1122,6 +1208,7 @@ function MainGameComponent() {
     findConnectedCircles,
     circles,
     handleGlobalRightClick,
+    draggedOnceVersion,
   ]);
 
   // Passive safety net: auto-advance stage if target already deleted & remaining structure matches expected
@@ -1272,46 +1359,211 @@ function MainGameComponent() {
         </div>
       )}
 
-      {/* Challenge Mode Instructions */}
+      {/* Challenge Mode Instructions (Collapsible) */}
       <div
         style={{
           position: "absolute",
-          top: "100px",
-          left: "20px",
-          background: "rgba(0, 0, 0, 0.8)",
+          top: 100,
+          left: 20,
+          background: "rgba(0,0,0,0.8)",
           border: "2px solid #00ff88",
-          borderRadius: "10px",
-          padding: "15px",
+          borderRadius: 10,
+          padding: instructionsCollapsed ? "8px 10px" : "15px",
           color: "#fff",
-          fontSize: "14px",
-          maxWidth: "350px",
+          fontSize: 14,
+          maxWidth: 350,
           zIndex: 15,
+          transition: "height 0.25s, padding 0.25s",
+          overflow: "hidden",
         }}
       >
         <div
-          style={{ color: "#00ff88", fontWeight: "bold", marginBottom: "8px" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
         >
-          🚀 Progressive Deletion Challenge
+          <div
+            style={{
+              color: "#00ff88",
+              fontWeight: 700,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            🚀 Progressive Deletion
+          </div>
+          <button
+            onClick={() => setInstructionsCollapsed((c) => !c)}
+            aria-label={
+              instructionsCollapsed
+                ? "Expand instructions"
+                : "Collapse instructions"
+            }
+            style={{
+              background: "#00ff88",
+              border: "none",
+              color: "#000",
+              fontWeight: 700,
+              cursor: "pointer",
+              borderRadius: 6,
+              padding: "4px 10px",
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              boxShadow: "0 0 8px rgba(0,255,136,0.4)",
+            }}
+          >
+            {instructionsCollapsed ? "Show" : "Hide"}
+          </button>
         </div>
-        <div>Right-click to shoot balls at nodes.</div>
-        <div style={{ color: "#00ff88" }}>
-          • First hit: Activates node (turns green)
+        {!instructionsCollapsed && (
+          <div style={{ marginTop: 8 }}>
+            <div>Right-click to shoot balls at nodes.</div>
+            <div style={{ color: "#00ff88" }}>
+              • First hit: Activates node (turns green)
+            </div>
+            <div style={{ color: "#00ff88" }}>
+              • Second hit: Creates connection!
+            </div>
+            <div style={{ color: "#ff6600", fontSize: 12, marginTop: 5 }}>
+              🎯 Goal: Delete target node by excluding it from connections
+            </div>
+            <div style={{ color: "#ff6600", fontSize: 12 }}>
+              🔗 Connected nodes form the new linked list
+            </div>
+            <div style={{ color: "#ffaa00", fontSize: 12 }}>
+              ⭐ Complete each stage to unlock the next target!
+            </div>
+            <div style={{ color: "#ffaa00", fontSize: 12, marginTop: 3 }}>
+              💡 Don&apos;t connect the target node to delete it
+            </div>
+            <div style={{ color: "#00bbee", fontSize: 12, marginTop: 6 }}>
+              🔧 You may reposition only <strong>one</strong> node (single-use
+              drag).
+            </div>
+            <div style={{ color: "#cccccc", fontSize: 11, marginTop: 4 }}>
+              ↩️ Drag is one-time per node; once limit is reached others lock.
+            </div>
+            <div style={{ color: "#cccccc", fontSize: 11, marginTop: 4 }}>
+              ↩️ You have a single Undo (top-right) — use it before creating
+              connections.
+            </div>
+            <div style={{ color: "#777", fontSize: 11, marginTop: 2 }}>
+              🛈 Hover a locked node to see why it was locked.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Drag Status / Undo Panel (configuration removed - fixed limit) */}
+      <div
+        style={{
+          position: "absolute",
+          top: 100,
+          right: 20,
+          background: "rgba(20,20,25,0.9)",
+          border: "1px solid #444",
+          borderRadius: 12,
+          padding: "14px 16px 12px",
+          color: "#eee",
+          fontSize: 12,
+          minWidth: 220,
+          zIndex: 20,
+          boxShadow: "0 0 12px rgba(0,0,0,0.5)",
+          backdropFilter: "blur(4px)",
+        }}
+      >
+        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
+          Node Repositioning (Fixed Limit)
         </div>
-        <div style={{ color: "#00ff88" }}>
-          • Second hit: Creates connection!
+        <div style={{ marginBottom: 4, fontSize: 12 }}>
+          <span style={{ opacity: 0.75 }}>Used:</span>{" "}
+          <strong
+            style={{
+              color:
+                draggedOnceIdsRef.current.size >= MAX_DRAGS
+                  ? "#ff5555"
+                  : "#00ff88",
+            }}
+          >
+            {draggedOnceIdsRef.current.size}
+          </strong>{" "}
+          / <strong>{MAX_DRAGS}</strong>
         </div>
-        <div style={{ color: "#ff6600", fontSize: "12px", marginTop: "5px" }}>
-          🎯 Goal: Delete target node by excluding it from connections
-        </div>
-        <div style={{ color: "#ff6600", fontSize: "12px" }}>
-          🔗 Connected nodes form the new linked list
-        </div>
-        <div style={{ color: "#ffaa00", fontSize: "12px" }}>
-          ⭐ Complete each stage to unlock the next target!
-        </div>
-        <div style={{ color: "#ffaa00", fontSize: "12px", marginTop: "3px" }}>
-          💡 Don&apos;t connect the target node to delete it
-        </div>
+        <button
+          onClick={() => {
+            if (undoUsed) return;
+            if (dragHistoryRef.current.length === 0) return;
+            const last = dragHistoryRef.current.pop();
+            setFloatingCircles((prev) =>
+              prev.map((c) =>
+                c.id === last.nodeId
+                  ? { ...c, x: last.from.x, y: last.from.y }
+                  : c
+              )
+            );
+            if (draggedOnceIdsRef.current.has(last.nodeId)) {
+              draggedOnceIdsRef.current.delete(last.nodeId);
+              setDraggedOnceVersion((v) => v + 1);
+            }
+            setUndoUsed(true);
+          }}
+          disabled={
+            undoUsed ||
+            dragHistoryRef.current.length === 0 ||
+            playerConnections.length > 0
+          }
+          style={{
+            width: "100%",
+            marginTop: 6,
+            background:
+              undoUsed ||
+              dragHistoryRef.current.length === 0 ||
+              playerConnections.length > 0
+                ? "#222"
+                : "#0a4",
+            color:
+              undoUsed ||
+              dragHistoryRef.current.length === 0 ||
+              playerConnections.length > 0
+                ? "#666"
+                : "#fff",
+            border: "1px solid #055",
+            borderRadius: 6,
+            padding: "6px 8px",
+            fontSize: 12,
+            cursor:
+              undoUsed ||
+              dragHistoryRef.current.length === 0 ||
+              playerConnections.length > 0
+                ? "not-allowed"
+                : "pointer",
+            fontWeight: 600,
+            transition: "background 0.2s",
+          }}
+          title={
+            playerConnections.length > 0
+              ? "Cannot undo after creating connections"
+              : undoUsed
+              ? "Undo already used"
+              : dragHistoryRef.current.length === 0
+              ? "No drag to undo"
+              : "Undo drag (single use)"
+          }
+        >
+          {undoUsed ? "↩️ Undo Used" : "↩️ Undo Last Drag"}
+        </button>
+        {draggedOnceIdsRef.current.size >= MAX_DRAGS && (
+          <div style={{ color: "#ff7777", fontSize: 11 }}>
+            Drag limit reached – further nodes locked.
+          </div>
+        )}
       </div>
 
       {/* Connection counter & manual validation removed */}
@@ -1790,26 +2042,119 @@ function MainGameComponent() {
           (circle) =>
             !deletedNodeKeysRef.current.has(`${circle.value}|${circle.address}`)
         )
-        .map((circle) => (
-          <div
-            key={circle.id}
-            data-node-id={circle.id}
-            className={`${styles.floatingCircle} ${styles.valueCircle} ${
-              activatedNodes.has(circle.id) ? styles.activated : ""
-            }`}
-            style={{
-              left: `${circle.x}px`,
-              top: `${circle.y}px`,
-            }}
-          >
-            <div style={{ fontSize: "16px", fontWeight: 800 }}>
-              {circle.value}
+        .map((circle) => {
+          const moved = draggedOnceIdsRef.current.has(circle.id);
+          const globalDragUsed =
+            draggedOnceIdsRef.current.size >= MAX_DRAGS && !moved;
+          return (
+            <div
+              key={circle.id}
+              data-node-id={circle.id}
+              className={`${styles.floatingCircle} ${styles.valueCircle} ${
+                activatedNodes.has(circle.id) ? styles.activated : ""
+              }`}
+              style={{
+                left: `${circle.x}px`,
+                top: `${circle.y}px`,
+                cursor:
+                  moved || globalDragUsed
+                    ? "not-allowed"
+                    : draggedCircle && draggedCircle.id === circle.id
+                    ? "grabbing"
+                    : "grab",
+                opacity: moved ? 0.55 : globalDragUsed ? 0.75 : 1,
+                filter: moved
+                  ? "grayscale(55%) brightness(0.8)"
+                  : globalDragUsed
+                  ? "grayscale(25%) brightness(0.9)"
+                  : "none",
+              }}
+              onMouseDown={(e) => handleFloatingMouseDown(e, circle)}
+              onMouseEnter={(e) => {
+                if (moved || globalDragUsed) {
+                  const reason = moved
+                    ? "This node was already repositioned."
+                    : draggedOnceIdsRef.current.size >= MAX_DRAGS
+                    ? `Drag limit (${MAX_DRAGS}) reached.`
+                    : "Locked.";
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setLockedTooltip({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top - 8,
+                    text: reason + " Fixed single drag limit.",
+                  });
+                }
+              }}
+              onMouseLeave={() => {
+                setLockedTooltip((prev) =>
+                  prev && prev.text.includes("repositioned") ? null : null
+                );
+              }}
+            >
+              <div style={{ fontSize: "16px", fontWeight: 800 }}>
+                {circle.value}
+              </div>
+              <div style={{ fontSize: "10px", opacity: 0.9 }}>
+                {circle.address}
+              </div>
+              {moved && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: -14,
+                    fontSize: 9,
+                    color: "#ffaa00",
+                    fontWeight: 700,
+                  }}
+                >
+                  moved
+                </div>
+              )}
+              {!moved && globalDragUsed && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: -14,
+                    fontSize: 9,
+                    color: "#888",
+                    fontWeight: 600,
+                  }}
+                >
+                  locked
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: "10px", opacity: 0.9 }}>
-              {circle.address}
-            </div>
+          );
+        })}
+
+      {/* Locked Tooltip */}
+      {lockedTooltip && (
+        <div
+          style={{
+            position: "fixed",
+            left: lockedTooltip.x,
+            top: lockedTooltip.y,
+            transform: "translate(-50%, -100%)",
+            background: "linear-gradient(135deg,#222,#111)",
+            padding: "6px 10px",
+            borderRadius: 8,
+            fontSize: 11,
+            color: "#eee",
+            border: "1px solid #444",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+            pointerEvents: "none",
+            zIndex: 50,
+            maxWidth: 220,
+            lineHeight: 1.25,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontWeight: 600, color: "#ffb347", marginBottom: 2 }}>
+            Locked
           </div>
-        ))}
+          <span style={{ opacity: 0.9 }}>{lockedTooltip.text}</span>
+        </div>
+      )}
 
       {/* Validation Overlay */}
       {showValidationResult && pendingValidationRef.current && (
