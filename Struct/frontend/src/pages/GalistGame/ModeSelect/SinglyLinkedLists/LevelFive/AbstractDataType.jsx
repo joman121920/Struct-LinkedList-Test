@@ -32,11 +32,11 @@ function GalistAbstractDataType() {
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
   const [originalSubmission, setOriginalSubmission] = useState(null);
-
   // Exercise progress indicator logic
   const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
   const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
   const totalExercises = EXERCISE_KEYS.length;
+  const [tutorialScene, setTutorialScene] = useState("scene1");
 
   // --- Auto launch removed. No initial circles are launched automatically. ---
 
@@ -600,6 +600,7 @@ function GalistAbstractDataType() {
 
   const startExercise = useCallback(() => {
     setShowInstructionPopup(false);
+    setAdtMode('enqueue');
     // Load the current exercise and request that the initial be launched
     loadExercise(exerciseKey, true);
     // Start or reset the timer whenever an exercise starts
@@ -607,6 +608,21 @@ function GalistAbstractDataType() {
     setTimerRunning(true);
     setShowMissionFailed(false);
   }, [loadExercise, exerciseKey]);
+
+  const handleTutorialContinue = useCallback(() => {
+  setTutorialScene((prev) => {
+    if (prev === "scene1") return "scene2";
+    if (prev === "scene2") return "scene3";
+    startExercise();
+    return "scene1";
+  });
+}, [startExercise]);
+
+const handleTutorialValueShoot = useCallback((mode) => {
+  if (mode === "enqueue" || mode === "dequeue") {
+    setAdtMode(mode);
+  }
+}, [setAdtMode]);
 
   // Handle retry from mission failed overlay: reset level state and restart without tutorial
   const handleRetry = useCallback(() => {
@@ -668,6 +684,12 @@ function GalistAbstractDataType() {
       loadExercise();
     }
   }, [showInstructionPopup, currentExercise, loadExercise]);
+
+  useEffect(() => {
+  if (showInstructionPopup) {
+    setTutorialScene("scene1");
+  }
+}, [showInstructionPopup]);
 
   // (Removed duplicate spawnInitialCircle - definition moved above to avoid temporal dead zone)
 
@@ -1637,7 +1659,7 @@ function GalistAbstractDataType() {
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
     
-    
+    if (showInstructionPopup) return;
     // Launch circle from cannon if values are set
     if (cannonCircle.value && cannonCircle.address) {
       // Calculate launch position from cannon tip
@@ -1708,7 +1730,7 @@ function GalistAbstractDataType() {
     } else {
   // ...existing code...
     }
-  }, [cannonCircle, cannonAngle, adtMode]);
+  }, [cannonCircle, cannonAngle, adtMode, showInstructionPopup]);
 
   // Wheel handler to toggle ADT mode: scroll up -> dequeue, scroll down -> enqueue
   useEffect(() => {
@@ -1727,6 +1749,7 @@ function GalistAbstractDataType() {
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
+      if (showInstructionPopup) return;
       const cannonBaseX = window.innerWidth + 40 - 35; // Right edge + 40px offset - half width (35px)
       const cannonBaseY = window.innerHeight - 1; // Bottom edge position (bottom: 1px)
       
@@ -1916,7 +1939,7 @@ function GalistAbstractDataType() {
       document.removeEventListener("mouseup", handleMouseUpGlobal);
       document.removeEventListener("contextmenu", handleGlobalRightClick);
     };
-  }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick]);
+  }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick, showInstructionPopup]);
 
   // Helper: Get current linked list structure as array of {value, address}
   const getCurrentLinkedList = useCallback(() => {
@@ -2006,9 +2029,11 @@ function GalistAbstractDataType() {
       
 
       {/* Countdown timer (top right) */}
+      {(!setTutorialScene) && (
       <div className={styles.exerciseProgressIndicator} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {Math.floor(timerSeconds / 60).toString().padStart(1, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
       </div>
+      )}
 
       {/* Insertion mode indicator (top-left) */}
       <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>
@@ -2045,13 +2070,15 @@ function GalistAbstractDataType() {
           </table>
         </div>
       )}
+    
 
       {showInstructionPopup && (
-          <TutorialScene 
-            scene="scene1" 
-            onContinue={startExercise}
-          />
-        )}
+        <TutorialScene
+          scene={tutorialScene}
+          onContinue={handleTutorialContinue}
+          onValueShoot={handleTutorialValueShoot}
+        />
+      )}
 
       {/* Portal particles for vacuum effect */}
       <PortalParticles 
@@ -2064,28 +2091,29 @@ function GalistAbstractDataType() {
 
       
       
-      <div 
-        className={styles.rightSquare} 
-        style={{ 
-          outlineOffset: "5px",
-          transform: `rotate(${cannonAngle}deg)`,
-          transformOrigin: "bottom center"
-        }} 
-      >
-        {/* Cannon Circle */}
+     {!showInstructionPopup && (
         <div 
-          className={styles.cannonCircle}
-          onClick={handleCannonClick}
-          style={{ cursor: 'pointer' }}
+          className={styles.rightSquare} 
+          style={{ 
+            outlineOffset: "5px",
+            transform: `rotate(${cannonAngle}deg)`,
+            transformOrigin: "bottom center"
+          }} 
         >
-          <span style={{ fontSize: '10px' }}>
-            {cannonCircle.value}
-          </span>
-          <span style={{ fontSize: '8px' }}>
-            {cannonCircle.address}
-          </span>
+          <div 
+            className={styles.cannonCircle}
+            onClick={handleCannonClick}
+            style={{ cursor: 'pointer' }}
+          >
+            <span style={{ fontSize: '10px' }}>
+              {cannonCircle.value}
+            </span>
+            <span style={{ fontSize: '8px' }}>
+              {cannonCircle.address}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {circles.map((circle) => {
         const label = getCircleLabel(circle.id);
@@ -2185,26 +2213,25 @@ function GalistAbstractDataType() {
           </div>
         );
       })}
-
-      {/* Black holes for challenge */}
-      {blackHoles.map((blackHole) => (
-        <div
-          key={blackHole.id}
-          style={{
-            position: 'absolute',
-            left: `${blackHole.x - blackHole.radius}px`,
-            top: `${blackHole.y - blackHole.radius}px`,
-            width: `${blackHole.radius * 2}px`,
-            height: `${blackHole.radius * 2}px`,
-            borderRadius: '50%',
-            backgroundColor: '#000',
-            border: '4px solid #ff0000',
-            boxShadow: '0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5)',
-            zIndex: 10,
-            animation: 'blackHolePulse 2s infinite ease-in-out',
-          }}
-        />
-      ))}
+      {!showInstructionPopup &&
+        blackHoles.map((blackHole) => (
+          <div
+            key={blackHole.id}
+            style={{
+              position: 'absolute',
+              left: `${blackHole.x - blackHole.radius}px`,
+              top: `${blackHole.y - blackHole.radius}px`,
+              width: `${blackHole.radius * 2}px`,
+              height: `${blackHole.radius * 2}px`,
+              borderRadius: '50%',
+              backgroundColor: '#000',
+              border: '4px solid #ff0000',
+              boxShadow: '0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5)',
+              zIndex: 10,
+              animation: 'blackHolePulse 2s infinite ease-in-out',
+            }}
+          />
+        ))}
 
       <svg className={styles.connectionLines}>
         {(() => {
