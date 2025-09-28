@@ -2028,8 +2028,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
 
       
 
-      {/* Countdown timer (top right) */}
-      {(!setTutorialScene) && (
+      {/* Countdown timer (top right) - show when the instruction/tutorial popup is closed */}
+      {!showInstructionPopup && (
       <div className={styles.exerciseProgressIndicator} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {Math.floor(timerSeconds / 60).toString().padStart(1, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
       </div>
@@ -2233,36 +2233,27 @@ const handleTutorialValueShoot = useCallback((mode) => {
           />
         ))}
 
-      <svg className={styles.connectionLines}>
+      <svg
+        className={styles.connectionLines}
+        style={{ visibility: (circles && circles.length > 0 && connections && connections.length > 0) ? 'visible' : 'hidden' }}
+      >
         {(() => {
+          // Render only connections whose BOTH endpoint circles are present in `circles`.
+          // This prevents portal-anchored or leftover lines that span the scene when one endpoint is missing.
           return connections.map((connection) => {
-            // Only remove the line if BOTH nodes have been sucked
-            const fromSucked = suckedCircles.includes(connection.from);
-            const toSucked = suckedCircles.includes(connection.to);
-            if (fromSucked && toSucked) return null;
-
-            // Only anchor to portal entrance if a node has been sucked; otherwise, skip the line if either node is missing (e.g., during launch)
             const fromCircle = circles.find((c) => c.id === connection.from);
             const toCircle = circles.find((c) => c.id === connection.to);
-            const entranceX = 10 + portalInfo.canvasWidth / 2;
-            const entranceY = window.innerHeight / 2;
-            // If neither node is present and neither is sucked, don't render the line (prevents portal-anchored lines during launch)
-            if (!fromCircle && !fromSucked) return null;
-            if (!toCircle && !toSucked) return null;
-            const fromX = fromCircle ? fromCircle.x : entranceX;
-            const fromY = fromCircle ? fromCircle.y : entranceY;
-            const toX = toCircle ? toCircle.x : entranceX;
-            const toY = toCircle ? toCircle.y : entranceY;
-            
-            // ...existing code...
-            
+
+            // Only draw if both endpoints exist right now
+            if (!fromCircle || !toCircle) return null;
+
             return (
               <g key={connection.id}>
                 <line
-                  x1={fromX}
-                  y1={fromY}
-                  x2={toX}
-                  y2={toY}
+                  x1={fromCircle.x}
+                  y1={fromCircle.y}
+                  x2={toCircle.x}
+                  y2={toCircle.y}
                   className={styles.animatedLine}
                   markerEnd="url(#arrowhead)"
                 />

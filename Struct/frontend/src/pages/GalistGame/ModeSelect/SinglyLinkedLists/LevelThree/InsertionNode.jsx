@@ -1889,10 +1889,12 @@ function GalistGameInsertionNode() {
 
       
 
-      {/* Countdown timer (top right) */}
-      <div className={styles.exerciseProgressIndicator} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {Math.floor(timerSeconds / 60).toString().padStart(1, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
-      </div>
+      {/* Countdown timer (top right) - show only when tutorial/instruction popup is hidden */}
+      {!showInstructionPopup && (
+        <div className={styles.exerciseProgressIndicator} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {Math.floor(timerSeconds / 60).toString().padStart(1, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
+        </div>
+      )}
 
       {/* Insertion mode indicator (top-left) */}
       <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>

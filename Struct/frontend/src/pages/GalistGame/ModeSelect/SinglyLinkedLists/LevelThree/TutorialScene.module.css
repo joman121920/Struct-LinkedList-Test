@@ -10,6 +10,8 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  /* fade the backdrop in */
+  animation: fadeInOverlay 360ms ease-out both;
 }
 
 .tutorialPopup {
@@ -22,6 +24,8 @@
   text-align: center;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
+  /* subtle pop-in for the popup */
+  animation: popIn 420ms cubic-bezier(.2,.9,.2,1) both;
 }
 
 .tutorialContent h2 {
@@ -70,7 +74,7 @@
   font-size: 18px;
   font-weight: 600;
   z-index: 100;
-  border: 2px solid #f609e2;
+  text-align: center;
 }
 
 .tutorialInstructionBar h3 {
@@ -115,22 +119,22 @@
 }
 
 .gameInstructionsPopup {
-  background: transparent;
+  background: rgba(0,0,0,0.6);
   border: 3px solid #f609e2;
-  border-radius: 20px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 26px 28px;
   width: 95vw;
-  max-width: 1000px;
-  height: 90vh;
-  max-height: 600px; /* Increased from 450px to 600px */
+  max-width: 1100px;
+  max-height: 720px;
   display: flex;
   flex-direction: column;
-  text-align: center;
-  backdrop-filter: blur(15px);
-  transform: scale(0.8);
-  animation: popIn 1.2s ease-out forwards;
+  text-align: left;
+  backdrop-filter: blur(14px);
+  transform: none;
+  animation: popIn 0.6s ease-out forwards;
   overflow: hidden;
 }
+
 
 .gameInstructionsContent {
   color: #ffffff;
@@ -138,7 +142,9 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 12px;
 }
+
 
 .gameInstructionsHeader {
   flex-shrink: 0;
@@ -158,24 +164,30 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
-  padding: 10px 20px;
+  align-items: stretch;
+  padding: 8px 22px;
   text-align: left;
 }
 
 .gameInstructionsBody ul {
   list-style-type: disc;
-  padding-left: 30px;
+  padding-left: 36px;
   margin: 0;
   width: 100%;
 }
 
 .gameInstructionsBody li {
-  margin-bottom: 15px;
+  margin-bottom: 14px;
   font-size: 18px;
   line-height: 1.6;
-  color: #ffffff;
+  color: #eaeaea;
   display: list-item;
+}
+
+.gameInstructionsBody li strong {
+  color: #f609e2;
+  margin-right: 8px;
+  font-weight: 700;
 }
 
 
@@ -186,7 +198,69 @@
   padding-top: 20px;
 }
 
+/*Instruction*/
+.instructionOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeInOverlay 2000ms ease-out both;
+}
 
+.instructionPopup {
+  background: rgba(0,0,0,0.65);
+  border: 3px solid #f609e2;
+  border-radius: 12px;
+  padding: 36px 44px;
+  max-width: 1000px;
+  width: calc(100% - 40px);
+  min-height: 340px;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+}
+
+.instructionContent h2 {
+  color: #f609e2;
+  font-size: 24px;
+  margin: 0 0 18px 0;
+  font-weight: 800;
+  text-align: center;
+  text-shadow: 0 0 8px rgba(246,9,226,0.25);
+}
+
+.instruction p {
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1.6;
+  justify-content: left;
+  text-align: left;
+  margin-bottom: 25px;
+}
+
+.instructionButton {
+  background: transparent;
+  color: white;
+  border: 2px solid #f609e2;
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+
+.instructionButton:hover {
+  background: #f609e2;
+  transform: translateY(-2px);
+}
 
 /* Animations */
 @keyframes fadeInOverlay {

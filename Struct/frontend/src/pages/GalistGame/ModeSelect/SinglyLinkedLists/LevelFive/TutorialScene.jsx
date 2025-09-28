@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import PropTypes from "prop-types";
 import { collisionDetection } from "../../../CollisionDetection";
 import styles from "./AbstractDataType.module.css";
@@ -13,19 +13,28 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [cannonCircle, setCannonCircle] = useState({ value: "42", address: "aa10" });
   const [currentMode, setCurrentMode] = useState("enqueue");
 
-  const enqueueTexts = [
-    "In enqueue mode, every shot attaches a new node to the tail of the list.",
-    "Right-click to shoot. Watch the new node link in at the end.",
-    "Great shot! The old tail now points to the new node, and the tail label moves.",
-    "Keep adding nodes to see the list grow."
-  ];
-  const dequeueTexts = [
-    "Dequeue mode removes the node at the head of the list.",
-    "Right-click to fire a dequeue pulse and watch the head disappear.",
-    "Nice! The next node becomes the new head, keeping the list consistent."
-  ];
+  const enqueueTexts = useMemo(
+    () => [
+      "In enqueue mode, every shot attaches a new node to the tail of the list.",
+      "Shoot the tail. Watch the new node link in at the end.",
+      "Great shot! The old tail now points to the new node, and the tail label moves.",
+      "Keep adding nodes to see the list grow."
+    ],
+    []
+  );
+
+  const dequeueTexts = useMemo(
+    () => [
+      "Dequeue mode removes the node at the head of the list.",
+      "Shoot the head. Watch how it remove head from the list.",
+      "Nice! The next node becomes the new head, keeping the list consistent.",
+      "Keep removing nodes to see the list shrink."
+    ],
+    []
+  );
   const [typedInstruction, setTypedInstruction] = useState("");
   const [instructionStep, setInstructionStep] = useState(0);
+  const [showScene4, setShowScene4] = useState(false);
 
   useEffect(() => {
     tutorialCirclesRef.current = tutorialCircles;
@@ -35,11 +44,22 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     if (scene === "scene2") {
       setCurrentMode("enqueue");
       onValueShoot?.("enqueue");
-      buildInitialEnqueueScene();
+      // Only build initial enqueue nodes when entering the enqueue scene.
+      // Avoid re-building when tutorialCircles updates to prevent randomization.
+      if (!tutorialCirclesRef.current || tutorialCirclesRef.current.length === 0) {
+        buildInitialEnqueueScene();
+      }
     } else if (scene === "scene3") {
+      // Switch to dequeue mode but reuse whatever nodes were created during enqueue.
       setCurrentMode("dequeue");
       onValueShoot?.("dequeue");
-      buildInitialDequeueScene();
+      // If there are no existing nodes (e.g. user opened dequeue directly),
+      // create the default enqueue nodes so there's something to dequeue.
+      if (!tutorialCirclesRef.current || tutorialCirclesRef.current.length === 0) {
+        buildInitialEnqueueScene();
+      }
+      // Make the cannon empty/neutral for dequeue visuals
+      setCannonCircle({ value: "", address: "" });
     } else {
       setTutorialCircles([]);
       setTutorialConnections([]);
@@ -48,65 +68,52 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     setInstructionStep(0);
   }, [scene, onValueShoot]);
 
-  const buildInitialEnqueueScene = () => {
-    const randomValue = Math.floor(Math.random() * 100) + 1;
-    const addressTypes = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj"];
-    const numbers = ["10", "20", "30", "40", "50", "60", "70", "80", "90"];
-    const randomAddress =
-      addressTypes[Math.floor(Math.random() * addressTypes.length)] +
-      numbers[Math.floor(Math.random() * numbers.length)];
-
-    const headNode = {
-      id: "enqueue_head",
-      x: 260,
-      y: 220,
-      value: randomValue.toString(),
-      address: randomAddress,
-      velocityX: 0,
-      velocityY: 0,
-      isLaunched: false
-    };
-
-    setTutorialCircles([headNode]);
-    setTutorialConnections([]);
-
-    const cannonValue = Math.floor(Math.random() * 100) + 1;
-    const cannonAddress =
-      addressTypes[Math.floor(Math.random() * addressTypes.length)] +
-      numbers[Math.floor(Math.random() * numbers.length)];
-    setCannonCircle({ value: cannonValue.toString(), address: cannonAddress });
-  };
-
-  const buildInitialDequeueScene = () => {
+  function buildInitialEnqueueScene() {
     const addressTypes = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj"];
     const numbers = ["10", "20", "30", "40", "50", "60", "70", "80", "90"];
     const nodeCount = 3;
     const baseX = 240;
     const spacing = 140;
 
-    const nodes = Array.from({ length: nodeCount }).map((_, idx) => ({
-      id: `dequeue_${idx}`,
-      x: baseX + idx * spacing,
-      y: 220,
-      value: (Math.floor(Math.random() * 90) + 10).toString(),
-      address:
+    // create 3 initial nodes for enqueue scene (head -> ... -> tail)
+    const nodes = Array.from({ length: nodeCount }).map((_, idx) => {
+      const randomValue = Math.floor(Math.random() * 100) + 1;
+      const randomAddress =
         addressTypes[Math.floor(Math.random() * addressTypes.length)] +
-        numbers[Math.floor(Math.random() * numbers.length)],
-      velocityX: 0,
-      velocityY: 0,
-      isLaunched: false
-    }));
+        numbers[Math.floor(Math.random() * numbers.length)];
+      return {
+        id: `enqueue_${idx}`,
+        x: baseX + idx * spacing,
+        y: 220,
+        value: randomValue.toString(),
+        address: randomAddress,
+        velocityX: 0,
+        velocityY: 0,
+        isLaunched: false
+      };
+    });
 
     const conns = nodes.slice(0, -1).map((node, idx) => ({
-      id: `conn_${idx}`,
+      id: `enqueue_conn_${idx}`,
       from: node.id,
       to: nodes[idx + 1].id
     }));
 
-    setTutorialCircles(nodes);
-    setTutorialConnections(conns);
-    setCannonCircle({ value: "", address: "" });
-  };
+    // Only initialize if there isn't already a built list. Use functional
+    // updates so accidental calls won't overwrite an existing list and
+    // re-randomize node values/addresses.
+    setTutorialCircles(prev => (prev && prev.length > 0 ? prev : nodes));
+    setTutorialConnections(prev => (prev && prev.length > 0 ? prev : conns));
+
+    const cannonValue = Math.floor(Math.random() * 100) + 1;
+    const cannonAddress =
+      addressTypes[Math.floor(Math.random() * addressTypes.length)] +
+      numbers[Math.floor(Math.random() * numbers.length)];
+    setCannonCircle({ value: cannonValue.toString(), address: cannonAddress });
+  }
+
+  // Dequeue reuses nodes created by enqueue. We no longer create separate
+  // initial random nodes for the dequeue scene.
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") return;
@@ -181,20 +188,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") return;
-    let animationFrameId;
-    const animate = () => {
-      if (scene === "scene2") {
-        runEnqueueAnimation();
-      } else if (scene === "scene3") {
-        runDequeueAnimation();
-      }
-      animationFrameId = requestAnimationFrame(animate);
-    };
-    animationFrameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [scene, instructionStep]);
+    // animation effect will be attached after callbacks are declared
+  }, [scene]);
 
-  const runEnqueueAnimation = () => {
+  const runEnqueueAnimation = useCallback(() => {
     setTutorialBullets(prevBullets => {
       const updatedBullets = [];
       let didConnect = false;
@@ -295,7 +292,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               }
             ]);
 
-            if (instructionStep < 2) setInstructionStep(2);
+            setInstructionStep(prev => (prev < 2 ? 2 : prev));
           }
         }
 
@@ -304,7 +301,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         }
       });
       return updatedBullets;
-    });
+  });
 
     setTutorialCircles(prevCircles => {
       const now = Date.now();
@@ -327,9 +324,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       }
       return filtered;
     });
-  };
+  }, [tutorialConnections]);
 
-  const runDequeueAnimation = () => {
+  const runDequeueAnimation = useCallback(() => {
     setTutorialBullets(prevBullets => {
       const updatedBullets = [];
       let headRemoved = false;
@@ -370,8 +367,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
             setTutorialConnections(prevConns => {
               const filtered = prevConns.filter(conn => conn.from !== headNode.id && conn.to !== headNode.id);
-              if (nextNode && circles.length > 2) {
-                const restHead = circles[1];
+                if (nextNode && circles.length > 2) {
                 const following = circles[2];
                 return [
                   {
@@ -385,7 +381,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               return filtered;
             });
 
-            if (instructionStep < 2) setInstructionStep(2);
+            setInstructionStep(prev => (prev < 2 ? 2 : prev));
           } else {
             updatedBullets.push(updatedBullet);
           }
@@ -407,16 +403,31 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       }
       return prev;
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    if (scene !== "scene2" && scene !== "scene3") return;
+    let animationFrameId;
+    const animate = () => {
+      if (scene === "scene2") {
+        runEnqueueAnimation();
+      } else if (scene === "scene3") {
+        runDequeueAnimation();
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [scene, instructionStep, runEnqueueAnimation, runDequeueAnimation]);
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") {
       setTypedInstruction("");
       return;
     }
-
     const texts = scene === "scene2" ? enqueueTexts : dequeueTexts;
     let interval;
+    let postTimeout;
     let idx = 0;
 
     const runTypewriter = () => {
@@ -426,18 +437,77 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       const duration = 2200;
       const delay = Math.max(30, duration / Math.max(text.length, 1));
 
+      // If this is the first instruction in enqueue (index 0), run a faster
+      // typewriter effect (so it still types, but quicker), then pause ~3s
+      // before auto-advancing to step 1.
+      if (scene === "scene2" && instructionStep === 0) {
+        const fastDuration = 2000; // faster overall typing duration for index 0
+        const fastDelay = Math.max(12, fastDuration / Math.max(text.length, 1));
+        interval = setInterval(() => {
+          idx += 1;
+          setTypedInstruction(text.slice(0, idx));
+          if (idx >= text.length) {
+            clearInterval(interval);
+            postTimeout = setTimeout(() => {
+              setInstructionStep(prev => (prev === 0 ? 1 : prev));
+            }, 3000);
+          }
+        }, fastDelay);
+        return;
+      }
+
+      // Dequeue: fast-type the first instruction (index 0) then pause ~2s
+      // before advancing to index 1.
+      if (scene === "scene3" && instructionStep === 0) {
+        const fastDurationDequeue = 800;
+        const fastDelay = Math.max(10, fastDurationDequeue / Math.max(text.length, 1));
+        interval = setInterval(() => {
+          idx += 1;
+          setTypedInstruction(text.slice(0, idx));
+          if (idx >= text.length) {
+            clearInterval(interval);
+            postTimeout = setTimeout(() => {
+              setInstructionStep(prev => (prev === 0 ? 1 : prev));
+            }, 2000);
+          }
+        }, fastDelay);
+        return;
+      }
+
+      // Dequeue: if the user has just removed the head and instructionStep is 2,
+      // show the third instruction immediately and auto-advance to the fourth
+      // after ~2s.
+      if (scene === "scene3" && instructionStep === 2) {
+        setTypedInstruction(text);
+        postTimeout = setTimeout(() => {
+          setInstructionStep(prev => (prev === 2 ? 3 : prev));
+        }, 2000);
+        return;
+      }
+
+      // Otherwise run the usual typewriter animation.
       interval = setInterval(() => {
         idx += 1;
         setTypedInstruction(text.slice(0, idx));
         if (idx >= text.length) {
           clearInterval(interval);
+          // After the third instruction (index 2) finishes typing in enqueue,
+          // wait ~3s then advance to the fourth instruction (index 3).
+          if (scene === "scene2" && instructionStep === 2) {
+            postTimeout = setTimeout(() => {
+              setInstructionStep(prev => (prev === 2 ? 3 : prev));
+            }, 3000);
+          }
         }
       }, delay);
     };
 
     runTypewriter();
-    return () => clearInterval(interval);
-  }, [scene, instructionStep]);
+    return () => {
+      if (interval) clearInterval(interval);
+      if (postTimeout) clearTimeout(postTimeout);
+    };
+  }, [scene, instructionStep, enqueueTexts, dequeueTexts]);
 
   const handleTutorialRightClick = useCallback(
     e => {
@@ -644,11 +714,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </defs>
         </svg>
 
-        {tutorialCircles.length >= 4 && (
+        {tutorialCircles.length >= 7 && (
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <h2>Awesome Enqueueing!</h2>
+                <h2>Awsome Work!</h2>
                 <p>You just attached multiple nodes to the tail. The head never moves, but the tail keeps updating to the newest node.</p>
                 <button className={tutorialStyles.tutorialButton} onClick={onContinue}>
                   Continue
@@ -763,11 +833,47 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <h2>Dequeue Complete!</h2>
-                <p>The head node was removed, and the next node automatically took over as the new head.</p>
-                <button className={tutorialStyles.tutorialButton} onClick={onContinue}>
+                <h2>Perfect</h2>
+                <p>You now understand how a queue works: new elements are added at the rear (enqueue) and removed from the front (dequeue). This “first in, first out” principle is what makes queues so useful in real-world scenarios like task scheduling and waiting lines.</p>
+                <p><strong>Time to put your knowledge to the test in the mission!</strong></p>
+                <button className={tutorialStyles.tutorialButton} onClick={() => setShowScene4(true)}>
                   Start Mission
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Scene 4: Game Instruction modal shown after clicking Start Mission */}
+        {showScene4 && (
+          <div className={tutorialStyles.instructionOverlay}>
+            <div className={tutorialStyles.instructionPopup}>
+              <div className={tutorialStyles.instructionContent}>
+                <div className={tutorialStyles.instructionHeader}>
+                  <h2>Game Instruction</h2>
+                </div>
+
+                <div className={tutorialStyles.gameInstructionsBody}>
+                  <ul>
+                    <li><strong style={{color:'#f609e2'}}>Objective:</strong> Meet the expected linked list</li>
+                    <li><strong style={{color:'#f609e2'}}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 time&quot;.</li>
+                    <li><strong style={{color:'#f609e2'}}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
+                    <li><strong style={{color:'#f609e2'}}>Scoring:</strong> Earn points for each successful node creation</li>
+                    <li><strong style={{color:'#f609e2'}}>Obstacles:</strong> Watch out for the black hole, freshly created node that collides with it will be destroyed!</li>
+                    <li><strong style={{color:'#f609e2'}}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
+                  </ul>
+                </div>
+
+                <div className={tutorialStyles.gameInstructionsFooter}>
+                  <button
+                    className={tutorialStyles.tutorialButton}
+                    onClick={() => {
+                      setShowScene4(false);
+                      onContinue();
+                    }}
+                  >
+                    Continue
+                  </button>
+                </div>
               </div>
             </div>
           </div>
