@@ -117,7 +117,7 @@ function MainGameComponent() {
     generatedLevelRef.current = currentLevel;
   }, [currentExercise, exerciseKey, floatingCircles.length]);
 
-  // Initialize history state and handle browser back/forward
+  // Initialize history state and handle browser back/forward (run once on mount)
   useEffect(() => {
     const state = window.history.state;
     if (state && state.screen) {
@@ -1559,6 +1559,34 @@ function MainGameComponent() {
         >
           {undoUsed ? "↩️ Undo Used" : "↩️ Undo Last Drag"}
         </button>
+        <button
+          onClick={() => {
+            if (!currentExercise) return;
+            loadExercise(exerciseKey);
+          }}
+          disabled={!currentExercise}
+          style={{
+            width: "100%",
+            marginTop: 8,
+            background: "#444",
+            color: "#fff",
+            border: "1px solid #555",
+            borderRadius: 6,
+            padding: "6px 8px",
+            fontSize: 12,
+            cursor: currentExercise ? "pointer" : "not-allowed",
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            boxShadow: '0 0 6px rgba(0,0,0,0.35)',
+            transition: 'background 0.2s, transform 0.15s',
+          }}
+          title="Restart this level from the beginning (resets nodes, progress, drag + undo)"
+        >
+          🔄 Restart Level
+        </button>
         {draggedOnceIdsRef.current.size >= MAX_DRAGS && (
           <div style={{ color: "#ff7777", fontSize: 11 }}>
             Drag limit reached – further nodes locked.
@@ -2062,12 +2090,9 @@ function MainGameComponent() {
                     : draggedCircle && draggedCircle.id === circle.id
                     ? "grabbing"
                     : "grab",
-                opacity: moved ? 0.55 : globalDragUsed ? 0.75 : 1,
-                filter: moved
-                  ? "grayscale(55%) brightness(0.8)"
-                  : globalDragUsed
-                  ? "grayscale(25%) brightness(0.9)"
-                  : "none",
+                // Keep original appearance regardless of moved/lock state
+                opacity: 1,
+                filter: "none",
               }}
               onMouseDown={(e) => handleFloatingMouseDown(e, circle)}
               onMouseEnter={(e) => {
