@@ -108,6 +108,7 @@ function GalistAbstractDataType() {
 
   // Level completion modal state
   const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
+  const [isTransitioningExercise, setIsTransitioningExercise] = useState(false);
 
   // Basic helper functions first
   const createConnection = useCallback((fromId, toId) => {
@@ -1979,15 +1980,41 @@ const handleTutorialValueShoot = useCallback((mode) => {
   const handleLevelContinue = () => {
     // Advance to next exercise if possible
     if (currentExerciseNumber < totalExercises) {
-      setShowLevelCompleteModal(false);
       const nextKey = EXERCISE_KEYS[currentExerciseNumber];
-      loadExercise(nextKey);
+      // Use transition helper to avoid transient drawing artifacts
+      performTransitionToExercise(nextKey);
     } else {
       // All exercises completed: skip level complete modal for last exercise
       setShowLevelCompleteModal(false);
       setShowAllCompletedModal(true);
     }
   };
+
+  // Safe transition helper: clear visuals, cancel animation frame, then load the exercise
+  const performTransitionToExercise = useCallback((nextKey) => {
+    setShowLevelCompleteModal(false);
+    setIsTransitioningExercise(true);
+
+    // Immediately clear visual state to avoid leftover lines
+    setConnections([]);
+    setCircles([]);
+    setSuckingCircles([]);
+    setSuckedCircles([]);
+    setCurrentEntryOrder([]);
+
+    // Cancel any running animation frame to stop the render loop briefly
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
+    // Small delay to ensure React has applied clears before loading next
+    setTimeout(() => {
+      loadExercise(nextKey);
+      // give a short breathing room before re-enabling render
+      setTimeout(() => setIsTransitioningExercise(false), 60);
+    }, 80);
+  }, [loadExercise]);
 
   // Update currentExercise when exerciseKey changes
   useEffect(() => {
@@ -2235,7 +2262,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
 
       <svg
         className={styles.connectionLines}
-        style={{ visibility: (circles && circles.length > 0 && connections && connections.length > 0) ? 'visible' : 'hidden' }}
+        style={{ visibility: (!isTransitioningExercise && circles && circles.length > 0 && connections && connections.length > 0) ? 'visible' : 'hidden' }}
       >
         {(() => {
           // Render only connections whose BOTH endpoint circles are present in `circles`.
