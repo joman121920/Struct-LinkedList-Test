@@ -8,12 +8,11 @@
 
 #!/bin/bash
 set -o errexit
-
-# Move into backend folder
-cd Struct/backend
-
 # Install dependencies
 pip install -r requirements.txt
+
+# Move into backend folder
+cd Struct 
 
 # Django setup
 python manage.py collectstatic --no-input
