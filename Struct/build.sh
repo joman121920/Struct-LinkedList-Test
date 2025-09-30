@@ -11,3 +11,4 @@ cd Struct
 # # Django setup2
 python manage.py migrate
 
+#232
