@@ -8,8 +8,7 @@ pip install -r requirements.txt
 cd Struct
 
 
-
-# # Django setup
+# # Django setup2
 python manage.py migrate
 
 
