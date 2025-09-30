@@ -367,7 +367,7 @@ export const EXERCISE_TEMPLATES = {
     title: "Create this linked lists using queue",
     description: "Implement a queue using linked list"
   },
-  exercise_tree: {
+  exercise_three: {
     sequence: [10, 72, 13, 12, 11, 34],
     addresses: {
       10: "0xff4",

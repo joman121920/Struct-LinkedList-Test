@@ -364,7 +364,7 @@ export const EXERCISE_TEMPLATES = {
     title: "Insert the following nodes",
     description: "Insert the nodes into the linked list in the correct order"
   },
-  exercise_tree: {
+  exercise_three: {
     sequence: [91, 76, 23, 12, 41, 22, 34],
     addresses: {
       91: "0x57",

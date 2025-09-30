@@ -25,7 +25,7 @@ const Level5Instruction = ({
     },
     {
       name: "Third Portal",
-      exercise: EXERCISE_TEMPLATES.exercise_tree,
+  exercise: EXERCISE_TEMPLATES.exercise_three,
       description: "Create a linked lists that consists of 6 nodes. Using only the insertion methods"
     }
   ];

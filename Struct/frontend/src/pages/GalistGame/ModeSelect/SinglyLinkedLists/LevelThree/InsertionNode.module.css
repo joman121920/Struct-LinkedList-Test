@@ -21,7 +21,7 @@
   justify-content: center;
   align-items: center;
   padding: 15px 0;
-  border: 2px solid #fff;
+  border: transparent;
   z-index: 10;
   border-radius: 8px;
 }
@@ -325,14 +325,71 @@
 
 .rightSquare {
   position: absolute;
-  bottom: 10px;
+  bottom: 1px;
   right: -40px;
-  width: 100px;
-  height: 90px;
-  background-color: #666;
+  width: 70px;
+  height: 110px;
+  background: linear-gradient(to top, #666 0%, #888 50%, #aaa 100%);
+  border: 2px solid #fff;
   z-index: 10;
-  transform: rotate(-40deg);
-  transform-origin: bottom right;
+  transform-origin: bottom center;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  border-radius: 5px 5px 15px 15px;
+}
+
+.rightSquare::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(255, 107, 107, 0.8);
+}
+
+.cannonCircle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  background: #4CAF50;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  transition: all 0.2s ease;
+  animation: pulse 1.5s infinite;
+}
+
+.cannonCircle:hover {
+  background: #45a049;
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  }
 }
 
 .controls {
@@ -367,7 +424,7 @@
 
 .inputField:disabled {
   background-color: #444 !important;
-  color: #ffffff !important;
+  color: #aaa !important;
   cursor: not-allowed;
   opacity: 0.3;
 }
@@ -488,15 +545,9 @@
   background-color: #8c8c8c;
 }
 
-.portalButtonDisabled {
-  background-color: #333333;
-  color: #666666;
+.portalButton:disabled{
+  background-color: #282828;
   cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.portalButtonDisabled:hover {
-  background-color: #333333;
 }
 
 /* Open state overrides disabled state */
@@ -666,11 +717,12 @@
 }
 .popupInput:disabled{
   background-color: #121212;
-  color: #ffffff;
+  color: #7c6c6c00;
+  cursor: not-allowed;
 }
 
 .popupInput::placeholder {
-  color: #f0f0f0;
+  color: #323131;
 }
 .popupInput:focus {
   outline: none;
@@ -702,6 +754,7 @@
 .connectBtn:disabled{
   background-color: #2c2c2c;
   color: #414040;
+  cursor: not-allowed;
 }
 
 
@@ -1031,8 +1084,9 @@
   color: #ccc;
   line-height: 1.4;
 }
+
 /* Insert Modal Styles */
-.insertModalOverlay {
+.insert-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -1045,7 +1099,7 @@
   z-index: 1000;
 }
 
-.insertModalContent {
+.insert-modal-content {
   background-color: #1a1a1a;
   border: 2px solid #333;
   border-radius: 15px;
@@ -1057,7 +1111,7 @@
   font-family: Arial, sans-serif;
 }
 
-.insertModalCloseBtn{
+.insert-modal-close-btn {
   position: absolute;
   top: 15px;
   right: 20px;
@@ -1076,18 +1130,18 @@
   line-height: 1;
 }
 
-.insertModalCloseBtn:hover {
+.insert-modal-close-btn:hover {
   background: #ff6666;
 }
 
-.insertOptions{
+.insert-options {
   display: flex;
   gap: 20px;
   justify-content: center;
   flex-wrap: wrap;
 }
 
-.insertOptionBtn {
+.insert-option-btn {
   margin-top: 45px;
   background-color: #666666;
   border: none;
@@ -1101,19 +1155,19 @@
   flex: 1;
 }
 
-.insertOptionBtn:hover {
+.insert-option-btn:hover {
   background-color: #777777;
   transform: translateY(-2px);
 }
 
-.optionTitle {
+.option-title {
   font-size: 42px;
   font-weight: bold;
   margin-bottom: 10px;
   text-align: center;
 }
 
-.optionSubtitle {
+.option-subtitle {
   font-size: 18px;
   text-align: center;
   color: #333;
@@ -1121,7 +1175,7 @@
 }
 
 /* Index Modal Styles */
-.indexModalOverlay {
+.index-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -1131,10 +1185,10 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 1001;
 }
 
-.indexModalContent {
+.index-modal-content {
   background-color: #1a1a1a;
   border: 2px solid #333;
   border-radius: 15px;
@@ -1148,7 +1202,7 @@
   text-align: center;
 }
 
-.indexModalCloseBtn {
+.index-modal-close-btn {
   position: absolute;
   top: 15px;
   right: 20px;
@@ -1167,11 +1221,11 @@
   line-height: 1;
 }
 
-.indexModalCloseBtn:hover {
+.index-modal-close-btn:hover {
   background: #ff6666;
 }
 
-.indexModalTitle{
+.index-modal-title {
   font-size: 36px;
   font-weight: bold;
   margin-bottom: 10px;
@@ -1179,7 +1233,7 @@
   color: white;
 }
 
-.indexInputContainer {
+.index-input-container {
   display: flex;
   gap: 5px;
   align-items: center;
@@ -1187,7 +1241,7 @@
   margin-bottom: 20px;
 }
 
-.indexInput {
+.index-input {
   background-color: #333;
   border: 1px solid #555;
   border-radius: 5px;
@@ -1198,16 +1252,16 @@
   outline: none;
 }
 
-.indexInput:focus {
+.index-input:focus {
   border-color: #777;
 }
 
-.indexInput::placeholder {
+.index-input::placeholder {
   color: #aaa;
   font-style: italic;
 }
 
-.indexGoBtn{
+.index-go-btn {
   background-color: #666;
   border: none;
   border-radius: 5px;
@@ -1219,7 +1273,7 @@
   transition: background-color 0.3s ease;
 }
 
-.indexGoBtn:hover {
+.index-go-btn:hover {
   background-color: #777;
 }
 
@@ -1227,4 +1281,20 @@
   font-size: 14px;
   color: #aaa;
   margin-top: 10px;
+}
+
+/* Black hole animation */
+@keyframes blackHolePulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5);
+  }
+  50% {
+    transform: scale(1.2);
+    box-shadow: 0 0 50px rgba(255, 0, 0, 1.2), inset 0 0 50px rgba(255, 0, 0, 0.7);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5);
+  }
 }
