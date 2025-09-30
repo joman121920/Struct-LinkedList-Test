@@ -4,10 +4,7 @@ from .settings import *
 from .settings import BASE_DIR
 import os
 
-STATIC_URL = '/static/'
 
-# Add this:
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 ALLOWED_HOSTS = [os.environ.get('RENDER_EXTERNAL_HOSTNAME')]
 CSRF_TRUSTED_ORIGINS = ['https://'+os.environ.get('RENDER_EXTERNAL_HOSTNAME')]
@@ -78,3 +75,8 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASSWORD')
 DEFAULT_FROM_EMAIL = 'default from email'
+
+STATIC_URL = '/static/'
+
+# Add this:
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

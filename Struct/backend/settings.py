@@ -202,3 +202,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWS_CREDENTIALS = True
+
+STATIC_URL = '/static/'
+
+# Add this:
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
