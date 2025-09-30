@@ -10,7 +10,7 @@ cd Struct
 
 python manage.py collectstatic --no-input
 python manage.py migrate
-'@ | Set-Content -Path Struct\build.sh -Encoding UTF8
+'@ | Set-Content -Path build.sh -Encoding UTF8
 
 
 
