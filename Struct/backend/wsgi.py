@@ -10,8 +10,11 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
 import os
 
 from django.core.wsgi import get_wsgi_application
+import sys
 
-settings_module = 'backend.deployment_settings' if 'RENDER_EXTERNAL_HOSTNAME' in os.environ else 'api.settings'
+# Add Struct folder to Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+settings_module = 'backend.deployment_settings' if 'RENDER_EXTERNAL_HOSTNAME' in os.environ else 'backend.settings'
 os.environ.setdefault('DJANGO_SETTINGS_MODULE',settings_module )
 
 # os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
