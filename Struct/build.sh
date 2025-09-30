@@ -1,16 +1,18 @@
-@'
 #!/bin/bash
 set -o errexit
-python -m pip install --upgrade pip setuptools wheel
+
+# Install dependencies
 pip install -r requirements.txt
 
+# Go to folder where manage.py is
 cd Struct
 
 
 
-python manage.py collectstatic --no-input
+# # Django setup
+# python manage.py collectstatic --no-input
 python manage.py migrate
-'@ | Set-Content -Path build.sh -Encoding UTF8
+python manage.py runserver
 
 
 
