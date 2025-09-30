@@ -8,15 +8,15 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
 """
 
 import os
-
-from django.core.wsgi import get_wsgi_application
 import sys
+from django.core.wsgi import get_wsgi_application
 
-# Add Struct folder to Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the Struct folder to Python path so Python can find 'backend' as a module
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE_DIR)  # Put Struct at the front of the path
+
+# Use deployment_settings on Render, otherwise local settings
 settings_module = 'backend.deployment_settings' if 'RENDER_EXTERNAL_HOSTNAME' in os.environ else 'backend.settings'
-os.environ.setdefault('DJANGO_SETTINGS_MODULE',settings_module )
-
-# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', settings_module)
 
 application = get_wsgi_application()
