@@ -22,6 +22,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -64,7 +65,9 @@ LOGGING = {
     },
 }
 
-
+INSTALLED_APPS = [
+    "corsheaders",
+]
 
 ADMINS = [("CBI Analytics", "YOUREMAIL@EMAIL.com")]
 
@@ -80,3 +83,4 @@ STATIC_URL = '/static/'
 
 # Add this:
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+CORS_ALLOW_ALL_ORIGINS = True
