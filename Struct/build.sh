@@ -1,10 +1,16 @@
+#!/bin/bash
 set -o errexit
 
+# Go to folder where manage.py is
+cd Struct
+
+# Install dependencies
 pip install -r requirements.txt
 
-python struct/manage.py collectstatic --no-input
+# Django setup
+python manage.py collectstatic --no-input
+python manage.py migrate
 
-python struct/manage.py migrate
 
 
 if [[ $CREATE_SUPERUSER ]]
