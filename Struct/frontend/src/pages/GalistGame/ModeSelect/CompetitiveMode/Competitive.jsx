@@ -108,6 +108,19 @@ function CompetitiveMode() {
   // Level completion modal state
   const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
 
+  // Collectible collision states
+  const [collectibles, setCollectibles] = useState([]);
+  const [collectibleCollisions, setCollectibleCollisions] = useState([]);
+
+  // Wrap setters in useCallback to prevent unnecessary re-renders
+  const setCollectiblesCallback = useCallback((updater) => {
+    setCollectibles(updater);
+  }, []);
+
+  const setCollisionCallback = useCallback((updater) => {
+    setCollectibleCollisions(updater);
+  }, []);
+
   // Basic helper functions first
   const createConnection = useCallback((fromId, toId) => {
     const newConnection = {
@@ -153,7 +166,7 @@ function CompetitiveMode() {
         id: `blackhole_${i}`,
         x,
         y,
-        radius: 50 // Very large radius for testing - 100px diameter
+        radius: 50 // Very large radius for testing - 100px,  diameter
       });
     }
 
@@ -1355,9 +1368,69 @@ function CompetitiveMode() {
           }
         }
 
+        // Check for collectible collisions with launched circles (only unconnected ones)
+        const collectibleCollisionsThisFrame = [];
+        const circlesToRemove = new Set(); // Track circles to remove due to collisions
+        const processedPairs = new Set(); // Prevent duplicate collision processing
+        
+        finalCircles.forEach(circle => {
+          if (!circle || !circle.isLaunched) return;
+          
+          // Check if circle is already connected in the linked list
+          const connectedIds = findConnectedCircles(circle.id);
+          const isConnected = connectedIds.length > 1; // More than itself means it's connected
+          
+          console.log(`Circle ${circle.id} connected status: ${isConnected}, connected to: ${connectedIds.length} circles`);
+          
+          // Only allow collisions for unconnected circles
+          if (isConnected) {
+            console.log(`Skipping collision check for connected circle ${circle.id}`);
+            return;
+          }
+          
+          collectibles.forEach(collectible => {
+            // Create unique pair identifier to prevent duplicate processing
+            const pairId = `${circle.id}-${collectible.id}`;
+            if (processedPairs.has(pairId)) return;
+            
+            const dx = circle.x - collectible.x;
+            const dy = circle.y - collectible.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const collisionRadius = 70; // Circle radius (30) + collectible radius (35) + buffer (5)
+            
+            console.log(`Checking collision: Circle ${circle.id} at (${circle.x}, ${circle.y}) vs ${collectible.type} at (${collectible.x}, ${collectible.y}), distance: ${distance.toFixed(2)}, threshold: ${collisionRadius}`);
+            
+            if (distance <= collisionRadius) {
+              processedPairs.add(pairId);
+              
+              console.log(`Collision detected! Circle ${circle.id} hit ${collectible.type} collectible ${collectible.id}`);
+              
+              collectibleCollisionsThisFrame.push({
+                circleId: circle.id,
+                collectibleId: collectible.id,
+                collectibleType: collectible.type
+              });
+              
+              // For both timer and bomb collectibles, mark circle for removal
+              circlesToRemove.add(circle.id);
+            }
+          });
+        });
+        
+        // Update collectible collisions state immediately
+        if (collectibleCollisionsThisFrame.length > 0) {
+          console.log('Setting collectible collisions:', collectibleCollisionsThisFrame);
+          setCollectibleCollisions(collectibleCollisionsThisFrame);
+        }
+
         // Additional pass: Check for auto-deletion and black hole collisions
         let filteredCircles = finalCircles.filter(circle => {
           if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
+          
+          // Remove circles that collided with bombs
+          if (circlesToRemove.has(circle.id)) {
+            return false;
+          }
 
           // Check if circle is already connected in the linked list
           const connectedIds = findConnectedCircles(circle.id);
@@ -1420,6 +1493,7 @@ function CompetitiveMode() {
     startChainSuction,
     blackHoles,
     insertionMode,
+    collectibles,
   ]);
 
   // Handle connection removal when circles are sucked
@@ -2498,7 +2572,15 @@ function CompetitiveMode() {
 
       {/* Collectibles layer - spawns floating timers and bombs */}
       {isGameStarted && collectiblesEnabled && (
-        <Collectibles onCollect={handleCollect} isGameActive={!!currentExercise && !showMissionFailed} gameOver={showMissionFailed} />
+        <Collectibles 
+          onCollect={handleCollect} 
+          isGameActive={!!currentExercise && !showMissionFailed} 
+          gameOver={showMissionFailed}
+          collectibles={collectibles}
+          setCollectibles={setCollectiblesCallback}
+          collisions={collectibleCollisions}
+          setCollisions={setCollisionCallback}
+        />
       )}
       
       {/* Competitive Instruction Modal */}

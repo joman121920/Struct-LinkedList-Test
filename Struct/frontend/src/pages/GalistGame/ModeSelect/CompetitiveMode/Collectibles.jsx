@@ -116,8 +116,7 @@ const QUIZ_QUESTIONS = [
   }
 ];
 
-const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
-  const [collectibles, setCollectibles] = useState([]);
+const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setCollectibles, collisions, setCollisions }) => {
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -201,7 +200,56 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
       clearInterval(timerSpawnInterval);
       clearInterval(bombSpawnInterval);
     };
-  }, [isGameActive, gameOver, generateRandomPosition]);
+  }, [isGameActive, gameOver, generateRandomPosition, setCollectibles]);
+
+  // Handle collisions from parent component
+  useEffect(() => {
+    if (!collisions || collisions.length === 0) return;
+
+    console.log('Processing collisions:', collisions); // Debug log
+    
+    // Process each unique collectible collision only once
+    const processedCollectibles = new Set();
+    
+    collisions.forEach(collision => {
+      // Skip if we already processed this collectible in this batch
+      if (processedCollectibles.has(collision.collectibleId)) return;
+      
+      const collectible = collectibles.find(c => c.id === collision.collectibleId);
+      if (!collectible) return;
+
+      processedCollectibles.add(collision.collectibleId);
+
+      if (collision.collectibleType === 'timer') {
+        console.log('Timer collision detected!', collision); // Debug log
+        
+        // Close any existing modal first
+        setShowQuizModal(false);
+        setCurrentQuestion(null);
+        
+        // Small delay to ensure state cleanup, then open new modal
+        setTimeout(() => {
+          const randomQuestion = QUIZ_QUESTIONS[Math.floor(Math.random() * QUIZ_QUESTIONS.length)];
+          console.log('Opening quiz modal with question:', randomQuestion); // Debug log
+          setCurrentQuestion({ ...randomQuestion, collectibleId: collision.collectibleId });
+          setShowQuizModal(true);
+        }, 100);
+        
+        // Remove the collectible
+        setCollectibles(prev => prev.filter(c => c.id !== collision.collectibleId));
+      } else if (collision.collectibleType === 'bomb') {
+        console.log('Bomb collision detected!', collision); // Debug log
+        // Bombs give immediate penalty and remove collectible
+        setCollectibles(prev => prev.filter(c => c.id !== collision.collectibleId));
+        onCollect(-45); // Decrease 45 seconds (restored original value)
+      }
+    });
+
+    // Clear processed collisions after a short delay to ensure proper processing
+    setTimeout(() => {
+      setCollisions([]);
+    }, 50);
+  }, [collisions, collectibles, setCollectibles, setCollisions, onCollect]);
 
   // Animation loop for floating movement and cleanup
   useEffect(() => {
@@ -290,24 +338,9 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
     const animationId = setInterval(animationLoop, 20); // 20 FPS for smooth movement
 
     return () => clearInterval(animationId);
-  }, [isGameActive, gameOver]);
+  }, [isGameActive, gameOver, setCollectibles]);
 
-  // Handle click on collectibles
-  const handleClick = (collectibleId) => {
-    const collectible = collectibles.find(c => c.id === collectibleId);
-    if (!collectible) return;
-
-    if (collectible.type === 'timer') {
-      // Timer collectibles open quiz modal
-      const randomQuestion = QUIZ_QUESTIONS[Math.floor(Math.random() * QUIZ_QUESTIONS.length)];
-      setCurrentQuestion({ ...randomQuestion, collectibleId });
-      setShowQuizModal(true);
-    } else if (collectible.type === 'bomb') {
-      // Bombs give immediate penalty
-      setCollectibles(prev => prev.filter(c => c.id !== collectibleId));
-      onCollect(-45); // Decrease 45 seconds
-    }
-  };
+  // Remove click handling since we now use collision detection
 
   // Handle quiz answer selection
   const handleQuizAnswer = (answerIndex) => {
@@ -362,14 +395,13 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
               opacity,
               zIndex: 2500,
             }}
-            onClick={() => handleClick(collectible.id)}
-            title={isTimer ? "Click to open quiz for +30 seconds!" : "Click to trigger bomb -45 seconds!"}
+            title={isTimer ? "Hit with bullet to open quiz for +30 seconds!" : "Hit with bullet to trigger bomb -15 seconds!"}
           >
             <div className={styles.timerIcon}>
               {isTimer ? '⏰' : '💣'}
             </div>
             <div className={styles.timerBonus}>
-              {isTimer ? '+30s' : '-45s'}
+              {isTimer ? '+30s' : '-15s'}
             </div>
           </div>
         );
@@ -429,6 +461,10 @@ Collectibles.propTypes = {
   onCollect: PropTypes.func.isRequired,
   isGameActive: PropTypes.bool.isRequired,
   gameOver: PropTypes.bool.isRequired,
+  collectibles: PropTypes.array.isRequired,
+  setCollectibles: PropTypes.func.isRequired,
+  collisions: PropTypes.array.isRequired,
+  setCollisions: PropTypes.func.isRequired,
 };
 
 export default Collectibles;
