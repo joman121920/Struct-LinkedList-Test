@@ -121,6 +121,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [progressWidth, setProgressWidth] = useState(100); // Progress bar width percentage
 
   // Generate random position avoiding UI elements
   const generateRandomPosition = useCallback(() => {
@@ -241,7 +242,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
         console.log('Bomb collision detected!', collision); // Debug log
         // Bombs give immediate penalty and remove collectible
         setCollectibles(prev => prev.filter(c => c.id !== collision.collectibleId));
-        onCollect(-45); // Decrease 45 seconds (restored original value)
+        onCollect(-20); // Decrease 20 seconds (restored original value)
       }
     });
 
@@ -348,6 +349,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
 
     setSelectedAnswer(answerIndex);
     setShowFeedback(true);
+    setProgressWidth(100); // Reset progress bar to full
 
     const isCorrect = answerIndex === currentQuestion.correctAnswer;
     
@@ -357,13 +359,35 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
       onCollect(30); // 30 seconds for correct quiz answer
     }
     
-    // Show feedback for 3 seconds, then close modal
-    setTimeout(() => {
-      setShowQuizModal(false);
-      setCurrentQuestion(null);
-      setSelectedAnswer(null);
-      setShowFeedback(false);
-    }, 3000);
+    // Start progress bar countdown animation with immediate start
+    const duration = 3000; // 3 seconds
+    
+    const animate = (startTime) => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const remaining = 1 - progress;
+      const newWidth = remaining * 100;
+      
+      console.log('Progress update:', { elapsed, progress, remaining, newWidth }); // Debug log
+      setProgressWidth(newWidth);
+      
+      if (progress < 1) {
+        requestAnimationFrame(() => animate(startTime));
+      } else {
+        // Close modal when countdown completes
+        setTimeout(() => {
+          setShowQuizModal(false);
+          setCurrentQuestion(null);
+          setSelectedAnswer(null);
+          setShowFeedback(false);
+          setProgressWidth(100);
+        }, 100); // Small delay to ensure final frame is rendered
+      }
+    };
+    
+    // Start animation immediately
+    const startTime = Date.now();
+    animate(startTime);
   };
 
   // Close quiz modal
@@ -450,6 +474,18 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
                 );
               })}
             </div>
+            
+            {/* Progress bar - only show during feedback */}
+            {showFeedback && (
+              <div className={styles.progressBarContainer}>
+                <div 
+                  className={styles.progressBar}
+                  style={{
+                    width: `${progressWidth}%`
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

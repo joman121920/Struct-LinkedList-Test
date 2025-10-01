@@ -193,3 +193,21 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* Progress bar styles */
+.progressBarContainer {
+  margin-top: 20px;
+  width: 100%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #FF00E6);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+}

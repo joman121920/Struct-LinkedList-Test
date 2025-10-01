@@ -2048,6 +2048,7 @@ function CompetitiveMode() {
               transformOrigin: "bottom center"
             }} 
           >
+            
             {/* Cannon Circle */}
             <div 
               className={styles.cannonCircle}
