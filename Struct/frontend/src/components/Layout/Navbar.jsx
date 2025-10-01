@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { api, API_BASE } from "../../data/api"; // added
 import {
   FaSignOutAlt,
   FaChalkboardTeacher,
@@ -57,22 +58,10 @@ const Navbar = () => {
   };
 
   // Function to fetch heart data
-  const fetchHeartData = useCallback(async () => {
+ const fetchHeartData = useCallback(async () => {
     if (!isAuthenticated) return;
-
     try {
-      const token = localStorage.getItem("authToken");
-      if (!token) return;
-
-      const API_BASE_URL = "http://localhost:8000";
-      const response = await axios.get(`${API_BASE_URL}/api/user/hearts/`, {
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-      });
-
-      const { hearts: userHearts, max_hearts, next_heart_in } = response.data;
-
+      const { hearts: userHearts, max_hearts, next_heart_in } = await api.get("/user/hearts/");
       setHearts(userHearts);
       setMaxHearts(max_hearts || 5);
       setNextHeartIn(next_heart_in);

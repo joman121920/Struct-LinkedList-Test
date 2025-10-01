@@ -4,6 +4,7 @@ import { FaHeart, FaArrowLeft, FaCheck } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import axios from "axios";
+import { api } from "../../data/api";
 
 const Store = () => {
   const navigate = useNavigate();
@@ -113,39 +114,26 @@ const Store = () => {
         return;
       }
 
-      const API_BASE_URL = "http://localhost:8000";
-
       // Calculate new values
       const newPoints = userData.points - item.price;
       const newItemValue =
         item.type === "hearts"
-          ? Math.min(userData[item.type] + 1, userData.max_hearts) // Respect max_hearts limit
+          ? Math.min(userData[item.type] + 1, userData.max_hearts)
           : userData[item.type] + 1;
 
-      // Update user data in the backend
-      const response = await axios.patch(
-        `${API_BASE_URL}/api/user/profile/`,
-        {
-          points: newPoints,
-          [item.type]: newItemValue,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Token ${token}`,
-          },
-        }
-      );
+      // Update user data in backend (api helper adds headers + token if present)
+      const updated = await api.patch("/user/profile/", {
+        points: newPoints,
+        [item.type]: newItemValue,
+      });
 
-      if (response.data) {
-        // Update local state
-        setUserData((prevData) => ({
-          ...prevData,
+      if (updated) {
+        setUserData((prev) => ({
+          ...prev,
           points: newPoints,
           [item.type]: newItemValue,
         }));
 
-        // Update user in context
         if (typeof updateUser === "function") {
           updateUser({
             ...authUser,
@@ -154,17 +142,13 @@ const Store = () => {
           });
         }
 
-        // Set purchased item and show success modal
         setPurchasedItem(item);
         setShowSuccessModal(true);
 
-        // Auto-close success modal after 5 seconds
         const timeoutId = setTimeout(() => {
           setShowSuccessModal(false);
           setPurchasedItem(null);
         }, 5000);
-
-        // Store timeout ID so we can clear it if user clicks Continue
         setSuccessTimeoutId(timeoutId);
       }
     } catch (error) {

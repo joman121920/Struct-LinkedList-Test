@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios"; // Make sure this is imported
-
+import { API_BASE } from "../data/api"; // added
 // Create context
 export const AuthContext = createContext();
 
@@ -13,17 +13,12 @@ export const AuthProvider = ({ children }) => {
   // Function to fetch the latest user data from API
   const fetchUserData = async (token) => {
     try {
-      const API_BASE_URL = 'http://localhost:8000';
-      const response = await axios.get(
-        `${API_BASE_URL}/api/user/profile/`,
-        {
-          headers: {
-            'Authorization': `Token ${token}`
-          }
-        }
-      );
-      
-      return response.data;
+      // API_BASE already ends with /api (from .env)
+      const res = await fetch(`${API_BASE}/user/profile/`, {
+        headers: { Authorization: `Token ${token}` },
+      });
+      if (!res.ok) return null;
+      return await res.json();
     } catch (error) {
       console.error("Error fetching user data from API:", error);
       return null;

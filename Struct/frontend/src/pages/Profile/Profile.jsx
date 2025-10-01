@@ -4,6 +4,7 @@ import { FaHeart, FaCamera, FaCheck, FaTimes } from "react-icons/fa";
 import { useAuth } from "../../contexts/AuthContext";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { api, API_BASE } from "../../data/api";
 
 // Throttle to avoid duplicate profile fetches (e.g., StrictMode double-mount)
 let lastProfileFetchAt = 0;
@@ -48,52 +49,29 @@ const Profile = () => {
 
   const fetchUserData = useCallback(async () => {
     if (isAuthenticated) {
-      // Cooldown: skip if a recent fetch happened very recently
       const now = Date.now();
-      if (now - lastProfileFetchAt < 800) {
-        return;
-      }
-      // Skip if another fetch is in progress
+      if (now - lastProfileFetchAt < 800) return;
       if (fetchInProgressRef.current) return;
       fetchInProgressRef.current = true;
       lastProfileFetchAt = now;
-
       setIsDataLoading(true);
-
       try {
         const token = localStorage.getItem("authToken");
-        if (!token) {
-          console.error("No authentication token found");
-          return;
-        }
+        if (!token) return;
 
-        const API_BASE_URL = "http://localhost:8000";
-
-        // Fetch the latest user data directly from the API
-        const response = await axios.get(`${API_BASE_URL}/api/user/profile/`, {
-          headers: {
-            Authorization: `Token ${token}`,
-          },
-        });
-
-        console.log("Fetched user data:", response.data);
-
-        if (response.data) {
-          // Update user in context if needed
+        // Fetch latest profile
+        const response = await api.get("/user/profile/");
+        if (response) {
           if (typeof updateUserFromContext === "function") {
-            updateUserFromContext(response.data);
+            updateUserFromContext(response);
           }
-
-          // Update profile data with real values from the database
-          setProfileData((prevData) => ({
-            ...prevData,
-            points: response.data.points || 0,
-            hearts: response.data.hearts || 0,
+          setProfileData((prev) => ({
+            ...prev,
+            points: response.points || 0,
+            hearts: response.hearts || 0,
           }));
-
-          // Set profile photo if available
-          if (response.data.profile_photo_url) {
-            setLocalProfilePhoto(response.data.profile_photo_url);
+          if (response.profile_photo_url) {
+            setLocalProfilePhoto(response.profile_photo_url);
           }
         }
       } catch (error) {
@@ -188,46 +166,27 @@ const Profile = () => {
     try {
       const token = localStorage.getItem("authToken");
       if (!token) return;
-
-      const API_BASE_URL = "http://localhost:8000";
-      const response = await axios.get(`${API_BASE_URL}/api/user/hearts/`, {
-        headers: {
-          Authorization: `Token ${token}`,
-        },
-      });
-
+      const data = await api.get("/user/hearts/");
       const {
         hearts,
         max_hearts,
         hearts_gained_today,
         max_daily_hearts,
         next_heart_in,
-      } = response.data;
+      } = data;
 
-      // Update local state
-      setProfileData((prevData) => ({
-        ...prevData,
-        hearts: hearts,
-      }));
-
+      setProfileData((prev) => ({ ...prev, hearts }));
       setMaxHearts(max_hearts || 5);
       setHeartsGainedToday(hearts_gained_today || 0);
       setMaxDailyHearts(max_daily_hearts ?? null);
-
-      // Set next_heart_in directly from the API if available
-      // This ensures we respect the backend's decision about regeneration
-      if (next_heart_in === null) {
-        setNextHeartIn(null); // No regeneration needed (at max or daily limit)
-      } else {
-        setNextHeartIn(next_heart_in);
-      }
+      setNextHeartIn(next_heart_in === null ? null : next_heart_in);
 
       if (hearts > profileData.hearts) {
         setHeartJustAdded(true);
         setTimeout(() => setHeartJustAdded(false), 2000);
       }
-    } catch (error) {
-      console.error("Error checking heart regeneration:", error);
+    } catch (e) {
+      console.error("Error checking heart regeneration:", e);
     }
   };
 
@@ -308,11 +267,9 @@ const Profile = () => {
   // Handler to confirm and upload photo
   const handleConfirmUpload = async () => {
     if (!selectedFile) return;
-
     try {
       setIsUploading(true);
       setUploadError(null);
-
       const formData = new FormData();
       formData.append("photo", selectedFile);
 
@@ -323,41 +280,35 @@ const Profile = () => {
         return;
       }
 
-      const API_BASE_URL = "http://localhost:8000";
+      const res = await fetch(`${API_BASE}/user/update-profile-photo/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${token}`,
+          // No Content-Type header; browser sets multipart boundary
+        },
+        body: formData,
+      });
 
-      const response = await axios.post(
-        `${API_BASE_URL}/api/user/update-profile-photo/`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Token ${token}`,
-          },
-        }
-      );
+      let data = null;
+      try { data = await res.json(); } catch {}
 
-      console.log("Upload response:", response.data);
+      if (!res.ok) {
+        setUploadError(data?.error || "Upload failed");
+        return;
+      }
 
-      if (response.data.success && response.data.profile_photo_url) {
-        // Update context if possible
+      if (data?.success && data.profile_photo_url) {
         if (typeof updateUserFromContext === "function") {
-          try {
-            // Only update the current user's profile photo in context
-            updateUserFromContext({
-              ...authUser,
-              profile_photo_url: response.data.profile_photo_url,
-            });
-          } catch (err) {
-            console.warn("Could not update user in context:", err);
-          }
+          updateUserFromContext({
+            ...authUser,
+            profile_photo_url: data.profile_photo_url,
+          });
         }
-
-        // Update local state for current user's profile photo
-        setLocalProfilePhoto(response.data.profile_photo_url);
-
-        // Reset file selection
+        setLocalProfilePhoto(data.profile_photo_url);
         setSelectedFile(null);
         setPreviewUrl(null);
+      } else {
+        setUploadError("Unexpected response from server.");
       }
     } catch (error) {
       console.error("Error uploading photo:", error);
