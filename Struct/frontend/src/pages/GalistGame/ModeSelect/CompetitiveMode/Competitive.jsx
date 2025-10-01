@@ -2058,9 +2058,6 @@ function CompetitiveMode() {
               <span style={{ fontSize: '10px' }}>
                 {cannonCircle.value}
               </span>
-              <span style={{ fontSize: '8px' }}>
-                {cannonCircle.address}
-              </span>
             </div>
           </div>
         </>

@@ -21,7 +21,7 @@
   height: 85%;
   max-height: 1000px;
   border-radius: 20px;
-  border: 2px solid #c0c0c0;
+  border: 2px solid #F609E2;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -55,14 +55,12 @@
 /* Tab Navigation */
 .tabNavigation {
   display: flex;
-  border-bottom: 2px solid #ffffff;
   background-color: #2a2a2a00;
 }
 
 /* Tab Header for single tab */
 .tabHeader {
   display: flex;
-  border-bottom: 2px solid #ffffff51;
   background-color: #2a2a2a00;
   justify-content: center;
 }
@@ -70,12 +68,12 @@
 .tabButton {
   padding: 5px 10px;
   background: #1a1a1a00;
-  border: 1px solid white;
   color: white;
-  font-size: 1.5rem;
-  font-weight: 500;
+  font-size: 2.2rem;
+  font-weight: 900;
   flex: 1;
   text-align: center;
+  color: #F609E2;
 }
 
 .tab {
@@ -84,7 +82,7 @@
   background: none;
   border: 1px solid white;
   color: #ccc;
-  font-size: 16px;
+  font-size: 24px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -139,17 +137,17 @@
 }
 
 .howToPlayTitle {
-  color: #ffffff;
+  color: #F609E2;
   font-size: 28px;
-  font-weight: bold;
+  font-weight: normal;
   margin-bottom: 5px;
   font-style: italic;
 }
 
 .gameButtonsTitle {
-  color: #ffffff;
+  color: #F609E2;
   font-size: 28px;
-  font-weight: bold;
+  font-weight: normal;
   margin-bottom: 5px;
   font-style: italic;
 }
@@ -157,7 +155,7 @@
 .queueOptionsTitle {
   color: #ffffff;
   font-size: 28px;
-  font-weight: bold;
+  font-weight: normal;
   margin-bottom: 5px;
   font-style: italic;
 }
@@ -251,12 +249,12 @@
   transition: all 0.3s ease;
   letter-spacing: 1px;
   text-transform: uppercase;
-  border: 3px solid #505050;
+  border: 3px solid #F609E2;
   margin-top: -22px;
 }
 
 .startButton:hover {
-  background: linear-gradient(135deg, #646464 0%, #5e5e5e 100%);
+  background: linear-gradient(135deg, #F609E2);
   transform: translateY(-2px);
 }
 

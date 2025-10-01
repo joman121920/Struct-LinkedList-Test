@@ -121,7 +121,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [progressWidth, setProgressWidth] = useState(100); // Progress bar width percentage
+  const [progressWidth, setProgressWidth] = useState(100); 
 
   // Generate random position avoiding UI elements
   const generateRandomPosition = useCallback(() => {
@@ -439,6 +439,17 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
             <div className={styles.quizQuestion}>
               {currentQuestion.question}
             </div>
+            
+            {/* Feedback text - only show during feedback */}
+            {showFeedback && (
+              <div className={styles.feedbackText}>
+                {selectedAnswer === currentQuestion.correctAnswer ? (
+                  <span className={styles.correctText}>✓ Correct!</span>
+                ) : (
+                  <span className={styles.incorrectText}>✗ Incorrect</span>
+                )}
+              </div>
+            )}
             
             <div className={styles.quizOptions}>
               {currentQuestion.options.map((option, index) => {
