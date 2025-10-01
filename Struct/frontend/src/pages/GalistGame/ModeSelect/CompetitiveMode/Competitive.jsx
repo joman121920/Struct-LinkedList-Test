@@ -153,7 +153,7 @@ function CompetitiveMode() {
         id: `blackhole_${i}`,
         x,
         y,
-        radius: 60 // Very large radius for testing - 120px diameter
+        radius: 50 // Very large radius for testing - 100px diameter
       });
     }
 
@@ -1355,7 +1355,7 @@ function CompetitiveMode() {
           }
         }
 
-        // Additional pass: Check for black hole collisions and remove affected circles
+        // Additional pass: Check for auto-deletion and black hole collisions
         let filteredCircles = finalCircles.filter(circle => {
           if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
 
@@ -1363,17 +1363,24 @@ function CompetitiveMode() {
           const connectedIds = findConnectedCircles(circle.id);
           const isConnected = connectedIds.length > 1; // More than itself means it's connected
 
-          // Only allow deletion if NOT connected, not an initial circle, and within 3 seconds of launch
+          // Auto-delete unlinked circles after 3 seconds
           if (!isConnected && circle.launchTime && !circle.isInitial) {
             const timeSinceLaunch = Date.now() - circle.launchTime;
-            const maxVulnerableTime = 3000; // 3 seconds in milliseconds
-            if (timeSinceLaunch <= maxVulnerableTime) {
+            const autoDeleteTime = 3000; // 3 seconds in milliseconds
+            
+            if (timeSinceLaunch > autoDeleteTime) {
+              // Delete circle after 3 seconds if still unlinked
+              return false;
+            }
+            
+            // Check black hole collisions only within the 3-second window
+            if (timeSinceLaunch <= autoDeleteTime) {
               for (const blackHole of blackHoles) {
                 const dx = circle.x - blackHole.x;
                 const dy = circle.y - blackHole.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance <= (20 + blackHole.radius)) {
-                  // Only delete if not connected and within 3 seconds
+                  // Delete by black hole collision within 3 seconds
                   return false;
                 }
               }
@@ -1988,6 +1995,14 @@ function CompetitiveMode() {
       {isGameStarted && circles.map((circle) => {
         const label = getCircleLabel(circle.id);
         const clickProgress = circle.isInitial ? 0 : Math.max(0, Math.min(1, (circle.clickCount || 0) / 5));
+        
+        // Check if circle is unlinked and approaching auto-deletion
+        const connectedIds = findConnectedCircles(circle.id);
+        const isConnected = connectedIds.length > 1;
+        const timeSinceLaunch = circle.launchTime ? Date.now() - circle.launchTime : 0;
+        const isApproachingDeletion = !isConnected && circle.isLaunched && !circle.isInitial && 
+                                     timeSinceLaunch > 2000 && timeSinceLaunch <= 3000; // Warning in last second
+        
         return (
           <div
             key={circle.id}
@@ -2003,9 +2018,13 @@ function CompetitiveMode() {
                   ? "grabbing"
                   : "grab")),
               opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
-              boxShadow: circle.isLaunched 
-                ? "0 0 15px rgba(255, 255, 0, 0.6)" 
-                : "0 4px 8px rgba(0, 0, 0, 0.3)", // Yellow glow for launched circles
+              boxShadow: isApproachingDeletion 
+                ? "0 0 20px rgba(255, 0, 0, 0.8)" 
+                : (circle.isLaunched 
+                  ? "0 0 15px rgba(255, 255, 0, 0.6)" 
+                  : "0 4px 8px rgba(0, 0, 0, 0.3)"), // Red glow for approaching deletion
+              border: isApproachingDeletion ? "2px solid red" : "none",
+              animation: isApproachingDeletion ? "pulse 0.5s infinite alternate" : "none",
             }}
             onMouseDown={(e) => handleMouseDown(e, circle)}
             {...(!circle.isInitial ? { onClick: (e) => handleCircleClick(circle.id, e) } : {})}
