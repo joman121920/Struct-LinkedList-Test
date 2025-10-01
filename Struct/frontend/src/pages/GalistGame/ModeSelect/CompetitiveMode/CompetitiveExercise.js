@@ -619,3 +619,35 @@ export class ExerciseManager {
     this.randomGenerator.resetUsedCombinations();
   }
 }
+
+// Helper: generate between 1 and 3 initial nodes from a given exercise sequence
+// Returns an array of objects: { id, value, address }
+export function getRandomInitialNodes(sequence = [], addresses = {}, options = {}) {
+  const minNodes = options.min || 1;
+  const maxNodes = options.max || 3;
+
+  if (!Array.isArray(sequence) || sequence.length === 0) return [];
+
+  // Ensure we don't request more initial nodes than available
+  const allowableMax = Math.min(maxNodes, sequence.length);
+  const count = Math.max(minNodes, Math.floor(Math.random() * allowableMax) + 1);
+
+  // Select distinct random indices from the sequence
+  const indices = new Set();
+  while (indices.size < count) {
+    indices.add(Math.floor(Math.random() * sequence.length));
+  }
+
+  const result = [];
+  let idx = 0;
+  for (const i of indices) {
+    const val = sequence[i];
+    result.push({
+      id: `init_${Date.now()}_${idx++}`,
+      value: val,
+      address: addresses[val]
+    });
+  }
+
+  return result;
+}

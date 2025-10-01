@@ -1,9 +1,127 @@
 import { useEffect, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import styles from './Competitive.module.css';
+import styles from './Collectibles.module.css';
+
+// Quiz questions for timer collectibles
+const QUIZ_QUESTIONS = [
+  {
+    id: 1,
+    question: "In a singly linked list, what does the head pointer represent?",
+    options: [
+      "A. The last node in the list",
+      "B. The first node in the list",
+      "C. A temporary node for traversal",
+      "D. The total number of nodes"
+    ],
+    correctAnswer: 1 // B
+  },
+  {
+    id: 2,
+    question: "What is the time complexity of inserting a node at the beginning of a singly linked list?",
+    options: [
+      "A. O(n)",
+      "B. O(log n)",
+      "C. O(1)",
+      "D. O(n²)"
+    ],
+    correctAnswer: 2 // C
+  },
+  {
+    id: 3,
+    question: "In a linked list node, what does the 'next' pointer contain?",
+    options: [
+      "A. The data of the next node",
+      "B. The address of the next node",
+      "C. The index of the next node",
+      "D. The size of the next node"
+    ],
+    correctAnswer: 1 // B
+  },
+  {
+    id: 4,
+    question: "What value should the 'next' pointer of the last node in a linked list contain?",
+    options: [
+      "A. 0",
+      "B. -1",
+      "C. NULL",
+      "D. The address of the first node"
+    ],
+    correctAnswer: 2 // C
+  },
+  {
+    id: 5,
+    question: "What is the main advantage of a linked list over an array?",
+    options: [
+      "A. Faster access to elements",
+      "B. Dynamic size allocation",
+      "C. Less memory usage",
+      "D. Better cache performance"
+    ],
+    correctAnswer: 1 // B
+  },
+  {
+    id: 6,
+    question: "To delete a node from the middle of a singly linked list, you need:",
+    options: [
+      "A. Only the node to be deleted",
+      "B. The node after the one to be deleted",
+      "C. The node before the one to be deleted",
+      "D. Both previous and next nodes"
+    ],
+    correctAnswer: 2 // C
+  },
+  {
+    id: 7,
+    question: "What is the time complexity of searching for an element in a singly linked list?",
+    options: [
+      "A. O(1)",
+      "B. O(log n)",
+      "C. O(n)",
+      "D. O(n²)"
+    ],
+    correctAnswer: 2 // C
+  },
+  {
+    id: 8,
+    question: "In a circular linked list, the last node points to:",
+    options: [
+      "A. NULL",
+      "B. The first node",
+      "C. The second node",
+      "D. Itself"
+    ],
+    correctAnswer: 1 // B
+  },
+  {
+    id: 9,
+    question: "What happens when you try to access a node after the tail in a singly linked list?",
+    options: [
+      "A. Returns the head node",
+      "B. Returns NULL or causes an error",
+      "C. Creates a new node",
+      "D. Returns the previous node"
+    ],
+    correctAnswer: 1 // B
+  },
+  {
+    id: 10,
+    question: "Which operation is most efficient at the beginning of a singly linked list?",
+    options: [
+      "A. Deletion",
+      "B. Insertion",
+      "C. Both insertion and deletion",
+      "D. Neither insertion nor deletion"
+    ],
+    correctAnswer: 2 // C
+  }
+];
 
 const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
   const [collectibles, setCollectibles] = useState([]);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // Generate random position avoiding UI elements
   const generateRandomPosition = useCallback(() => {
@@ -57,6 +175,14 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
         return [...prev, newBomb];
       });
     };
+
+    // Spawn one immediate collectible so player sees them quickly
+    try {
+      // Try to spawn a timer first for helpfulness
+      spawnTimer();
+    } catch {
+      // ignore
+    }
 
     // Independent spawn intervals for timer and bomb
     const timerSpawnInterval = setInterval(() => {
@@ -166,34 +292,54 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
     return () => clearInterval(animationId);
   }, [isGameActive, gameOver]);
 
-  // Handle single-click for both timer and bomb collectibles
+  // Handle click on collectibles
   const handleClick = (collectibleId) => {
     const collectible = collectibles.find(c => c.id === collectibleId);
     if (!collectible) return;
 
-    setCollectibles(prev => prev.filter(c => c.id !== collectibleId));
-
     if (collectible.type === 'timer') {
-      onCollect(30); // Add 30 seconds
-      // Play collection sound
-      try {
-        const audio = new window.Audio('/sounds/clock.wav');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
+      // Timer collectibles open quiz modal
+      const randomQuestion = QUIZ_QUESTIONS[Math.floor(Math.random() * QUIZ_QUESTIONS.length)];
+      setCurrentQuestion({ ...randomQuestion, collectibleId });
+      setShowQuizModal(true);
     } else if (collectible.type === 'bomb') {
+      // Bombs give immediate penalty
+      setCollectibles(prev => prev.filter(c => c.id !== collectibleId));
       onCollect(-45); // Decrease 45 seconds
-      // Play bomb sound
-      try {
-        const audio = new window.Audio('/sounds/click_bomb.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
     }
+  };
+
+  // Handle quiz answer selection
+  const handleQuizAnswer = (answerIndex) => {
+    if (!currentQuestion || showFeedback) return; // Prevent multiple clicks during feedback
+
+    setSelectedAnswer(answerIndex);
+    setShowFeedback(true);
+
+    const isCorrect = answerIndex === currentQuestion.correctAnswer;
+    
+    if (isCorrect) {
+      // Correct answer - give bonus time and remove collectible
+      setCollectibles(prev => prev.filter(c => c.id !== currentQuestion.collectibleId));
+      onCollect(30); // 30 seconds for correct quiz answer
+    }
+    
+    // Show feedback for 3 seconds, then close modal
+    setTimeout(() => {
+      setShowQuizModal(false);
+      setCurrentQuestion(null);
+      setSelectedAnswer(null);
+      setShowFeedback(false);
+    }, 3000);
+  };
+
+  // Close quiz modal
+  const closeQuizModal = () => {
+    if (showFeedback) return; // Prevent closing during feedback display
+    setShowQuizModal(false);
+    setCurrentQuestion(null);
+    setSelectedAnswer(null);
+    setShowFeedback(false);
   };
 
   if (!isGameActive || gameOver) return null;
@@ -214,9 +360,10 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
               left: `${collectible.x - 25}px`,
               top: `${collectible.y + 28}px`,
               opacity,
+              zIndex: 2500,
             }}
             onClick={() => handleClick(collectible.id)}
-            title={isTimer ? "Click to collect +30 seconds!" : "Click to trigger bomb -45 seconds!"}
+            title={isTimer ? "Click to open quiz for +30 seconds!" : "Click to trigger bomb -45 seconds!"}
           >
             <div className={styles.timerIcon}>
               {isTimer ? '⏰' : '💣'}
@@ -227,6 +374,53 @@ const Collectibles = ({ onCollect, isGameActive, gameOver }) => {
           </div>
         );
       })}
+      
+      {/* Quiz Modal */}
+      {showQuizModal && currentQuestion && (
+        <div className={styles.quizOverlay} onClick={closeQuizModal}>
+          <div className={styles.quizModal} onClick={(e) => e.stopPropagation()}>
+            
+            <div className={styles.quizQuestion}>
+              {currentQuestion.question}
+            </div>
+            
+            <div className={styles.quizOptions}>
+              {currentQuestion.options.map((option, index) => {
+                let optionClass = styles.quizOption;
+                let optionStyle = {};
+                
+                if (showFeedback) {
+                  if (index === currentQuestion.correctAnswer) {
+                    // Correct answer - always green
+                    optionStyle = {
+                      backgroundColor: 'rgba(0, 255, 0, 0.3)',
+                      borderColor: '#00ff00'
+                    };
+                  } else if (index === selectedAnswer) {
+                    // Selected wrong answer - red
+                    optionStyle = {
+                      backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                      borderColor: '#ff0000'
+                    };
+                  }
+                }
+                
+                return (
+                  <button
+                    key={index}
+                    className={optionClass}
+                    style={optionStyle}
+                    onClick={() => handleQuizAnswer(index)}
+                    disabled={showFeedback}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
