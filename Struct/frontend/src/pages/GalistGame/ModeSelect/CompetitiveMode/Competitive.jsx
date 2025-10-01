@@ -5,11 +5,17 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import styles from "./Competitive.module.css";
 import { ExerciseManager, getRandomInitialNodes } from "./CompetitiveExercise.js";
 import Collectibles from './Collectibles.jsx';
+import CompetitiveInstruction from './CompetitiveInstruction.jsx';
 import { collisionDetection } from "../../CollisionDetection.js";
 // Portal visual components removed
 // Tutorial removed: import kept out intentionally
 
 function CompetitiveMode() {
+  // Instruction modal state
+  const [showInstructionPopup, setShowInstructionPopup] = useState(true);
+  const [isGameStarted, setIsGameStarted] = useState(false);
+  const [collectiblesEnabled, setCollectiblesEnabled] = useState(false);
+  
   // Tutorial removed
   // Completion modal state for all exercises done
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
@@ -237,6 +243,34 @@ function CompetitiveMode() {
   const handleCollect = useCallback((deltaSeconds) => {
     setTimerSeconds((s) => Math.max(0, (s || 0) + (deltaSeconds || 0)));
     if ((deltaSeconds || 0) > 0) setTimerRunning(true);
+  }, []);
+
+  // Instruction handlers
+  const startExercise = useCallback(() => {
+    setShowInstructionPopup(false);
+    setIsGameStarted(true);
+    
+    // Reset game state
+    setTimerSeconds(120); // Reset to 2 minutes
+    setTimerRunning(true); // Start the timer
+    setShowMissionFailed(false);
+    setShowValidationResult(false);
+    setValidationResult(null);
+    
+    // Generate black holes instantly when game starts
+    setBlackHoles(generateBlackHoles());
+    
+    // Disable collectibles initially, then enable after delay
+    setCollectiblesEnabled(false);
+    setTimeout(() => {
+      setCollectiblesEnabled(true);
+    }, 5000); // 5 second delay for collectibles
+    
+    // Load exercise will be called after this function is defined
+  }, [generateBlackHoles]);
+
+  const closeInstructionPopup = useCallback(() => {
+    setShowInstructionPopup(false);
   }, []);
 
   // Function to check if a circle is a head node (has outgoing connections but no incoming)
@@ -616,6 +650,15 @@ function CompetitiveMode() {
     setTimerSeconds(120);
     setTimerRunning(true);
     setShowMissionFailed(false);
+    
+    // Generate black holes instantly on retry
+    setBlackHoles(generateBlackHoles());
+    
+    // Reset and delay collectibles
+    setCollectiblesEnabled(false);
+    setTimeout(() => {
+      setCollectiblesEnabled(true);
+    }, 5000); // 5 second delay for collectibles
     // Reload the current exercise and request promotion/launch of its template initial
     loadExercise(exerciseKey, true);
     // Ensure an initial launched circle exists after load (promote or create if needed)
@@ -649,14 +692,21 @@ function CompetitiveMode() {
         return [initialCircle, ...existing];
       });
     }, 60);
-  }, [loadExercise, exerciseKey]);
+  }, [loadExercise, exerciseKey, generateBlackHoles]);
 
-  // Initialize with basic exercise if none loaded
+  // Initialize with basic exercise if none loaded (but only if game has started)
   useEffect(() => {
-    if (!currentExercise) {
+    if (!currentExercise && !showInstructionPopup) {
       loadExercise();
     }
-  }, [currentExercise, loadExercise]);
+  }, [currentExercise, loadExercise, showInstructionPopup]);
+
+  // Load exercise with initial circles when game starts
+  useEffect(() => {
+    if (isGameStarted && !currentExercise) {
+      loadExercise("exercise_one", true);
+    }
+  }, [isGameStarted, currentExercise, loadExercise]);
 
   // (Removed duplicate spawnInitialCircle - definition moved above to avoid temporal dead zone)
 
@@ -1823,20 +1873,19 @@ function CompetitiveMode() {
     setCurrentExercise(exercise);
   }, [exerciseKey]);
 
-  // Black hole repositioning timer - every 20 seconds
+  // Black hole repositioning timer - only when game is active
   useEffect(() => {
+    if (!isGameStarted) return;
+    
     const repositionBlackHoles = () => {
       setBlackHoles(generateBlackHoles());
     };
 
-    // Initial positioning
-    repositionBlackHoles();
-
-    // Set up interval for repositioning every 20 seconds
+    // Set up interval for repositioning every 5-10 seconds (random)
     const interval = setInterval(repositionBlackHoles, Math.random() * 5000 + 5000); // Random interval between 5-10 seconds
 
     return () => clearInterval(interval);
-  }, [generateBlackHoles]); // Include generateBlackHoles dependency
+  }, [generateBlackHoles, isGameStarted]); // Include generateBlackHoles and isGameStarted dependencies
 
   return (
     <div className={styles.app}>
@@ -1855,18 +1904,23 @@ function CompetitiveMode() {
 
       
 
-      {/* Countdown timer (top right) */}
-      <div className={styles.exerciseProgressIndicator} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {Math.floor(timerSeconds / 60).toString().padStart(1, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
-      </div>
+      {/* Game UI - only show when game has started */}
+      {isGameStarted && (
+        <>
+          {/* Countdown timer (top right) */}
+          <div className={styles.exerciseProgressIndicator} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {Math.floor(timerSeconds / 60).toString().padStart(1, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
+          </div>
 
-      {/* Insertion mode indicator (top-left) */}
-      <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>
-        Insert: {insertionMode === 'left' ? 'Before (←)' : 'After (→)'}
-      </div>
+          {/* Insertion mode indicator (top-left) */}
+          <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>
+            Insert: {insertionMode === 'left' ? 'Before (←)' : 'After (→)'}
+          </div>
+        </>
+      )}
 
-      {/* Expected results bar */}
-      {currentExercise && currentExercise.expectedStructure && (
+      {/* Expected results bar - only show when game has started */}
+      {isGameStarted && currentExercise && currentExercise.expectedStructure && (
         <div className={styles.expectedBarWrapper}>
           <table className={styles.expectedBarTable}>
             <tbody>
@@ -1896,36 +1950,42 @@ function CompetitiveMode() {
         </div>
       )}
 
-      {/* Tutorial removed */}
+      {/* Game elements - only show when game has started */}
+      {isGameStarted && (
+        <>
+          {/* Tutorial removed */}
 
-      {/* Portal visuals removed */}
+          {/* Portal visuals removed */}
 
-      
-      
-      <div 
-        className={styles.rightSquare} 
-        style={{ 
-          outlineOffset: "5px",
-          transform: `rotate(${cannonAngle}deg)`,
-          transformOrigin: "bottom center"
-        }} 
-      >
-        {/* Cannon Circle */}
-        <div 
-          className={styles.cannonCircle}
-          onClick={handleCannonClick}
-          style={{ cursor: 'pointer' }}
-        >
-          <span style={{ fontSize: '10px' }}>
-            {cannonCircle.value}
-          </span>
-          <span style={{ fontSize: '8px' }}>
-            {cannonCircle.address}
-          </span>
-        </div>
-      </div>
+          
+          
+          <div 
+            className={styles.rightSquare} 
+            style={{ 
+              outlineOffset: "5px",
+              transform: `rotate(${cannonAngle}deg)`,
+              transformOrigin: "bottom center"
+            }} 
+          >
+            {/* Cannon Circle */}
+            <div 
+              className={styles.cannonCircle}
+              onClick={handleCannonClick}
+              style={{ cursor: 'pointer' }}
+            >
+              <span style={{ fontSize: '10px' }}>
+                {cannonCircle.value}
+              </span>
+              <span style={{ fontSize: '8px' }}>
+                {cannonCircle.address}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
 
-      {circles.map((circle) => {
+      {/* Circles - only show when game has started */}
+      {isGameStarted && circles.map((circle) => {
         const label = getCircleLabel(circle.id);
         const clickProgress = circle.isInitial ? 0 : Math.max(0, Math.min(1, (circle.clickCount || 0) / 5));
         return (
@@ -2011,8 +2071,8 @@ function CompetitiveMode() {
         );
       })}
 
-      {/* Black holes for challenge */}
-      {blackHoles.map((blackHole) => (
+      {/* Black holes for challenge - only show when game has started */}
+      {isGameStarted && blackHoles.map((blackHole) => (
         <div
           key={blackHole.id}
           style={{
@@ -2031,8 +2091,10 @@ function CompetitiveMode() {
         />
       ))}
 
-      <svg className={styles.connectionLines}>
-        {(() => {
+      {/* Connection lines - only show when game has started */}
+      {isGameStarted && (
+        <svg className={styles.connectionLines}>
+          {(() => {
           return connections.map((connection) => {
             // Only remove the line if BOTH nodes have been sucked
             const fromSucked = suckedCircles.includes(connection.from);
@@ -2082,8 +2144,10 @@ function CompetitiveMode() {
           >
             <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
           </marker>
-        </defs>
-      </svg>
+          </defs>
+        </svg>
+      )}
+      
       {/* Validation Result Overlay */}
       {showValidationResult && validationResult && (
         <div className={styles.validationOverlay}>
@@ -2414,7 +2478,17 @@ function CompetitiveMode() {
       )}
 
       {/* Collectibles layer - spawns floating timers and bombs */}
-  <Collectibles onCollect={handleCollect} isGameActive={!!currentExercise && !showMissionFailed} gameOver={showMissionFailed} />
+      {isGameStarted && collectiblesEnabled && (
+        <Collectibles onCollect={handleCollect} isGameActive={!!currentExercise && !showMissionFailed} gameOver={showMissionFailed} />
+      )}
+      
+      {/* Competitive Instruction Modal */}
+      <CompetitiveInstruction
+        showInstructionPopup={showInstructionPopup}
+        startExercise={startExercise}
+        closeInstructionPopup={closeInstructionPopup}
+        isGameActive={isGameStarted}
+      />
     </div>
   );
 }
