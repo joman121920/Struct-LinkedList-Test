@@ -108,6 +108,12 @@ function CompetitiveMode() {
   // Level completion modal state
   const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
 
+  // Points system states
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [showPointsModal, setShowPointsModal] = useState(false);
+  const [earnedPoints, setEarnedPoints] = useState(0);
+  const [roundStartTime, setRoundStartTime] = useState(null); // Track when each round starts
+
   // Collectible collision states
   const [collectibles, setCollectibles] = useState([]);
   const [collectibleCollisions, setCollectibleCollisions] = useState([]);
@@ -269,6 +275,9 @@ function CompetitiveMode() {
     setShowMissionFailed(false);
     setShowValidationResult(false);
     setValidationResult(null);
+    
+    // Start timing for the first round
+    setRoundStartTime(Date.now());
     
     // Generate black holes instantly when game starts
     setBlackHoles(generateBlackHoles());
@@ -951,6 +960,7 @@ function CompetitiveMode() {
           }
 
           // Check for black hole collision - only affects launched circles WITHIN 3 seconds of launch and NOT already connected
+          // IMPORTANT: Initial circles are completely immune to black holes
           if (circle.isLaunched && !circle.isInitial && blackHoles.length > 0 && circle.launchTime) {
             const timeSinceLaunch = Date.now() - circle.launchTime;
             const maxVulnerableTime = 3000; // 3 seconds in milliseconds
@@ -1032,14 +1042,27 @@ function CompetitiveMode() {
                 const circle2HasOutgoing = connections.some(conn => conn.from === circle2.id);
                 const circle2HasIncoming = connections.some(conn => conn.to === circle2.id);
                 // Determine if circles are head, tail, or middle
-                const circle1IsHead = circle1HasOutgoing && !circle1HasIncoming;
-                const circle1IsTail = circle1HasIncoming && !circle1HasOutgoing;
+                // SPECIAL CASE: Check for manually designated head/tail (for single node scenarios)
+                const circle1IsManualHeadTail = (headCircleId === circle1.id && tailCircleId === circle1.id);
+                const circle2IsManualHeadTail = (headCircleId === circle2.id && tailCircleId === circle2.id);
+                
+                const circle1IsHead = (circle1HasOutgoing && !circle1HasIncoming) || 
+                                     (circle1IsManualHeadTail) || 
+                                     (headCircleId === circle1.id && !circle1HasIncoming);
+                const circle1IsTail = (circle1HasIncoming && !circle1HasOutgoing) || 
+                                      (circle1IsManualHeadTail) || 
+                                      (tailCircleId === circle1.id && !circle1HasOutgoing);
                 const circle1IsMiddle = circle1HasIncoming && circle1HasOutgoing;
-                const circle1IsIsolated = !circle1HasIncoming && !circle1HasOutgoing;
-                const circle2IsHead = circle2HasOutgoing && !circle2HasIncoming;
-                const circle2IsTail = circle2HasIncoming && !circle2HasOutgoing;
+                const circle1IsIsolated = !circle1HasIncoming && !circle1HasOutgoing && !circle1IsManualHeadTail;
+                
+                const circle2IsHead = (circle2HasOutgoing && !circle2HasIncoming) || 
+                                     (circle2IsManualHeadTail) || 
+                                     (headCircleId === circle2.id && !circle2HasIncoming);
+                const circle2IsTail = (circle2HasIncoming && !circle2HasOutgoing) || 
+                                      (circle2IsManualHeadTail) || 
+                                      (tailCircleId === circle2.id && !circle2HasOutgoing);
                 const circle2IsMiddle = circle2HasIncoming && circle2HasOutgoing;
-                const circle2IsIsolated = !circle2HasIncoming && !circle2HasOutgoing;
+                const circle2IsIsolated = !circle2HasIncoming && !circle2HasOutgoing && !circle2IsManualHeadTail;
                 
                 // Check if there's already a complete linked list (head and tail exist)
                 const existingHeadNodes = finalCircles.filter(c => {
@@ -1119,7 +1142,34 @@ function CompetitiveMode() {
                   const newNodeIsLaunched = !!newNode.isLaunched;
 
                   if (newNodeIsLaunched) {
-                    if (insertionMode === 'right') {
+                    // SPECIAL CASE: Single head/tail node (no existing connections)
+                    const isSingleHeadTailNode = (headCircleId === existingNode.id && tailCircleId === existingNode.id);
+                    
+                    if (isSingleHeadTailNode) {
+                      // For single head/tail node, create first connection
+                      setConnections(prev => {
+                        const newConnection = { 
+                          id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, 
+                          from: insertionMode === 'right' ? existingNode.id : newNode.id, 
+                          to: insertionMode === 'right' ? newNode.id : existingNode.id 
+                        };
+                        return [...prev, newConnection];
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      
+                      // Update head/tail IDs for the new 2-node chain
+                      if (insertionMode === 'right') {
+                        setHeadCircleId(existingNode.id); // existing stays head
+                        setTailCircleId(newNode.id);      // new becomes tail
+                      } else {
+                        setHeadCircleId(newNode.id);      // new becomes head
+                        setTailCircleId(existingNode.id); // existing becomes tail
+                      }
+                      
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else if (insertionMode === 'right') {
                       // Insert AFTER existingNode: rewire existing->newNode and newNode->oldNext
                       const oldNextConn = connections.find(conn => conn.from === existingNode.id);
                       const oldNextId = oldNextConn ? oldNextConn.to : null;
@@ -1171,7 +1221,34 @@ function CompetitiveMode() {
                   const newNodeIsLaunched = !!newNode.isLaunched;
 
                   if (newNodeIsLaunched) {
-                    if (insertionMode === 'right') {
+                    // SPECIAL CASE: Single head/tail node (no existing connections)
+                    const isSingleHeadTailNode = (headCircleId === existingNode.id && tailCircleId === existingNode.id);
+                    
+                    if (isSingleHeadTailNode) {
+                      // For single head/tail node, create first connection
+                      setConnections(prev => {
+                        const newConnection = { 
+                          id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, 
+                          from: insertionMode === 'right' ? existingNode.id : newNode.id, 
+                          to: insertionMode === 'right' ? newNode.id : existingNode.id 
+                        };
+                        return [...prev, newConnection];
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      
+                      // Update head/tail IDs for the new 2-node chain
+                      if (insertionMode === 'right') {
+                        setHeadCircleId(existingNode.id); // existing stays head
+                        setTailCircleId(newNode.id);      // new becomes tail
+                      } else {
+                        setHeadCircleId(newNode.id);      // new becomes head
+                        setTailCircleId(existingNode.id); // existing becomes tail
+                      }
+                      
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else if (insertionMode === 'right') {
                       const oldNextConn = connections.find(conn => conn.from === existingNode.id);
                       const oldNextId = oldNextConn ? oldNextConn.to : null;
 
@@ -1374,7 +1451,7 @@ function CompetitiveMode() {
         const processedPairs = new Set(); // Prevent duplicate collision processing
         
         finalCircles.forEach(circle => {
-          if (!circle || !circle.isLaunched) return;
+          if (!circle || !circle.isLaunched || circle.isInitial) return; // Skip non-launched and initial circles
           
           // Check if circle is already connected in the linked list
           const connectedIds = findConnectedCircles(circle.id);
@@ -1427,8 +1504,15 @@ function CompetitiveMode() {
         let filteredCircles = finalCircles.filter(circle => {
           if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
           
+          // ALWAYS keep initial circles - they are immune to all removal mechanisms
+          if (circle.isInitial) {
+            console.log(`Protecting initial circle ${circle.id} from all removal mechanisms`);
+            return true;
+          }
+          
           // Remove circles that collided with bombs
           if (circlesToRemove.has(circle.id)) {
+            console.log(`Removing circle ${circle.id} due to bomb collision`);
             return false;
           }
 
@@ -1436,7 +1520,7 @@ function CompetitiveMode() {
           const connectedIds = findConnectedCircles(circle.id);
           const isConnected = connectedIds.length > 1; // More than itself means it's connected
 
-          // Auto-delete unlinked circles after 3 seconds
+          // Auto-delete unlinked circles after 3 seconds (but never delete initial circles)
           if (!isConnected && circle.launchTime && !circle.isInitial) {
             const timeSinceLaunch = Date.now() - circle.launchTime;
             const autoDeleteTime = 3000; // 3 seconds in milliseconds
@@ -1925,13 +2009,95 @@ function CompetitiveMode() {
     // Compare arrays
     const isMatch = expected.length === actual.length && expected.every((node, i) => node.value === actual[i]?.value && node.address === actual[i]?.address);
     if (isMatch) {
-      if (currentExerciseNumber < totalExercises) {
-        setShowLevelCompleteModal(true);
+      // Calculate actual completion time in seconds
+      const currentTime = Date.now();
+      const completionTimeMs = roundStartTime ? (currentTime - roundStartTime) : 0;
+      const completionTime = Math.floor(completionTimeMs / 1000); // Convert to seconds
+      
+      console.log(`Round completed in ${completionTime} seconds`); // Debug log
+      
+      // Time-based point system (maximum 100 points per expected result)
+      let pointsEarned = 0;
+      
+      if (completionTime < 60) {
+        // Under 1 minute: 100 points
+        pointsEarned = 100;
+      } else if (completionTime >= 60 && completionTime < 120) {
+        // 1-2 minutes: 80 points
+        pointsEarned = 80;
       } else {
-        setShowAllCompletedModal(true);
+        // Above 2 minutes: 60 points
+        pointsEarned = 60;
       }
+      
+      setEarnedPoints(pointsEarned);
+      setShowPointsModal(true);
     }
-  }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises]);
+  }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises, timerSeconds, roundStartTime]);
+
+  // Handler for claiming points and generating a new exercise
+  const handleClaimPoints = () => {
+    // Add earned points to total
+    setTotalPoints(prev => prev + earnedPoints);
+    
+    // Close points modal
+    setShowPointsModal(false);
+    
+    // Start timing for the new round
+    setRoundStartTime(Date.now());
+    
+    // Generate new exercise and reset circles
+    const exercise = exerciseManagerRef.current.loadRandomExercise();
+    setCurrentExercise(exercise);
+    
+    // Generate new initial circles using the exercise data
+    const initialNodes = getRandomInitialNodes(
+      exercise.sequence || [],
+      exercise.addresses || {},
+      { min: 1, max: 3 } // Allow up to 3 initial circles with strategic selection
+    );
+    const gameHeight = window.innerHeight;
+    
+    const newCircles = initialNodes.map((node, index) => ({
+      id: `initial_claim_${Date.now()}_${index}`,
+      value: node.value.toString(),
+      address: node.address,
+      x: 150 + (index * 100), // Spread them out horizontally
+      y: gameHeight - 200, // Position them near the bottom
+      isInitial: true,
+      isLaunched: false,
+      velocityX: 0,
+      velocityY: 0
+    }));
+    
+    // Create connections between initial circles (like in loadExercise)
+    const newConnections = [];
+    for (let i = 0; i < newCircles.length - 1; i++) {
+      newConnections.push({
+        id: `claim_conn_${Date.now()}_${i}`,
+        from: newCircles[i].id,
+        to: newCircles[i + 1].id,
+      });
+    }
+    
+    setCircles(newCircles);
+    setConnections(newConnections);
+    
+    // Set head and tail IDs if we have circles
+    if (newCircles.length > 0) {
+      setHeadCircleId(newCircles[0].id);
+      setTailCircleId(newCircles[newCircles.length - 1].id);
+    } else {
+      setHeadCircleId(null);
+      setTailCircleId(null);
+    }
+    
+    // Reset cannon with new values
+    setCannonCircle({
+      value: Math.floor(Math.random() * 100).toString(),
+      address: Math.floor(Math.random() * 1000).toString()
+    });
+  };
 
   // Handler for Continue button
   const handleLevelContinue = () => {
@@ -2003,6 +2169,10 @@ function CompetitiveMode() {
       {/* Expected results bar - only show when game has started */}
       {isGameStarted && currentExercise && currentExercise.expectedStructure && (
         <div className={styles.expectedBarWrapper}>
+          {/* Score indicator */}
+          <div className={styles.scoreIndicator}>
+            <span className={styles.scoreText}>Score: {totalPoints} pts</span>
+          </div>
           <table className={styles.expectedBarTable}>
             <tbody>
               <tr className={styles.expectedBarRow}>
@@ -2090,13 +2260,10 @@ function CompetitiveMode() {
                   ? "grabbing"
                   : "grab")),
               opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
-              boxShadow: isApproachingDeletion 
-                ? "0 0 20px rgba(255, 0, 0, 0.8)" 
-                : (circle.isLaunched 
-                  ? "0 0 15px rgba(255, 255, 0, 0.6)" 
-                  : "0 4px 8px rgba(0, 0, 0, 0.3)"), // Red glow for approaching deletion
-              border: isApproachingDeletion ? "2px solid red" : "none",
-              animation: isApproachingDeletion ? "pulse 0.5s infinite alternate" : "none",
+         
+              animation: circle.isInitial 
+                ? "protectedGlow 2s ease-in-out infinite alternate" 
+                : (isApproachingDeletion ? "pulse 0.5s infinite alternate" : "none"),
             }}
             onMouseDown={(e) => handleMouseDown(e, circle)}
             {...(!circle.isInitial ? { onClick: (e) => handleCircleClick(circle.id, e) } : {})}
@@ -2511,6 +2678,55 @@ function CompetitiveMode() {
               ))}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Points Modal */}
+      {showPointsModal && (
+        <div className={styles.popupOverlay}>
+          <div className={styles.bulletModalContent} style={{ 
+            backgroundColor: '#000', 
+            border: '3px solid #ff00ff', 
+            borderRadius: '15px', 
+            padding: '40px', 
+            width: '500px',
+            height: '280px', 
+            textAlign: 'center' 
+          }}>
+            <h2 style={{ 
+              color: '#ff00ff', 
+              fontSize: '4.0rem', 
+              marginBottom: '20px',
+              textShadow: '0 0 20px rgba(255, 0, 255, 0.8)'
+            }}>
+              +{earnedPoints} pts
+            </h2>
+            <button
+              onClick={handleClaimPoints}
+              style={{
+                background: 'transparent',
+                border: '2px solid #ff00ff',
+                borderRadius: '15px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.2rem',
+                padding: '12px 30px',
+                cursor: 'pointer',
+                marginTop: '20px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(255, 0, 255, 0.2)';
+                e.target.style.boxShadow = '0 0 20px rgba(255, 0, 255, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
+              Claim
+            </button>
           </div>
         </div>
       )}

@@ -18,12 +18,32 @@
 /* Expected Results Bar Styles */
 .expectedBarWrapper {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 15px 0;
   border: transparent;
   z-index: 10;
   border-radius: 8px;
+}
+
+/* Score indicator styles */
+.scoreIndicator {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #ff00ff;
+  border-radius: 25px;
+  padding: 8px 20px;
+  z-index: 1000;
+}
+
+.scoreText {
+  color: #ff00ff;
+  font-weight: bold;
+  font-size: 16px;
+  text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
 }
 
 .expectedBarTable {
@@ -1296,5 +1316,17 @@
   100% {
     transform: scale(1);
     box-shadow: 0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5);
+  }
+}
+
+/* Protected initial circle animation */
+@keyframes protectedGlow {
+  0% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.4);
+    border-color: cyan;
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(0, 255, 255, 1), 0 0 40px rgba(0, 255, 255, 0.6);
+    border-color: rgba(0, 255, 255, 0.8);
   }
 }
