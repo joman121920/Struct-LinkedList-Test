@@ -355,9 +355,9 @@ export class RandomExerciseGenerator {
   }
 
   generateRandomSequence() {
-    // Always generate exactly 5 nodes
-    const sequenceLength = 5;
-    
+    // Generate between 5 and 8 nodes
+    const sequenceLength = Math.floor(Math.random() * 3) + 5; // 5 to 7 nodes
+
     // Generate unique random values between 1 and 50
     const values = new Set();
     while (values.size < sequenceLength) {
