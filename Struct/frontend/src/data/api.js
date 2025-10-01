@@ -1,4 +1,3 @@
-#Changed api base url to production url
 // frontend/src/data/api.js
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
 
