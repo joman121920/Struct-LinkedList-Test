@@ -2160,9 +2160,9 @@ function CompetitiveMode() {
           </div>
 
           {/* Insertion mode indicator (top-left) */}
-          <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>
+          {/* <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>
             Insert: {insertionMode === 'left' ? 'Before (←)' : 'After (→)'}
-          </div>
+          </div> */}
         </>
       )}
 
@@ -2171,7 +2171,7 @@ function CompetitiveMode() {
         <div className={styles.expectedBarWrapper}>
           {/* Score indicator */}
           <div className={styles.scoreIndicator}>
-            <span className={styles.scoreText}>Score: {totalPoints} pts</span>
+            <span className={styles.scoreText}>Points: {totalPoints}</span>
           </div>
           <table className={styles.expectedBarTable}>
             <tbody>
@@ -2225,6 +2225,9 @@ function CompetitiveMode() {
               onClick={handleCannonClick}
               style={{ cursor: 'pointer' }}
             >
+              <div style={{ position: 'absolute', top: -28, color: '#000000ff', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                  {insertionMode === 'left' ? 'Before' : 'After'}
+              </div>
               <span style={{ fontSize: '10px' }}>
                 {cannonCircle.value}
               </span>
