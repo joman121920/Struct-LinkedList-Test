@@ -96,8 +96,7 @@ function CompetitiveMode() {
     address: Math.floor(Math.random() * 1000).toString() 
   });
 
-  // Black hole states for challenge mechanics
-  const [blackHoles, setBlackHoles] = useState([]);
+
   const [headCircleId, setHeadCircleId] = useState(null);
   const [tailCircleId, setTailCircleId] = useState(null);
 
@@ -145,39 +144,7 @@ function CompetitiveMode() {
     return distance <= (radius * 1.5); // Slightly larger collision area for easier targeting
   }, []);
 
-  // Generate random black hole positions
-  const generateBlackHoles = useCallback(() => {
-    const numBlackHoles = Math.floor(Math.random() * 3) + 2; // 1-3 black holes
-    const newBlackHoles = [];
 
-    for (let i = 0; i < numBlackHoles; i++) {
-      let x, y;
-      let attempts = 0;
-      const maxAttempts = 50;
-
-      // Try to find a position that doesn't overlap with other black holes
-      do {
-        x = Math.random() * (window.innerWidth - 200) + 100; // Keep away from edges
-        y = Math.random() * (window.innerHeight - 200) + 100;
-        attempts++;
-      } while (attempts < maxAttempts &&
-        newBlackHoles.some(bh => {
-          const dx = x - bh.x;
-          const dy = y - bh.y;
-          return Math.sqrt(dx * dx + dy * dy) < 120; // Minimum distance between black holes
-        })
-      );
-
-      newBlackHoles.push({
-        id: `blackhole_${i}`,
-        x,
-        y,
-        radius: 50 // Very large radius for testing - 100px,  diameter
-      });
-    }
-
-    return newBlackHoles;
-  }, []); // Remove circles dependency to prevent constant repositioning
 
   // Generate bullet options for the modal
   const generateBulletOptions = useCallback(() => {
@@ -279,8 +246,7 @@ function CompetitiveMode() {
     // Start timing for the first round
     setRoundStartTime(Date.now());
     
-    // Generate black holes instantly when game starts
-    setBlackHoles(generateBlackHoles());
+
     
     // Disable collectibles initially, then enable after delay
     setCollectiblesEnabled(false);
@@ -289,7 +255,7 @@ function CompetitiveMode() {
     }, 5000); // 5 second delay for collectibles
     
     // Load exercise will be called after this function is defined
-  }, [generateBlackHoles]);
+  }, []);
 
   const closeInstructionPopup = useCallback(() => {
     setShowInstructionPopup(false);
@@ -673,8 +639,7 @@ function CompetitiveMode() {
     setTimerRunning(true);
     setShowMissionFailed(false);
     
-    // Generate black holes instantly on retry
-    setBlackHoles(generateBlackHoles());
+
     
     // Reset and delay collectibles
     setCollectiblesEnabled(false);
@@ -714,7 +679,7 @@ function CompetitiveMode() {
         return [initialCircle, ...existing];
       });
     }, 60);
-  }, [loadExercise, exerciseKey, generateBlackHoles]);
+  }, [loadExercise, exerciseKey]);
 
   // Initialize with basic exercise if none loaded (but only if game has started)
   useEffect(() => {
@@ -959,27 +924,7 @@ function CompetitiveMode() {
             }
           }
 
-          // Check for black hole collision - only affects launched circles WITHIN 3 seconds of launch and NOT already connected
-          // IMPORTANT: Initial circles are completely immune to black holes
-          if (circle.isLaunched && !circle.isInitial && blackHoles.length > 0 && circle.launchTime) {
-            const timeSinceLaunch = Date.now() - circle.launchTime;
-            const maxVulnerableTime = 3000; // 3 seconds in milliseconds
-            // Check if circle is already connected in the linked list
-            const connectedIds = findConnectedCircles(circle.id);
-            const isConnected = connectedIds.length > 1; // More than itself means it's connected
-            if (timeSinceLaunch <= maxVulnerableTime && !isConnected) {
-              for (const blackHole of blackHoles) {
-                const dx = circle.x - blackHole.x;
-                const dy = circle.y - blackHole.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                // If freshly launched and unconnected circle hits black hole, remove it
-                if (distance <= (20 + blackHole.radius)) {
-                  console.log('Black hole collision detected!', { circle: circle.id, blackHole: blackHole.id, distance, timeSinceLaunch });
-                  return null; // Remove the circle
-                }
-              }
-            }
-          }          return circle;
+          return circle;
         });
 
         // Second pass: Apply collision detection and physics
@@ -1500,7 +1445,7 @@ function CompetitiveMode() {
           setCollectibleCollisions(collectibleCollisionsThisFrame);
         }
 
-        // Additional pass: Check for auto-deletion and black hole collisions
+        // Additional pass: Check for auto-deletion
         let filteredCircles = finalCircles.filter(circle => {
           if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
           
@@ -1530,18 +1475,7 @@ function CompetitiveMode() {
               return false;
             }
             
-            // Check black hole collisions only within the 3-second window
-            if (timeSinceLaunch <= autoDeleteTime) {
-              for (const blackHole of blackHoles) {
-                const dx = circle.x - blackHole.x;
-                const dy = circle.y - blackHole.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance <= (20 + blackHole.radius)) {
-                  // Delete by black hole collision within 3 seconds
-                  return false;
-                }
-              }
-            }
+
           }
           return true; // Keep this circle
         });
@@ -1575,7 +1509,7 @@ function CompetitiveMode() {
     isTailNode,
     getChainOrder,
     startChainSuction,
-    blackHoles,
+
     insertionMode,
     collectibles,
   ]);
@@ -2120,19 +2054,7 @@ function CompetitiveMode() {
     setCurrentExercise(exercise);
   }, [exerciseKey]);
 
-  // Black hole repositioning timer - only when game is active
-  useEffect(() => {
-    if (!isGameStarted) return;
-    
-    const repositionBlackHoles = () => {
-      setBlackHoles(generateBlackHoles());
-    };
 
-    // Set up interval for repositioning every 5-10 seconds (random)
-    const interval = setInterval(repositionBlackHoles, Math.random() * 5000 + 5000); // Random interval between 5-10 seconds
-
-    return () => clearInterval(interval);
-  }, [generateBlackHoles, isGameStarted]); // Include generateBlackHoles and isGameStarted dependencies
 
   return (
     <div className={styles.app}>
@@ -2332,25 +2254,7 @@ function CompetitiveMode() {
         );
       })}
 
-      {/* Black holes for challenge - only show when game has started */}
-      {isGameStarted && blackHoles.map((blackHole) => (
-        <div
-          key={blackHole.id}
-          style={{
-            position: 'absolute',
-            left: `${blackHole.x - blackHole.radius}px`,
-            top: `${blackHole.y - blackHole.radius}px`,
-            width: `${blackHole.radius * 2}px`,
-            height: `${blackHole.radius * 2}px`,
-            borderRadius: '50%',
-            backgroundColor: '#000',
-            border: '4px solid #ff0000',
-            boxShadow: '0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5)',
-            zIndex: 10,
-            animation: 'blackHolePulse 2s infinite ease-in-out',
-          }}
-        />
-      ))}
+
 
       {/* Connection lines - only show when game has started */}
       {isGameStarted && (
