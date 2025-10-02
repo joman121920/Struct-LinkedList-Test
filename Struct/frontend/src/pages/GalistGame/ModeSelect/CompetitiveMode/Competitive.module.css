@@ -1386,5 +1386,230 @@
 }
 
 .gameOverButton:hover {
-  background-color: #ff00ff
+  background-color: #555;
+}
+
+/* Bomb Node Styles */
+@keyframes bomb-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.8), 0 0 40px rgba(255, 68, 68, 0.4);
+  }
+  100% {
+    transform: scale(1.1);
+    box-shadow: 0 0 30px rgba(255, 68, 68, 1), 0 0 60px rgba(255, 68, 68, 0.6);
+  }
+}
+
+.bombNode {
+  border: 3px solid #ff0000 !important;
+  animation: bomb-pulse 0.5s ease-in-out infinite alternate;
+}
+
+.bombCountdown {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 0, 0, 0.9);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: bold;
+  border: 2px solid #fff;
+  z-index: 10;
+  animation: bomb-pulse 0.5s ease-in-out infinite alternate;
+}
+
+/* Defuse Modal Styles */
+.defuseModalHeader {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.defuseTitle {
+  color: #ff4444;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.8);
+  animation: bomb-pulse 1s ease-in-out infinite alternate;
+}
+
+.defuseInstructions {
+  color: #fff;
+  font-size: 18px;
+  margin-bottom: 15px;
+}
+
+.defuseCountdown {
+  color: #ffaa00;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.countdownNumber {
+  color: #ff4444;
+  font-size: 32px;
+  text-shadow: 0 0 5px rgba(255, 68, 68, 0.8);
+}
+
+.defuseChallenge {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #444;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+.defuseSortingArea {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  padding: 20px;
+}
+
+.defuseNode {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background-color: #d3d3d3;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: black;
+  font-weight: bold;
+  cursor: grab;
+  border: 2px solid #888;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.defuseNode:hover {
+  transform: scale(1.05);
+  border-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.defuseNode:active {
+  cursor: grabbing;
+  transform: scale(0.95);
+}
+
+.defuseNodeValue {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.defuseNodeAddress {
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.defuseArrow {
+  position: absolute;
+  font-size: 24px;
+  color: #fff;
+  font-weight: bold;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.defuseHint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 100, 200, 0.8);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  border: 2px solid #0066cc;
+}
+
+/* Selected defuse node style */
+.selectedDefuseNode {
+  border: 3px solid #ff00ff !important;
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.8) !important;
+  transform: scale(1.1) !important;
+}
+
+/* Wrong Answer Notification Styles */
+.wrongAnswerNotification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  animation: notification-popup 0.3s ease-out;
+}
+
+@keyframes notification-popup {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.notificationContent {
+  background: linear-gradient(145deg, #ff4444, #cc3333);
+  border: 3px solid #fff;
+  border-radius: 15px;
+  padding: 20px 30px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 0 30px rgba(255, 68, 68, 0.8), 0 0 60px rgba(255, 68, 68, 0.4);
+  animation: bomb-pulse 0.5s ease-in-out infinite alternate;
+}
+
+.notificationIcon {
+  font-size: 32px;
+  animation: shake 0.5s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+.notificationText {
+  color: white;
+  text-align: left;
+}
+
+.notificationTitle {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.notificationMessage {
+  font-size: 14px;
+  line-height: 1.4;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.notificationMessage small {
+  font-size: 12px;
+  opacity: 0.9;
 }

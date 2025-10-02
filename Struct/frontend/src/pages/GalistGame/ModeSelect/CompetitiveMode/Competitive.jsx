@@ -124,14 +124,247 @@ function CompetitiveMode() {
   const [collectibles, setCollectibles] = useState([]);
   const [collectibleCollisions, setCollectibleCollisions] = useState([]);
 
+  // Bomb defusing system states
+  const [bombNode, setBombNode] = useState(null); // The node that will explode
+  const [bombCountdown, setBombCountdown] = useState(0); // Countdown in seconds
+  const [showDefuseModal, setShowDefuseModal] = useState(false);
+  const [defuseNodes, setDefuseNodes] = useState([]); // Nodes to sort in defuse modal
+  const [selectedDefuseNodes, setSelectedDefuseNodes] = useState([]); // Selected nodes for swapping
+  const [defuseProgressCountdown, setDefuseProgressCountdown] = useState(0); // 3-minute countdown for checking
+  const [isBombDefused, setIsBombDefused] = useState(false); // Success state
+  const bombTimerRef = useRef(null);
+  const bombSpawnTimerRef = useRef(null);
+  const defuseProgressTimerRef = useRef(null);
+  
+  // Notification system for wrong quiz answers
+  const [showWrongAnswerNotification, setShowWrongAnswerNotification] = useState(false);
+
   // Wrap setters in useCallback to prevent unnecessary re-renders
   const setCollectiblesCallback = useCallback((updater) => {
     setCollectibles(updater);
   }, []);
 
+  // Bomb defusing system functions
+  const spawnBombNode = useCallback(() => {
+    // Get all non-initial circles that are connected in the linked list
+    const eligibleNodes = circles.filter(circle => 
+      !circle.isInitial && 
+      circle.isLaunched && 
+      connections.some(conn => conn.from === circle.id || conn.to === circle.id)
+    );
+    
+    if (eligibleNodes.length === 0) return;
+    
+    // Select random node
+    const randomNode = eligibleNodes[Math.floor(Math.random() * eligibleNodes.length)];
+    setBombNode(randomNode);
+    setBombCountdown(30); // 30 seconds to defuse
+    
+    console.log(`Bomb spawned on node ${randomNode.id} with value ${randomNode.value}`);
+    
+    // Start countdown timer
+    bombTimerRef.current = setInterval(() => {
+      setBombCountdown(prev => {
+        if (prev <= 1) {
+          // Bomb explodes - game over
+          clearInterval(bombTimerRef.current);
+          setBombNode(null);
+          setShowMissionFailed(true);
+          setFinalSurvivalTime(Date.now() - gameStartTime);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [circles, connections, gameStartTime]);
+
   const setCollisionCallback = useCallback((updater) => {
     setCollectibleCollisions(updater);
   }, []);
+
+  // Generate random linked list for defuse modal
+  const generateDefuseChallenge = useCallback(() => {
+    const nodeCount = 5; // Always 5 nodes for sorting challenge
+    const nodes = [];
+    const usedValues = new Set();
+    
+    // Generate 5 unique random values between 10-99
+    while (nodes.length < nodeCount) {
+      const value = Math.floor(Math.random() * 90) + 10;
+      if (!usedValues.has(value)) {
+        usedValues.add(value);
+        nodes.push({
+          id: `defuse_${nodes.length}`,
+          value: value.toString(),
+          address: `0x${(100 + nodes.length * 100).toString(16).toUpperCase()}`,
+          position: nodes.length, // Track original position
+          isDefuseNode: true
+        });
+      }
+    }
+    
+    // Shuffle the values to randomize their initial order
+    const values = nodes.map(n => ({ value: n.value, address: n.address }));
+    for (let i = values.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [values[i], values[j]] = [values[j], values[i]];
+    }
+    
+    // Assign shuffled values back to nodes
+    nodes.forEach((node, index) => {
+      node.value = values[index].value;
+      node.address = values[index].address;
+    });
+    
+    return nodes;
+  }, []);
+
+  // Check if defuse challenge is solved (nodes in ascending order)
+  const checkDefuseSolution = useCallback(() => {
+    // Sort by position and check if values are in ascending order
+    const sortedByPosition = [...defuseNodes].sort((a, b) => a.position - b.position);
+    const values = sortedByPosition.map(node => parseInt(node.value));
+    
+    // Check if values are in ascending order
+    for (let i = 1; i < values.length; i++) {
+      if (values[i] < values[i - 1]) {
+        return false;
+      }
+    }
+    return true;
+  }, [defuseNodes]);
+
+  // Handle successful defuse
+  const handleDefuseSuccess = useCallback(() => {
+    // Clear bomb timer
+    if (bombTimerRef.current) {
+      clearInterval(bombTimerRef.current);
+      bombTimerRef.current = null;
+    }
+    
+    // Clear progress timer
+    if (defuseProgressTimerRef.current) {
+      clearInterval(defuseProgressTimerRef.current);
+      defuseProgressTimerRef.current = null;
+    }
+    
+    // Reset bomb states
+    setBombNode(null);
+    setBombCountdown(0);
+    setShowDefuseModal(false);
+    setDefuseNodes([]);
+    setSelectedDefuseNodes([]);
+    setDefuseProgressCountdown(0);
+    setIsBombDefused(false);
+    
+    // Award bonus points for successful defuse
+    setTotalPoints(prev => prev + 50);
+    setEarnedPoints(50);
+    
+    console.log('Bomb defused successfully! +50 points');
+  }, []);
+
+  // Start 3-second countdown when solution is correct
+  const startDefuseCountdown = useCallback(() => {
+    setIsBombDefused(true);
+    setDefuseProgressCountdown(180); // 3 minutes
+    
+    defuseProgressTimerRef.current = setInterval(() => {
+      setDefuseProgressCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(defuseProgressTimerRef.current);
+          defuseProgressTimerRef.current = null;
+          handleDefuseSuccess();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [handleDefuseSuccess]);
+
+  // Handle node click in defuse modal
+  const handleDefuseNodeClick = useCallback((node) => {
+    setSelectedDefuseNodes(prev => {
+      if (prev.find(n => n.id === node.id)) {
+        // Deselect if already selected
+        return prev.filter(n => n.id !== node.id);
+      } else if (prev.length === 0) {
+        // Select first node
+        return [node];
+      } else if (prev.length === 1) {
+        // Second node clicked - immediately swap and clear selection
+        const [firstNode] = prev;
+        
+        // Swap the values and addresses
+        setDefuseNodes(current => 
+          current.map(n => {
+            if (n.id === firstNode.id) {
+              return { ...n, value: node.value, address: node.address };
+            } else if (n.id === node.id) {
+              return { ...n, value: firstNode.value, address: firstNode.address };
+            }
+            return n;
+          })
+        );
+        
+        // Check if solution is correct after swap
+        setTimeout(() => {
+          if (checkDefuseSolution()) {
+            startDefuseCountdown();
+          }
+        }, 100);
+        
+        return []; // Clear selection after swap
+      }
+      return prev;
+    });
+  }, [checkDefuseSolution, startDefuseCountdown]);
+
+  // Check solution immediately when defuse modal opens or nodes change
+  useEffect(() => {
+    if (showDefuseModal && defuseNodes.length > 0 && !isBombDefused && defuseProgressCountdown === 0) {
+      if (checkDefuseSolution()) {
+        startDefuseCountdown();
+      }
+    }
+  }, [showDefuseModal, defuseNodes, checkDefuseSolution, startDefuseCountdown, isBombDefused, defuseProgressCountdown]);
+
+  // Convert a regular node into a bomb node (for wrong quiz answers)
+  const createBombFromNode = useCallback((targetNode) => {
+    if (!targetNode) {
+      console.log('No target node provided for bomb creation');
+      return;
+    }
+    
+    // Clear any existing bomb timer first
+    if (bombTimerRef.current) {
+      clearInterval(bombTimerRef.current);
+      bombTimerRef.current = null;
+    }
+    
+    console.log(`Converting node ${targetNode.id} with value ${targetNode.value} into a bomb`);
+    
+    // Set this node as the bomb node
+    setBombNode(targetNode);
+    setBombCountdown(30); // 5 seconds to defuse
+    
+    // Start countdown timer
+    bombTimerRef.current = setInterval(() => {
+      setBombCountdown(prev => {
+        if (prev <= 1) {
+          // Bomb explodes - game over
+          clearInterval(bombTimerRef.current);
+          setBombNode(null);
+          setShowMissionFailed(true);
+          setFinalSurvivalTime(Date.now() - gameStartTime);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [gameStartTime]);
+
+
 
   // Basic helper functions first
   const createConnection = useCallback((fromId, toId) => {
@@ -238,6 +471,37 @@ function CompetitiveMode() {
     if ((deltaSeconds || 0) > 0) setTimerRunning(true);
   }, []);
 
+  // Handle wrong quiz answers by creating bomb nodes
+  const handleWrongQuizAnswer = useCallback(() => {
+    // Get all eligible nodes (non-initial, connected nodes)
+    const eligibleNodes = circles.filter(circle => 
+      !circle.isInitial && 
+      circle.isLaunched && 
+      connections.some(conn => conn.from === circle.id || conn.to === circle.id)
+    );
+    
+    if (eligibleNodes.length === 0) {
+      console.log('No eligible nodes to convert to bomb');
+      return;
+    }
+    
+    // Select random eligible node
+    const randomNode = eligibleNodes[Math.floor(Math.random() * eligibleNodes.length)];
+    
+    // Show notification about wrong answer and bomb creation
+    setShowWrongAnswerNotification(true);
+    
+    // Hide notification after 3 seconds
+    setTimeout(() => {
+      setShowWrongAnswerNotification(false);
+    }, 3000);
+    
+    // Convert it to a bomb node
+    createBombFromNode(randomNode);
+    
+    console.log(`Wrong quiz answer! Node ${randomNode.id} (value: ${randomNode.value}) is now a bomb!`);
+  }, [circles, connections, createBombFromNode]);
+
   // Instruction handlers
   const startExercise = useCallback(() => {
     setShowInstructionPopup(false);
@@ -339,6 +603,47 @@ function CompetitiveMode() {
   useEffect(() => {
     updateHeadTailIds();
   }, [connections, circles, updateHeadTailIds]);
+
+  // Bomb spawning system - spawn bomb every 15-25 seconds during gameplay
+  useEffect(() => {
+    if (!isGameStarted || showMissionFailed || !timerRunning) return;
+    
+    const spawnBomb = () => {
+      if (!bombNode && circles.length > 2) { // Only spawn if no active bomb and enough circles
+        spawnBombNode();
+      }
+      
+      // Schedule next bomb spawn (15-25 seconds)
+      const nextSpawnDelay = (Math.random() * 10 + 15) * 1000;
+      bombSpawnTimerRef.current = setTimeout(spawnBomb, nextSpawnDelay);
+    };
+    
+    // Initial bomb spawn after 10-15 seconds
+    const initialDelay = (Math.random() * 5 + 10) * 1000;
+    bombSpawnTimerRef.current = setTimeout(spawnBomb, initialDelay);
+    
+    return () => {
+      if (bombSpawnTimerRef.current) {
+        clearTimeout(bombSpawnTimerRef.current);
+      }
+    };
+  }, [isGameStarted, showMissionFailed, timerRunning, bombNode, circles.length, spawnBombNode]);
+
+  // Clean up bomb timers when game ends
+  useEffect(() => {
+    if (showMissionFailed) {
+      if (bombTimerRef.current) {
+        clearInterval(bombTimerRef.current);
+        bombTimerRef.current = null;
+      }
+      if (bombSpawnTimerRef.current) {
+        clearTimeout(bombSpawnTimerRef.current);
+        bombSpawnTimerRef.current = null;
+      }
+      setBombNode(null);
+      setBombCountdown(0);
+    }
+  }, [showMissionFailed]);
 
   // Check if portal button should be enabled (requires at least one head AND one tail node)
   // const hasHeadNode = useCallback(() => {
@@ -1649,6 +1954,18 @@ function CompetitiveMode() {
   const handleCircleClick = useCallback((circleId, e) => {
     e.stopPropagation();
 
+    // Check for double-click first
+    if (e.detail === 2) {
+      // Check if this is a bomb node
+      if (bombNode && bombNode.id === circleId) {
+        // Open defuse modal
+        const challenge = generateDefuseChallenge();
+        setDefuseNodes(challenge);
+        setShowDefuseModal(true);
+        console.log('Defuse modal opened for bomb node:', circleId);
+        return;
+      }
+    }
 
     setCircles(prev => {
       const updated = prev.map(c => {
@@ -1676,7 +1993,7 @@ function CompetitiveMode() {
 
       return updated;
     });
-  }, [performDelete]);
+  }, [performDelete, bombNode, generateDefuseChallenge]);
 
 
 
@@ -2191,6 +2508,8 @@ function CompetitiveMode() {
             key={circle.id}
             className={`${styles.animatedCircle} ${
               suckingCircles.includes(circle.id) ? styles.beingSucked : ""
+            } ${
+              bombNode && bombNode.id === circle.id ? styles.bombNode : ""
             }`}
             style={{
               left: `${circle.x - 30}px`,
@@ -2201,10 +2520,17 @@ function CompetitiveMode() {
                   ? "grabbing"
                   : "grab")),
               opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
-         
+              backgroundColor: bombNode && bombNode.id === circle.id 
+                ? (bombCountdown % 2 === 0 ? '#ff4444' : '#ff8888') // Blinking red effect
+                : (circle.color || '#d3d3d3'),
+              boxShadow: bombNode && bombNode.id === circle.id 
+                ? '0 0 20px rgba(255, 68, 68, 0.8), 0 0 40px rgba(255, 68, 68, 0.4)'
+                : 'none',
               animation: circle.isInitial 
                 ? "protectedGlow 2s ease-in-out infinite alternate" 
-                : (isApproachingDeletion ? "pulse 0.5s infinite alternate" : "none"),
+                : (bombNode && bombNode.id === circle.id 
+                  ? "bomb-pulse 0.5s ease-in-out infinite alternate"
+                  : (isApproachingDeletion ? "pulse 0.5s infinite alternate" : "none")),
             }}
             onMouseDown={(e) => handleMouseDown(e, circle)}
             {...(!circle.isInitial ? { onClick: (e) => handleCircleClick(circle.id, e) } : {})}
@@ -2212,6 +2538,11 @@ function CompetitiveMode() {
           >
             <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
             <span className={styles.circleAddress} style={{ position: 'relative', zIndex: 2 }}>{circle.address}</span>
+            {bombNode && bombNode.id === circle.id && (
+              <div className={styles.bombCountdown}>
+                💣 {bombCountdown}
+              </div>
+            )}
 
             {/* Click-to-delete background circle fill (SVG) */}
             <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
@@ -2752,10 +3083,190 @@ function CompetitiveMode() {
           setCollectibles={setCollectiblesCallback}
           collisions={collectibleCollisions}
           setCollisions={setCollisionCallback}
+          onWrongQuizAnswer={handleWrongQuizAnswer}
         />
       )}
       
       {/* Competitive Instruction Modal */}
+      {/* Wrong Answer Notification */}
+      {showWrongAnswerNotification && (
+        <div className={styles.wrongAnswerNotification}>
+          <div className={styles.notificationContent}>
+            <div className={styles.notificationIcon}>❌</div>
+            <div className={styles.notificationText}>
+              <div className={styles.notificationTitle}>Wrong Answer!</div>
+              <div className={styles.notificationMessage}>
+                A node has been converted to a bomb! 💣<br/>
+                <small>Double-click the blinking red node to defuse it!</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Bomb Defuse Modal */}
+      {showDefuseModal && (
+        <div className={styles.popupOverlay}>
+          <div className={`${styles.popupContent} defuseModalContent`} style={{ 
+            width: '75%', 
+            height: '70%', 
+            backgroundColor: '#000', 
+            border: '4px solid #ff00ff', 
+            borderRadius: '20px',
+            padding: '40px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 2000
+          }}>
+            
+            {/* Title */}
+            <h1 style={{ 
+              color: 'white', 
+              fontSize: '2.5em', 
+              fontWeight: 'normal',
+              textAlign: 'center',
+              margin: '0 0 0px 0'
+            }}>
+              Sort the linked list in a ascending order.
+            </h1>
+            
+            {/* Bomb Defused Message */}
+            {isBombDefused && (
+              <div style={{
+                color: '#00ff00',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                marginTop: '-60px',
+              }}>
+                BOMB DEFUSED!
+              </div>
+            )}
+            
+            {/* Head and Tail labels */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '800px', marginTop: '-40px' }}>
+              <div style={{ 
+                position: 'absolute', 
+                left: '-5px', 
+                top: '-40px', 
+                color: 'white', 
+                fontSize: '1.2em',
+                fontWeight: 'normal'
+              }}>
+                Head
+              </div>
+              
+              <div style={{ 
+                position: 'absolute', 
+                right: '6px', 
+                top: '-40px', 
+                color: 'white', 
+                fontSize: '1.2em',
+                fontWeight: 'normal'
+              }}>
+                Tail
+              </div>
+              
+              {/* Linked list nodes */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                gap: '0px',
+                width: '100%'
+              }}>
+                {defuseNodes.map((node, index) => (
+                  <div key={node.id} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        width: '120px',
+                        height: '120px',
+                        borderRadius: '50%',
+                        backgroundColor: selectedDefuseNodes.find(n => n.id === node.id) ? '#ff00ff' : '#d3d3d3',
+                        border: selectedDefuseNodes.find(n => n.id === node.id) ? '3px solid #ff00ff' : '2px solid #999',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: selectedDefuseNodes.find(n => n.id === node.id) ? '0 0 20px rgba(255, 0, 255, 0.6)' : 'none'
+                      }}
+                      onClick={() => handleDefuseNodeClick(node)}
+                    >
+                      <div style={{ 
+                        fontSize: '2.2em', 
+                        fontWeight: 'bold', 
+                        color: 'black',
+                        lineHeight: '1'
+                      }}>
+                        {node.value}
+                      </div>
+                      <div style={{ 
+                        fontSize: '0.9em', 
+                        color: 'black',
+                        lineHeight: '1',
+                        marginTop: '2px'
+                      }}>
+                        {node.address}
+                      </div>
+                    </div>
+                    {index < defuseNodes.length - 1 && (
+                      <div style={{
+                        fontSize: '2.5em',
+                        color: 'white',
+                        margin: '0 15px',
+                        fontWeight: 'normal'
+                      }}>
+                        →
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Progress Bar */}
+              {isBombDefused && defuseProgressCountdown > 0 && (
+                <div style={{
+                  marginTop: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    color: '#00ff00',
+                    fontSize: '1.5em',
+                    fontWeight: 'bold'
+                  }}>
+                    {defuseProgressCountdown}
+                  </div>
+                  <div style={{
+                    width: '870px',
+                    height: '20px',
+                    backgroundColor: '#333',
+                    borderRadius: '10px',
+                    border: '2px solid #FF00E6',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(defuseProgressCountdown / 180) * 100}%`,
+                      height: '100%',
+                      backgroundColor: '#FF00E6',
+                      borderRadius: '8px',
+                      transition: 'width 1s linear',
+                    }} />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+          </div>
+        </div>
+      )}
+      
       <CompetitiveInstruction
         showInstructionPopup={showInstructionPopup}
         startExercise={startExercise}

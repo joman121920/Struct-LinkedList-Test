@@ -164,7 +164,7 @@ const SPAWN_CONFIG = {
   MAX_SPEED: 2.0,
 };
 
-const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setCollectibles, collisions, setCollisions }) => {
+const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setCollectibles, collisions, setCollisions, onWrongQuizAnswer }) => {
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -506,6 +506,11 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
       // Correct answer - give bonus time and remove collectible
       setCollectibles(prev => prev.filter(c => c.id !== currentQuestion.collectibleId));
       onCollect(30); // 30 seconds for correct quiz answer
+    } else {
+      // Wrong answer - create a bomb node as penalty
+      onWrongQuizAnswer();
+      // Still remove the collectible
+      setCollectibles(prev => prev.filter(c => c.id !== currentQuestion.collectibleId));
     }
     
     // Start progress bar countdown animation with immediate start
@@ -593,9 +598,9 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
             {showFeedback && (
               <div className={styles.feedbackText}>
                 {selectedAnswer === currentQuestion.correctAnswer ? (
-                  <span className={styles.correctText}>✓ Correct!</span>
+                  <span className={styles.correctText}>✓ Correct! +30 seconds</span>
                 ) : (
-                  <span className={styles.incorrectText}>✗ Incorrect</span>
+                  <span className={styles.incorrectText}>✗ Incorrect - A node became a bomb! 💣</span>
                 )}
               </div>
             )}
@@ -665,6 +670,7 @@ Collectibles.propTypes = {
   setCollectibles: PropTypes.func.isRequired,
   collisions: PropTypes.array.isRequired,
   setCollisions: PropTypes.func.isRequired,
+  onWrongQuizAnswer: PropTypes.func.isRequired,
 };
 
 export default Collectibles;
