@@ -164,7 +164,7 @@ const SPAWN_CONFIG = {
   MAX_SPEED: 2.0,
 };
 
-const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setCollectibles, collisions, setCollisions, onWrongQuizAnswer }) => {
+const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setCollectibles, collisions, setCollisions, onWrongQuizAnswer, onQuizModalChange, showDefuseModal }) => {
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -172,7 +172,14 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
   const [progressWidth, setProgressWidth] = useState(100);
   
   // Enhanced quiz system with question cooldown
-  const [questionCooldown, setQuestionCooldown] = useState(new Map()); // Track cooldown for each question 
+  const [questionCooldown, setQuestionCooldown] = useState(new Map()); // Track cooldown for each question
+  
+  // Notify parent component when quiz modal state changes
+  useEffect(() => {
+    if (onQuizModalChange) {
+      onQuizModalChange(showQuizModal);
+    }
+  }, [showQuizModal, onQuizModalChange]); 
 
   // Generate random position avoiding UI elements
   const generateRandomPosition = useCallback(() => {
@@ -570,8 +577,9 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
             style={{
               left: `${collectible.x - 25}px`,
               top: `${collectible.y + 28}px`,
-              opacity,
-              zIndex: 2500,
+              opacity: (showQuizModal || showDefuseModal) ? opacity * 0.1 : opacity, // Much more transparent during any modal
+              zIndex: (showQuizModal || showDefuseModal) ? 500 : 2500, // Lower z-index when any modal is open
+              pointerEvents: (showQuizModal || showDefuseModal) ? 'none' : 'auto', // Disable interaction during any modal
             }}
             title={isTimer ? "Hit with bullet to open quiz for +30 seconds!" : "Hit with bullet to trigger bomb -15 seconds!"}
           >
@@ -671,6 +679,8 @@ Collectibles.propTypes = {
   collisions: PropTypes.array.isRequired,
   setCollisions: PropTypes.func.isRequired,
   onWrongQuizAnswer: PropTypes.func.isRequired,
+  onQuizModalChange: PropTypes.func,
+  showDefuseModal: PropTypes.bool,
 };
 
 export default Collectibles;

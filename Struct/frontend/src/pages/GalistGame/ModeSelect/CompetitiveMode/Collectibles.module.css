@@ -8,7 +8,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 2;
+  z-index: 1;
   border: 3px solid #fff;
   user-select: none;
   pointer-events: none; /* No longer clickable */
@@ -40,7 +40,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 2;
+  z-index: 1;
   border: 3px solid #fff;
   user-select: none;
   pointer-events: none; /* No longer clickable */
@@ -76,6 +76,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
   border: 3px solid #ff00ff;
   animation: slideIn 0.4s ease-out;
+  z-index: 2000;
 }
 
 .quizHeader {

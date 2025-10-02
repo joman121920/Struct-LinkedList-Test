@@ -138,6 +138,9 @@ function CompetitiveMode() {
   
   // Notification system for wrong quiz answers
   const [showWrongAnswerNotification, setShowWrongAnswerNotification] = useState(false);
+  
+  // Quiz modal state from collectibles
+  const [showQuizModal, setShowQuizModal] = useState(false);
 
   // Wrap setters in useCallback to prevent unnecessary re-renders
   const setCollectiblesCallback = useCallback((updater) => {
@@ -471,6 +474,11 @@ function CompetitiveMode() {
     if ((deltaSeconds || 0) > 0) setTimerRunning(true);
   }, []);
 
+  // Handle quiz modal state changes
+  const handleQuizModalChange = useCallback((isOpen) => {
+    setShowQuizModal(isOpen);
+  }, []);
+  
   // Handle wrong quiz answers by creating bomb nodes
   const handleWrongQuizAnswer = useCallback(() => {
     // Get all eligible nodes (non-initial, connected nodes)
@@ -1954,24 +1962,21 @@ function CompetitiveMode() {
   const handleCircleClick = useCallback((circleId, e) => {
     e.stopPropagation();
 
-    // Check for double-click first
-    if (e.detail === 2) {
-      // Check if this is a bomb node
-      if (bombNode && bombNode.id === circleId) {
-        // Open defuse modal
-        const challenge = generateDefuseChallenge();
-        setDefuseNodes(challenge);
-        setShowDefuseModal(true);
-        console.log('Defuse modal opened for bomb node:', circleId);
-        return;
-      }
+    // Check if this is a bomb node - single click to open defuse modal
+    if (bombNode && bombNode.id === circleId) {
+      // Open defuse modal
+      const challenge = generateDefuseChallenge();
+      setDefuseNodes(challenge);
+      setShowDefuseModal(true);
+      console.log('Defuse modal opened for bomb node:', circleId);
+      return;
     }
 
     setCircles(prev => {
       const updated = prev.map(c => {
         if (c.id === circleId) {
-          // Do not change clickCount for initial circles
-          if (c.isInitial) return c;
+          // Do not change clickCount for initial circles or bomb nodes
+          if (c.isInitial || (bombNode && bombNode.id === c.id)) return c;
           const nextCount = Math.min(5, (c.clickCount || 0) + 1);
           return { ...c, clickCount: nextCount, deletionReady: nextCount >= 5 ? true : (c.deletionReady || false) };
         }
@@ -1979,8 +1984,8 @@ function CompetitiveMode() {
       });
 
       const clicked = updated.find(c => c.id === circleId);
-      // If clicked circle is initial, do nothing further
-      if (clicked && clicked.isInitial) {
+      // If clicked circle is initial or bomb node, do nothing further
+      if (clicked && (clicked.isInitial || (bombNode && bombNode.id === clicked.id))) {
         return updated;
       }
 
@@ -2004,6 +2009,10 @@ function CompetitiveMode() {
     e.preventDefault(); // Prevent context menu
   // tutorial removed - allow actions regardless
     
+    // Prevent launching when any modal is open
+    if (showDefuseModal || showBulletModal || showPointsModal || showLevelCompleteModal || showAllCompletedModal || showMissionFailed || showValidationResult || showWrongAnswerNotification || showQuizModal) {
+      return; // Don't launch when modals are open
+    }
 
     // Launch circle from cannon if values are set
     if (cannonCircle.value && cannonCircle.address) {
@@ -2055,7 +2064,7 @@ function CompetitiveMode() {
     } else {
   // ...existing code...
     }
-  }, [cannonCircle.value, cannonCircle.address, cannonAngle]);
+  }, [cannonCircle.value, cannonCircle.address, cannonAngle, showDefuseModal, showBulletModal, showPointsModal, showLevelCompleteModal, showAllCompletedModal, showMissionFailed, showValidationResult, showWrongAnswerNotification, showQuizModal]);
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
@@ -3073,43 +3082,32 @@ function CompetitiveMode() {
         </div>
       )}
 
-      {/* Collectibles layer - spawns floating timers and bombs */}
+      {/* Collectibles layer - spawns floating timers and bombs - kept below modals */}
       {isGameStarted && collectiblesEnabled && (
-        <Collectibles 
-          onCollect={handleCollect} 
-          isGameActive={!!currentExercise && !showMissionFailed} 
-          gameOver={showMissionFailed}
-          collectibles={collectibles}
-          setCollectibles={setCollectiblesCallback}
-          collisions={collectibleCollisions}
-          setCollisions={setCollisionCallback}
-          onWrongQuizAnswer={handleWrongQuizAnswer}
-        />
-      )}
-      
-      {/* Competitive Instruction Modal */}
-      {/* Wrong Answer Notification */}
-      {showWrongAnswerNotification && (
-        <div className={styles.wrongAnswerNotification}>
-          <div className={styles.notificationContent}>
-            <div className={styles.notificationIcon}>❌</div>
-            <div className={styles.notificationText}>
-              <div className={styles.notificationTitle}>Wrong Answer!</div>
-              <div className={styles.notificationMessage}>
-                A node has been converted to a bomb! 💣<br/>
-                <small>Double-click the blinking red node to defuse it!</small>
-              </div>
-            </div>
-          </div>
+        <div style={{ zIndex: 1 }}>
+          <Collectibles 
+            onCollect={handleCollect} 
+            isGameActive={!!currentExercise && !showMissionFailed} 
+            gameOver={showMissionFailed}
+            collectibles={collectibles}
+            setCollectibles={setCollectiblesCallback}
+            collisions={collectibleCollisions}
+            setCollisions={setCollisionCallback}
+            onWrongQuizAnswer={handleWrongQuizAnswer}
+            onQuizModalChange={handleQuizModalChange}
+            showDefuseModal={showDefuseModal}
+          />
         </div>
       )}
+      
+      
       
       {/* Bomb Defuse Modal */}
       {showDefuseModal && (
         <div className={styles.popupOverlay}>
           <div className={`${styles.popupContent} defuseModalContent`} style={{ 
-            width: '75%', 
-            height: '70%', 
+            width: '71%', 
+            height: '62%', 
             backgroundColor: '#000', 
             border: '4px solid #ff00ff', 
             borderRadius: '20px',
@@ -3230,19 +3228,12 @@ function CompetitiveMode() {
               {/* Progress Bar */}
               {isBombDefused && defuseProgressCountdown > 0 && (
                 <div style={{
-                  marginTop: '10px',
+                  marginTop: '20px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '10px'
                 }}>
-                  <div style={{
-                    color: '#00ff00',
-                    fontSize: '1.5em',
-                    fontWeight: 'bold'
-                  }}>
-                    {defuseProgressCountdown}
-                  </div>
                   <div style={{
                     width: '870px',
                     height: '20px',
