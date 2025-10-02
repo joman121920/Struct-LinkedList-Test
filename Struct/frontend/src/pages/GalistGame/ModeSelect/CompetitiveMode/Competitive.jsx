@@ -69,6 +69,8 @@ function CompetitiveMode() {
   const [timerSeconds, setTimerSeconds] = useState(120); // total seconds remaining
   const [timerRunning, setTimerRunning] = useState(false);
   const [showMissionFailed, setShowMissionFailed] = useState(false);
+  const [gameStartTime, setGameStartTime] = useState(null); // Track when the game actually starts
+  const [finalSurvivalTime, setFinalSurvivalTime] = useState(0); // Store final survival time when game ends
 
   // Countdown effect
   useEffect(() => {
@@ -78,6 +80,11 @@ function CompetitiveMode() {
         if (s <= 1) {
           clearInterval(id);
           setTimerRunning(false);
+          // Capture final survival time when game ends
+          if (gameStartTime) {
+            const survivalTimeMs = Date.now() - gameStartTime;
+            setFinalSurvivalTime(Math.floor(survivalTimeMs / 1000));
+          }
           setShowMissionFailed(true);
           return 0;
         }
@@ -85,7 +92,7 @@ function CompetitiveMode() {
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [timerRunning]);
+  }, [timerRunning, gameStartTime]);
 
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
@@ -243,8 +250,10 @@ function CompetitiveMode() {
     setShowValidationResult(false);
     setValidationResult(null);
     
-    // Start timing for the first round
-    setRoundStartTime(Date.now());
+    // Start timing for the game and first round
+    const startTime = Date.now();
+    setGameStartTime(startTime);
+    setRoundStartTime(startTime);
     
 
     
@@ -634,10 +643,17 @@ function CompetitiveMode() {
     setValidationResult(null);
     setShowValidationResult(false);
   // tutorial removed
+    // Reset points to zero
+    setTotalPoints(0);
+    
     // Restart exercise and timer
     setTimerSeconds(120);
     setTimerRunning(true);
     setShowMissionFailed(false);
+    
+    // Reset game start time and survival time for accurate time tracking
+    setGameStartTime(Date.now());
+    setFinalSurvivalTime(0);
     
 
     
@@ -2488,27 +2504,62 @@ function CompetitiveMode() {
         </div>
       )}
 
-      {/* Mission Failed Overlay */}
+      {/* Game Over Overlay */}
       {showMissionFailed && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
-            <h2 style={{ color: '#ff6bff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
-            <p style={{ color: '#ddd', marginBottom: '20px' }}>You missed your chance to insert the node in the right spot. Reset and try again to master node insertion!</p>
-            <button
-              onClick={() => handleRetry()}
-              style={{
-                background: 'none',
-                border: '2px solid #ff00ff',
-                borderRadius: '10px',
-                color: '#fff',
-                fontWeight: 'bold',
-                fontSize: '1.2rem',
-                padding: '10px 30px',
-                cursor: 'pointer',
-              }}
-            >
-              Retry
-            </button>
+          <div className={`${styles.bulletModalContent} ${styles.gameOverModal}`}>
+            <h1 className={styles.gameOverTitle}>
+              GAME OVER
+            </h1>
+            
+            <div className={styles.gameOverStats}>
+              <div className={styles.gameOverStat}>
+                <div className={styles.gameOverStatValue}>
+                  {totalPoints} pts
+                </div>
+                <div className={styles.gameOverStatLabel}>
+                  TOTAL POINTS
+                </div>
+              </div>
+              
+              <div className={styles.gameOverDivider}></div>
+              
+              <div className={styles.gameOverStat}>
+                <div className={styles.gameOverStatValue}>
+                  {(() => {
+                    const minutes = Math.floor(finalSurvivalTime / 60);
+                    const seconds = finalSurvivalTime % 60;
+                    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                  })()}
+                </div>
+                <div className={styles.gameOverStatLabel}>
+                  TIME SURVIVED
+                </div>
+              </div>
+            </div>
+            
+            <div className={styles.gameOverButtons}>
+              <button
+                onClick={() => handleGoBack()}
+                className={styles.gameOverButton}
+              >
+                Menu
+              </button>
+              
+              <button
+                onClick={() => {/* TODO: Add leaderboard functionality */}}
+                className={styles.gameOverButton}
+              >
+                Leaderboard
+              </button>
+              
+              <button
+                onClick={() => handleRetry()}
+                className={styles.gameOverButton}
+              >
+                Retry
+              </button>
+            </div>
           </div>
         </div>
       )}
