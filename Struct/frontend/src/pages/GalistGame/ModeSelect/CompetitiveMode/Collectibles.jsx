@@ -116,6 +116,54 @@ const QUIZ_QUESTIONS = [
   }
 ];
 
+// ===== COLLECTIBLE SPAWN PATTERN CONFIGURATION =====
+// 
+// 🎮 HOW TO CUSTOMIZE COLLECTIBLE PATTERNS:
+//
+// 1. QUANTITY CONTROL:
+//    - MAX_TOTAL_COLLECTIBLES: Total items on screen (lower = less chaos)
+//    - MAX_TIMERS/MAX_BOMBS: Individual limits for each type
+//
+// 2. TIMING CONTROL:
+//    - INITIAL_SPAWN_DELAY: How long to wait before first collectible appears
+//    - SPAWN_INTERVAL: How often to check for spawning new collectibles
+//
+// 3. SPAWN PROBABILITY:
+//    - TIMER_SPAWN_CHANCE: 0.0-1.0 (0 = never, 1 = always when conditions met)
+//    - BOMB_SPAWN_CHANCE: 0.0-1.0 (higher = more bombs = more challenging)
+//
+// 4. DIFFICULTY TUNING:
+//    - TIMER_LIFESPAN: How long timers stay (longer = easier to collect)
+//    - BOMB_LIFESPAN: How long bombs stay (shorter = less dangerous)
+//    - MIN/MAX_SPEED: Movement speed range (slower = easier to avoid)
+//
+// 🎯 EXAMPLE DIFFICULTY PRESETS:
+// Easy: MAX_TOTAL: 2, TIMER_CHANCE: 0.5, BOMB_CHANCE: 0.3, SPEEDS: 0.2-0.8
+// Hard: MAX_TOTAL: 6, TIMER_CHANCE: 0.2, BOMB_CHANCE: 0.8, SPEEDS: 1.0-2.5
+//
+const SPAWN_CONFIG = {
+  // Maximum collectibles on screen at once
+  MAX_TOTAL_COLLECTIBLES: 7,
+  MAX_TIMERS: 2,
+  MAX_BOMBS: 5,
+  
+  // Spawn timing (in milliseconds)
+  INITIAL_SPAWN_DELAY: 0,    // Wait 1 second before first spawn
+  SPAWN_INTERVAL: Math.floor(Math.random() * 7000) + 3000,        // Check for spawning every 3-10 seconds
+  
+  // Spawn probabilities (0.0 to 1.0)
+  TIMER_SPAWN_CHANCE: 0.3,      // 30% chance to spawn timer
+  BOMB_SPAWN_CHANCE: 0.7,       // 70% chance to spawn bomb
+
+  // Lifespan (how long they stay on screen)
+  TIMER_LIFESPAN: 15000,        // 15 seconds
+  BOMB_LIFESPAN: 25000,         // 25 seconds
+  
+  // Movement speed
+  MIN_SPEED: 0.8,
+  MAX_SPEED: 2.0,
+};
+
 const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setCollectibles, collisions, setCollisions }) => {
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -131,75 +179,92 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
     return { x, y };
   }, []);
 
-  // Spawn collectibles randomly with independent spawn rates
+  // Spawn collectibles with controlled pattern
   useEffect(() => {
     if (!isGameActive || gameOver) return;
 
-    // Separate spawn functions for timer and bomb
-    const spawnTimer = () => {
+    // Single spawn function that handles both types
+    const spawnCollectible = () => {
       setCollectibles(prev => {
-        // Check if there's space and if we don't already have too many timers
         const timerCount = prev.filter(c => c.type === 'timer').length;
-        if (prev.length >= 6 || timerCount >= 4) return prev; // Max 6 total, max 4 timers
-
-        const newTimer = {
-          id: Date.now() + Math.random(),
-          type: 'timer',
-          ...generateRandomPosition(),
-          velocityX: (Math.random() - 0.5) * 2, // Random floating speed
-          velocityY: (Math.random() - 0.5) * 2,
-          lifespan: 10000, // 8 seconds
-          createdAt: Date.now(),
-        };
-
-        return [...prev, newTimer];
-      });
-    };
-
-    const spawnBomb = () => {
-      setCollectibles(prev => {
-        // Check if there's space and if we don't already have too many bombs
         const bombCount = prev.filter(c => c.type === 'bomb').length;
-        if (prev.length >= 6 || bombCount >= 4) return prev; // Max 6 total, max 4 bombs
+        
+        // Check limits
+        if (prev.length >= SPAWN_CONFIG.MAX_TOTAL_COLLECTIBLES) {
+          console.log('Max collectibles reached, skipping spawn');
+          return prev;
+        }
 
-        const newBomb = {
-          id: Date.now() + Math.random() + 0.1, // Slightly different ID to avoid conflicts
-          type: 'bomb',
-          ...generateRandomPosition(),
-          velocityX: (Math.random() - 0.5) * 2, // Random floating speed
-          velocityY: (Math.random() - 0.5) * 2,
-          lifespan: 25000, // 15 seconds
-          createdAt: Date.now(),
-        };
+        // Determine what to spawn based on current counts and probabilities
+        let shouldSpawnTimer = false;
+        let shouldSpawnBomb = false;
 
-        return [...prev, newBomb];
+        if (timerCount < SPAWN_CONFIG.MAX_TIMERS && Math.random() < SPAWN_CONFIG.TIMER_SPAWN_CHANCE) {
+          shouldSpawnTimer = true;
+        }
+        
+        if (bombCount < SPAWN_CONFIG.MAX_BOMBS && Math.random() < SPAWN_CONFIG.BOMB_SPAWN_CHANCE) {
+          shouldSpawnBomb = true;
+        }
+
+        // If both want to spawn, randomly pick one to prevent overcrowding
+        if (shouldSpawnTimer && shouldSpawnBomb) {
+          if (Math.random() < 0.5) {
+            shouldSpawnBomb = false;
+          } else {
+            shouldSpawnTimer = false;
+          }
+        }
+
+        const newCollectibles = [];
+
+        // Spawn timer if decided
+        if (shouldSpawnTimer) {
+          const speed = SPAWN_CONFIG.MIN_SPEED + Math.random() * (SPAWN_CONFIG.MAX_SPEED - SPAWN_CONFIG.MIN_SPEED);
+          newCollectibles.push({
+            id: `timer_${Date.now()}_${Math.random()}`,
+            type: 'timer',
+            ...generateRandomPosition(),
+            velocityX: (Math.random() - 0.5) * speed * 2,
+            velocityY: (Math.random() - 0.5) * speed * 2,
+            lifespan: SPAWN_CONFIG.TIMER_LIFESPAN,
+            createdAt: Date.now(),
+          });
+          console.log('Spawned timer collectible');
+        }
+
+        // Spawn bomb if decided
+        if (shouldSpawnBomb) {
+          const speed = SPAWN_CONFIG.MIN_SPEED + Math.random() * (SPAWN_CONFIG.MAX_SPEED - SPAWN_CONFIG.MIN_SPEED);
+          newCollectibles.push({
+            id: `bomb_${Date.now()}_${Math.random()}`,
+            type: 'bomb',
+            ...generateRandomPosition(),
+            velocityX: (Math.random() - 0.5) * speed * 2,
+            velocityY: (Math.random() - 0.5) * speed * 2,
+            lifespan: SPAWN_CONFIG.BOMB_LIFESPAN,
+            createdAt: Date.now(),
+          });
+          console.log('Spawned bomb collectible');
+        }
+
+        return [...prev, ...newCollectibles];
       });
     };
 
-    // Spawn one immediate collectible so player sees them quickly
-    try {
-      // Try to spawn a timer first for helpfulness
-      spawnTimer();
-    } catch {
-      // ignore
-    }
-
-    // Independent spawn intervals for timer and bomb
-    const timerSpawnInterval = setInterval(() => {
-      if (Math.random() < 0.1) { // 10% chance to spawn timer
-        spawnTimer();
-      }
-    }, 7000); // Check every 7 seconds for timer
-
-    const bombSpawnInterval = setInterval(() => {
-      if (Math.random() < 0.85) { // 85% chance to spawn bomb
-        spawnBomb();
-      }
-    }, 7000); // Check every 7 seconds for bomb
+    // Wait for initial delay, then start spawning
+    const initialTimeout = setTimeout(() => {
+      spawnCollectible(); // First spawn after delay
+      
+      // Then set up regular interval
+      const spawnInterval = setInterval(spawnCollectible, SPAWN_CONFIG.SPAWN_INTERVAL);
+      
+      // Store interval reference for cleanup
+      return () => clearInterval(spawnInterval);
+    }, SPAWN_CONFIG.INITIAL_SPAWN_DELAY);
 
     return () => {
-      clearInterval(timerSpawnInterval);
-      clearInterval(bombSpawnInterval);
+      clearTimeout(initialTimeout);
     };
   }, [isGameActive, gameOver, generateRandomPosition, setCollectibles]);
 
