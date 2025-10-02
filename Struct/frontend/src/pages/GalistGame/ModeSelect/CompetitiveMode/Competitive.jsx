@@ -135,9 +135,11 @@ function CompetitiveMode() {
   const bombTimerRef = useRef(null);
   const bombSpawnTimerRef = useRef(null);
   const defuseProgressTimerRef = useRef(null);
+  const performDeleteRef = useRef(null);
   
   // Notification system for wrong quiz answers
   const [showWrongAnswerNotification, setShowWrongAnswerNotification] = useState(false);
+  const [showBombBlockingNotification, setShowBombBlockingNotification] = useState(false);
   
   // Quiz modal state from collectibles
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -165,21 +167,23 @@ function CompetitiveMode() {
     
     console.log(`Bomb spawned on node ${randomNode.id} with value ${randomNode.value}`);
     
-    // Start countdown timer
+    // Start countdown timer - capture the bomb node ID
+    const bombNodeId = randomNode.id;
     bombTimerRef.current = setInterval(() => {
       setBombCountdown(prev => {
         if (prev <= 1) {
-          // Bomb explodes - game over
+          // Bomb explodes - delete the node
           clearInterval(bombTimerRef.current);
           setBombNode(null);
-          setShowMissionFailed(true);
-          setFinalSurvivalTime(Date.now() - gameStartTime);
+          setBombCountdown(0);
+          // Delete the bomb node instead of game over
+          performDeleteRef.current?.(bombNodeId);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-  }, [circles, connections, gameStartTime]);
+  }, [circles, connections]);
 
   const setCollisionCallback = useCallback((updater) => {
     setCollectibleCollisions(updater);
@@ -260,18 +264,15 @@ function CompetitiveMode() {
     setDefuseProgressCountdown(0);
     setIsBombDefused(false);
     
-    // Award bonus points for successful defuse
-    setTotalPoints(prev => prev + 50);
-    setEarnedPoints(50);
-    
-    console.log('Bomb defused successfully! +50 points');
+    console.log('Bomb defused successfully! Node saved from deletion.');
   }, []);
 
   // Start 3-second countdown when solution is correct
   const startDefuseCountdown = useCallback(() => {
     setIsBombDefused(true);
-    setDefuseProgressCountdown(180); // 3 minutes
+    setDefuseProgressCountdown(3); // 3 seconds
     
+    // Start timer immediately to prevent delay
     defuseProgressTimerRef.current = setInterval(() => {
       setDefuseProgressCountdown(prev => {
         if (prev <= 1) {
@@ -351,21 +352,23 @@ function CompetitiveMode() {
     setBombNode(targetNode);
     setBombCountdown(30); // 5 seconds to defuse
     
-    // Start countdown timer
+    // Start countdown timer - capture the bomb node ID
+    const bombNodeId = targetNode.id;
     bombTimerRef.current = setInterval(() => {
       setBombCountdown(prev => {
         if (prev <= 1) {
-          // Bomb explodes - game over
+          // Bomb explodes - delete the node
           clearInterval(bombTimerRef.current);
           setBombNode(null);
-          setShowMissionFailed(true);
-          setFinalSurvivalTime(Date.now() - gameStartTime);
+          setBombCountdown(0);
+          // Delete the bomb node instead of game over
+          performDeleteRef.current?.(bombNodeId);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-  }, [gameStartTime]);
+  }, []);
 
 
 
@@ -1959,6 +1962,11 @@ function CompetitiveMode() {
     });
   }, [setConnections, setHeadCircleId, setTailCircleId]);
 
+  // Assign performDelete to ref for use in bomb timers
+  useEffect(() => {
+    performDeleteRef.current = performDelete;
+  }, [performDelete]);
+
   const handleCircleClick = useCallback((circleId, e) => {
     e.stopPropagation();
 
@@ -2010,7 +2018,7 @@ function CompetitiveMode() {
   // tutorial removed - allow actions regardless
     
     // Prevent launching when any modal is open
-    if (showDefuseModal || showBulletModal || showPointsModal || showLevelCompleteModal || showAllCompletedModal || showMissionFailed || showValidationResult || showWrongAnswerNotification || showQuizModal) {
+    if (showDefuseModal || showBulletModal || showPointsModal || showLevelCompleteModal || showAllCompletedModal || showMissionFailed || showValidationResult || showWrongAnswerNotification || showBombBlockingNotification || showQuizModal) {
       return; // Don't launch when modals are open
     }
 
@@ -2064,7 +2072,7 @@ function CompetitiveMode() {
     } else {
   // ...existing code...
     }
-  }, [cannonCircle.value, cannonCircle.address, cannonAngle, showDefuseModal, showBulletModal, showPointsModal, showLevelCompleteModal, showAllCompletedModal, showMissionFailed, showValidationResult, showWrongAnswerNotification, showQuizModal]);
+  }, [cannonCircle.value, cannonCircle.address, cannonAngle, showDefuseModal, showBulletModal, showPointsModal, showLevelCompleteModal, showAllCompletedModal, showMissionFailed, showValidationResult, showWrongAnswerNotification, showBombBlockingNotification, showQuizModal]);
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
@@ -2285,6 +2293,16 @@ function CompetitiveMode() {
     // Compare arrays
     const isMatch = expected.length === actual.length && expected.every((node, i) => node.value === actual[i]?.value && node.address === actual[i]?.address);
     if (isMatch) {
+      // Check if there's an active bomb - user must defuse it first before claiming points
+      if (bombNode && bombCountdown > 0) {
+        console.log('Expected result achieved but bomb is active! Defuse the bomb first to claim points.');
+        // Show notification to user
+        setShowBombBlockingNotification(true);
+        setTimeout(() => {
+          setShowBombBlockingNotification(false);
+        }, 3000);
+        return; // Don't show points modal until bomb is defused
+      }
       // Calculate actual completion time in seconds
       const currentTime = Date.now();
       const completionTimeMs = roundStartTime ? (currentTime - roundStartTime) : 0;
@@ -2309,7 +2327,7 @@ function CompetitiveMode() {
       setEarnedPoints(pointsEarned);
       setShowPointsModal(true);
     }
-  }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises, timerSeconds, roundStartTime]);
+  }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises, timerSeconds, roundStartTime, bombNode, bombCountdown]);
 
   // Handler for claiming points and generating a new exercise
   const handleClaimPoints = () => {
@@ -3243,7 +3261,7 @@ function CompetitiveMode() {
                     overflow: 'hidden'
                   }}>
                     <div style={{
-                      width: `${(defuseProgressCountdown / 180) * 100}%`,
+                      width: `${(defuseProgressCountdown / 3) * 100}%`,
                       height: '100%',
                       backgroundColor: '#FF00E6',
                       borderRadius: '8px',
@@ -3257,6 +3275,33 @@ function CompetitiveMode() {
           </div>
         </div>
       )}
+      
+      {/* Bomb Blocking Notification */}
+      {/* {showBombBlockingNotification && (
+        <div 
+          className={styles.notification}
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: '#ff6b6b',
+            color: 'white',
+            padding: '20px 30px',
+            borderRadius: '10px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            zIndex: 10000,
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+            border: '2px solid #ff5252',
+            maxWidth: '400px'
+          }}
+        >
+          <div style={{ marginBottom: '10px' }}>⚠️ BOMB ACTIVE! ⚠️</div>
+          <div>Defuse the bomb first to claim your points!</div>
+        </div>
+      )} */}
       
       <CompetitiveInstruction
         showInstructionPopup={showInstructionPopup}
