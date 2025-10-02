@@ -169,7 +169,10 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [progressWidth, setProgressWidth] = useState(100); 
+  const [progressWidth, setProgressWidth] = useState(100);
+  
+  // Enhanced quiz system with question cooldown
+  const [questionCooldown, setQuestionCooldown] = useState(new Map()); // Track cooldown for each question 
 
   // Generate random position avoiding UI elements
   const generateRandomPosition = useCallback(() => {
@@ -177,6 +180,78 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
     const x = margin + Math.random() * (window.innerWidth - 2 * margin);
     const y = margin + Math.random() * (window.innerHeight - 2 * margin);
     return { x, y };
+  }, []);
+
+  // Randomize answer options to prevent memorization
+  const randomizeQuestionOptions = useCallback((question) => {
+    const originalOptions = [...question.options];
+    const shuffledOptions = [];
+    const optionMapping = []; // Track where each original option moved
+    
+    // Fisher-Yates shuffle algorithm
+    const indices = [0, 1, 2, 3];
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    
+    // Create shuffled options and track new position of correct answer
+    let newCorrectAnswer = 0;
+    indices.forEach((originalIndex, newIndex) => {
+      shuffledOptions[newIndex] = originalOptions[originalIndex];
+      optionMapping[originalIndex] = newIndex;
+      
+      // Update correct answer index
+      if (originalIndex === question.correctAnswer) {
+        newCorrectAnswer = newIndex;
+      }
+    });
+    
+    return {
+      ...question,
+      options: shuffledOptions,
+      correctAnswer: newCorrectAnswer,
+      originalId: question.id // Keep track of original question ID
+    };
+  }, []);
+
+  // Get available question (not in cooldown)
+  const getAvailableQuestion = useCallback(() => {
+    // Filter questions that are not in cooldown
+    const availableQuestions = QUIZ_QUESTIONS.filter(q => {
+      const cooldownCount = questionCooldown.get(q.id) || 0;
+      return cooldownCount === 0;
+    });
+    
+    // If no questions available, reset all cooldowns
+    if (availableQuestions.length === 0) {
+      console.log('All questions in cooldown, resetting...');
+      setQuestionCooldown(new Map());
+      return QUIZ_QUESTIONS[Math.floor(Math.random() * QUIZ_QUESTIONS.length)];
+    }
+    
+    // Select random available question
+    return availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+  }, [questionCooldown]);
+
+  // Update question cooldown system
+  const updateQuestionCooldown = useCallback((answeredQuestionId) => {
+    setQuestionCooldown(prev => {
+      const newCooldown = new Map(prev);
+      
+      // Set answered question to cooldown of 2
+      newCooldown.set(answeredQuestionId, 2);
+      
+      // Decrease cooldown for all other questions
+      for (const [questionId, count] of newCooldown.entries()) {
+        if (questionId !== answeredQuestionId && count > 0) {
+          newCooldown.set(questionId, count - 1);
+        }
+      }
+      
+      console.log('Updated question cooldowns:', Object.fromEntries(newCooldown));
+      return newCooldown;
+    });
   }, []);
 
   // Spawn collectibles with controlled pattern
@@ -295,9 +370,15 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
         
         // Small delay to ensure state cleanup, then open new modal
         setTimeout(() => {
-          const randomQuestion = QUIZ_QUESTIONS[Math.floor(Math.random() * QUIZ_QUESTIONS.length)];
-          console.log('Opening quiz modal with question:', randomQuestion); // Debug log
-          setCurrentQuestion({ ...randomQuestion, collectibleId: collision.collectibleId });
+          const selectedQuestion = getAvailableQuestion();
+          const randomizedQuestion = randomizeQuestionOptions(selectedQuestion);
+          console.log('🎯 Quiz System Debug:');
+          console.log('- Selected question ID:', selectedQuestion.id);
+          console.log('- Original correct answer index:', selectedQuestion.correctAnswer);
+          console.log('- Randomized correct answer index:', randomizedQuestion.correctAnswer);
+          console.log('- Original options:', selectedQuestion.options);
+          console.log('- Randomized options:', randomizedQuestion.options);
+          setCurrentQuestion({ ...randomizedQuestion, collectibleId: collision.collectibleId });
           setShowQuizModal(true);
         }, 100);
         
@@ -315,7 +396,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
     setTimeout(() => {
       setCollisions([]);
     }, 50);
-  }, [collisions, collectibles, setCollectibles, setCollisions, onCollect]);
+  }, [collisions, collectibles, setCollectibles, setCollisions, onCollect, getAvailableQuestion, randomizeQuestionOptions, updateQuestionCooldown]);
 
   // Animation loop for floating movement and cleanup
   useEffect(() => {
@@ -417,6 +498,9 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
     setProgressWidth(100); // Reset progress bar to full
 
     const isCorrect = answerIndex === currentQuestion.correctAnswer;
+    
+    // Update question cooldown system
+    updateQuestionCooldown(currentQuestion.originalId || currentQuestion.id);
     
     if (isCorrect) {
       // Correct answer - give bonus time and remove collectible
@@ -537,6 +621,10 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
                   }
                 }
                 
+                // Clean option text (remove original A., B., C., D. if present)
+                const cleanOption = option.replace(/^[A-D]\.\s*/, '');
+                const letters = ['A', 'B', 'C', 'D'];
+                
                 return (
                   <button
                     key={index}
@@ -545,7 +633,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
                     onClick={() => handleQuizAnswer(index)}
                     disabled={showFeedback}
                   >
-                    {option}
+                    {letters[index]}. {cleanOption}
                   </button>
                 );
               })}
