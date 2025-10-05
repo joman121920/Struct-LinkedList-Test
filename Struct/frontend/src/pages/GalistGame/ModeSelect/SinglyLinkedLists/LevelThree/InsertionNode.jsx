@@ -2060,7 +2060,7 @@ function GalistGameInsertionNode() {
       })}
 
       {/* Black holes for challenge */}
-      {blackHoles.map((blackHole) => (
+      {/* {blackHoles.map((blackHole) => (
         <div
           key={blackHole.id}
           style={{
@@ -2077,7 +2077,7 @@ function GalistGameInsertionNode() {
             animation: 'blackHolePulse 2s infinite ease-in-out',
           }}
         />
-      ))}
+      ))} */}
 
       <svg className={styles.connectionLines}>
         {(() => {

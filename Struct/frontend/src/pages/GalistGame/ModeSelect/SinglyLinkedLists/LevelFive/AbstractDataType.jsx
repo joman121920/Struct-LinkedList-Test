@@ -12,7 +12,7 @@ import TutorialScene from "./TutorialScene";
 function GalistAbstractDataType() {
   // Completion modal state for all exercises done
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
-
+  
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
     window.history.back();
@@ -70,7 +70,7 @@ function GalistAbstractDataType() {
   const [timerSeconds, setTimerSeconds] = useState(120); // total seconds remaining
   const [timerRunning, setTimerRunning] = useState(false);
   const [showMissionFailed, setShowMissionFailed] = useState(false);
-
+  
   // Countdown effect
   useEffect(() => {
     if (!timerRunning) return undefined;
@@ -1659,7 +1659,9 @@ const handleTutorialValueShoot = useCallback((mode) => {
   // Global right-click handler for launching circles
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
-    
+    if (circles.length >= 10) {
+      return; // Don't launch new nodes if limit reached
+    }
     if (showInstructionPopup) return;
     // Launch circle from cannon if values are set
     if (cannonCircle.value && cannonCircle.address) {
@@ -2240,7 +2242,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
           </div>
         );
       })}
-      {!showInstructionPopup &&
+      {/* {!showInstructionPopup &&
         blackHoles.map((blackHole) => (
           <div
             key={blackHole.id}
@@ -2258,7 +2260,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
               animation: 'blackHolePulse 2s infinite ease-in-out',
             }}
           />
-        ))}
+        ))} */}
 
       <svg
         className={styles.connectionLines}

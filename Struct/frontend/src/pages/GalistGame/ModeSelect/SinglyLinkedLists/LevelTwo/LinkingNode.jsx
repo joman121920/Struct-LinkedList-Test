@@ -1881,7 +1881,7 @@ function GalistGameLinkingNode() {
       })}
 
       {/* Black holes for challenge - HIDE DURING TUTORIAL or instruction modal */}
-      {!showInstructionPopup && !showInstructionModal && blackHoles.map((blackHole) => (
+      {/* {!showInstructionPopup && !showInstructionModal && blackHoles.map((blackHole) => (
         <div
           key={blackHole.id}
           style={{
@@ -1898,7 +1898,7 @@ function GalistGameLinkingNode() {
             animation: 'blackHolePulse 2s infinite ease-in-out',
           }}
         />
-      ))}
+      ))} */}
 
       <svg className={styles.connectionLines}>
         {(() => {
