@@ -1,235 +1,62 @@
+// --- Add refs to reliably track entry order and sucked circles ---
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
 import styles from "./Competitive.module.css";
-import { ExerciseManager } from "./CompetitiveExercise";
-import { collisionDetection } from "../../CollisionDetection";
-import PortalComponent from "../../PortalComponent";
-import CompetitiveInstruction from "./CompetitiveInstruction";
-import PortalParticles from "../../Particles.jsx";
-import ExplodeParticles from "../../ExplodeParticles";
-import LoadingScreen from "../../LoadingScreen/LoadingScreen";
-import { useDimming } from "../../Dimming/Dimming.jsx";
-import Collectibles from "./Collectibles";
+import { ExerciseManager, getRandomInitialNodes } from "./CompetitiveExercise.js";
+import Collectibles from './Collectibles.jsx';
+import CompetitiveInstruction from './CompetitiveInstruction.jsx';
+import LoadingScreen from '../../LoadingScreen/LoadingScreen.jsx';
+import { collisionDetection } from "../../CollisionDetection.js";
+// Portal visual components removed
+// Tutorial removed: import kept out intentionally
 
-function CompetitiveMode(){
-  // Loading and initialization states
-  const [isLoading, setIsLoading] = useState(true);
+function CompetitiveMode() {
+  // Loading screen state - show first when component mounts
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
+  
+  // Instruction modal state - show after loading completes
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
+  const [isGameStarted, setIsGameStarted] = useState(false);
+  const [collectiblesEnabled, setCollectiblesEnabled] = useState(false);
+  
+  // Tutorial removed
+  // Completion modal state for all exercises done
+  const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
 
-  // Timer state - 4 minutes (240 seconds)
-  const [timeLeft, setTimeLeft] = useState(240);
-  const [isGameActive, setIsGameActive] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [completedExercises, setCompletedExercises] = useState(0);
+  // Handler for Go Back button
+  const handleGoBack = useCallback(() => {
+    window.history.back();
+  }, []);
   
-  // --- Move all useState declarations to the top ---
-  const [address, setAddress] = useState("");
-  const [value, setValue] = useState("");
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [showWarningModal, setShowWarningModal] = useState(false);
-  
-  // Particles
-
-  const [showInsertButton, setShowInsertButton] = useState(false);
-  const [showInsertModal, setShowInsertModal] = useState(false);
-  const [showQueueModal, setShowQueueModal] = useState(false);
-  const [showIndexModal, setShowIndexModal] = useState(false);
-  const [isPortalOpen, setIsPortalOpen] = useState(false);
-  
-  // Game mechanics: Launch button and operation limits
-  const [launchButtonUses, setLaunchButtonUses] = useState(5);
-  
-  // Individual insert operation limits
-  const [headInsertUses, setHeadInsertUses] = useState(2);
-  const [tailInsertUses, setTailInsertUses] = useState(2);
-  const [specificInsertUses, setSpecificInsertUses] = useState(3);
-  
-  // Individual queue operation limits
-  const [enqueueUses, setEnqueueUses] = useState(2);
-  const [dequeueUses, setDequeueUses] = useState(5);
-  
-  const [insertIndex, setInsertIndex] = useState("");
-  
-  // Input validation error states
-  const [addressError, setAddressError] = useState(false);
-  const [valueError, setValueError] = useState(false);
-  
-  // Use refs to track reset counters to avoid state management issues
-  const resetCountersRef = useRef({
-    launch: 0,
-    headInsert: 0,
-    tailInsert: 0,
-    specificInsert: 0,
-    enqueue: 0,
-    dequeue: 0
-  });
-  
-  
-  const [hoverTimer, setHoverTimer] = useState(null);
+  // Handler for loading screen completion
+  const handleLoadingComplete = useCallback(() => {
+    console.log('Loading completed, showing instruction popup');
+    setShowLoadingScreen(false);
+    setShowInstructionPopup(true);
+  }, []);
+  // --- Add refs to reliably track entry order and sucked circles ---
+  const entryOrderRef = useRef([]);
+  const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
+  // Track which exercise is active
+  const [exerciseKey, setExerciseKey] = useState("exercise_one");
   const [circles, setCircles] = useState([]);
   const [draggedCircle, setDraggedCircle] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [selectedCircle, setSelectedCircle] = useState(null);
-  const [connectToAddress, setConnectToAddress] = useState("");
   const [connections, setConnections] = useState([]);
   const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
-  const explosionIdRef = useRef(0);
-  const portalAudioRef = useRef(null);
-  const bgAudioRef = useRef(null);
   const [suckingCircles, setSuckingCircles] = useState([]);
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
   const [originalSubmission, setOriginalSubmission] = useState(null);
-  
-  // Explosion particle system and highlighting
-  const [explosions, setExplosions] = useState([]);
-  const [highlightedCircleId, setHighlightedCircleId] = useState(null);
 
-  // Dimming system for competitive mode
-  const {
-    screenOpacity,
-    startDimming,
-    setStartDimming,
-    boostEnergyWithPeek,
-    pauseEnergyDecay,
-    startEnergyDecay,
-    resetEnergySystem,
-    setEnergy,
-  } = useDimming();
+  // Exercise progress indicator logic
+  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
+  const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
+  const totalExercises = EXERCISE_KEYS.length;
 
-  // Timer effect - countdown from 4 minutes
-  useEffect(() => {
-    let timer;
-    if (isGameActive && timeLeft > 0 && !gameOver) {
-      timer = setInterval(() => {
-        setTimeLeft(prevTime => {
-          if (prevTime <= 1) {
-            setGameOver(true);
-            setIsGameActive(false);
-            // Pause energy decay when game ends
-            pauseEnergyDecay();
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-    }
-    
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [isGameActive, timeLeft, gameOver, pauseEnergyDecay]);
-
-  useEffect(() => {
-    if(!isGameActive) {
-      // Stop background music when game is not active
-      if (bgAudioRef.current) {
-        bgAudioRef.current.pause();
-        bgAudioRef.current.currentTime = 0;
-        bgAudioRef.current = null;
-      }
-      return;
-    }
-
-    // Start background music when game becomes active
-    const playMusic = () => {
-      if(bgAudioRef.current){
-        bgAudioRef.current.play().catch(() => {});
-      }
-      window.removeEventListener('click', playMusic);
-    };
-    
-    try {
-      // Stop any existing audio first
-      if (bgAudioRef.current) {
-        bgAudioRef.current.pause();
-        bgAudioRef.current.currentTime = 0;
-      }
-      
-      // Create new audio instance
-      bgAudioRef.current = new window.Audio('/sounds/competitive_bgmusic.mp3');
-      bgAudioRef.current.loop = true;
-      bgAudioRef.current.volume = 0.3;
-      
-      const playPromise = bgAudioRef.current.play();
-      if(playPromise !== undefined){
-        playPromise.catch(() => {
-          window.addEventListener('click', playMusic);
-        });
-      }
-    } catch{
-      // Ignore audio errors
-    }
-
-    // Cleanup function
-    return () => {
-      window.removeEventListener('click', playMusic);
-      if (bgAudioRef.current) {
-        bgAudioRef.current.pause();
-        bgAudioRef.current.currentTime = 0;
-      }
-    };
-  }, [isGameActive])
-
-  // Portal audio effect
-  useEffect(() => {
-    if (isPortalOpen) {
-      if (!portalAudioRef.current) {
-        try {
-          const audio = new window.Audio('/sounds/portal.mp3');
-          audio.loop = true;
-          audio.volume = 1;
-          portalAudioRef.current = audio;
-          // Play with promise catch for browser compatibility
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(() => {});
-          }
-        } catch {
-          // Ignore audio errors
-        }
-      } else {
-        // If already created, just play
-        portalAudioRef.current.currentTime = 0;
-        portalAudioRef.current.play().catch(() => {});
-      }
-    } else {
-      if (portalAudioRef.current) {
-        portalAudioRef.current.pause();
-        portalAudioRef.current.currentTime = 0;
-        portalAudioRef.current = null;
-      }
-    }
-    // Clean up on unmount
-    return () => {
-      if (portalAudioRef.current) {
-        portalAudioRef.current.pause();
-        portalAudioRef.current.currentTime = 0;
-        portalAudioRef.current = null;
-      }
-    };
-  }, [isPortalOpen]);
-
-  // Format time display (MM:SS)
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Start the game timer
-  const startGameTimer = useCallback(() => {
-    setIsGameActive(true);
-    setGameOver(false);
-    setTimeLeft(240); // Reset to 4 minutes
-    setCompletedExercises(0);
-  }, []);
-
-  // Handle timer collectible collection
-  const handleCollectTimerBonus = useCallback((bonusSeconds) => {
-    setTimeLeft(prevTime => Math.min(prevTime + bonusSeconds, 300)); // Cap at 5 minutes
-  }, []);
+  // --- Auto launch removed. No initial circles are launched automatically. ---
 
   // Use a unique key on the main container to force React to fully reset state on exerciseKey change
   // Portal state management
@@ -237,98 +64,544 @@ function CompetitiveMode(){
     isVisible: false,
     canvasWidth: 45,
   });
-
-  // Wrap setPortalInfo in useCallback to prevent unnecessary re-renders
-  const handlePortalStateChange = useCallback((newPortalInfo) => {
-    setPortalInfo(newPortalInfo);
-  }, []);
-
-  // Portal toggle function
-  const togglePortal = useCallback(() => {
-    setIsPortalOpen(!isPortalOpen);
-  }, [isPortalOpen]);
-
-  // Create explosion effect at circle position
-  const createExplosion = useCallback((circle, color = '#ff6b6b') => {
-    explosionIdRef.current += 1;
-    const explosion = {
-      id: `explosion-${explosionIdRef.current}`,
-      x: circle.x, // Circle center is at circle.x (the element offset is handled in CSS)
-      y: circle.y, // Circle center is at circle.y
-      color,
-    };
-
-    setExplosions(prev => [...prev, explosion]);
-
-    setTimeout(() => {
-      setExplosions(prev => prev.filter(exp => exp.id !== explosion.id));
-    }, 2500);
-  }, []);
+  // setPortalInfo can be used directly to update portal visibility or size
 
   // Exercise system states
   const exerciseManagerRef = useRef(new ExerciseManager());
   const [currentExercise, setCurrentExercise] = useState(null);
   const [showValidationResult, setShowValidationResult] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
+  // Tutorial removed
 
-  // Initialize history state and handle browser back/forward
+  // Insertion mode: 'left' = insert before touched node, 'right' = insert after touched node
+  const [insertionMode, setInsertionMode] = useState('right');
+
+  // Timer for the challenge (2 minutes)
+  const [timerSeconds, setTimerSeconds] = useState(120); // total seconds remaining
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [showMissionFailed, setShowMissionFailed] = useState(false);
+  const [gameStartTime, setGameStartTime] = useState(null); // Track when the game actually starts
+  const [finalSurvivalTime, setFinalSurvivalTime] = useState(0); // Store final survival time when game ends
+
+  // Countdown effect
   useEffect(() => {
-    const state = window.history.state;
-    if (state && state.screen) {
-      // applyNavigationState(state);
-    } else {
-      const initial = { screen: "menu", mode: null };
-      window.history.replaceState(initial, "");
-      // applyNavigationState(initial);
-    }
+    if (!timerRunning) return undefined;
+    const id = setInterval(() => {
+      setTimerSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(id);
+          setTimerRunning(false);
+          // Capture final survival time when game ends
+          if (gameStartTime) {
+            const survivalTimeMs = Date.now() - gameStartTime;
+            setFinalSurvivalTime(Math.floor(survivalTimeMs / 1000));
+          }
+          setShowMissionFailed(true);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerRunning, gameStartTime]);
 
-    const onPopState = (e) => {
-      const st = e.state || { screen: "menu", mode: null };
-      // If leaving gameplay via browser navigation, end the current game
-      if (st.screen !== "play") {
-        setCircles([]);
-        setConnections([]);
-        setSuckingCircles([]);
-        setSuckedCircles([]);
-        setCurrentEntryOrder([]);
-        setOriginalSubmission(null);
-        setShowValidationResult(false);
-        setValidationResult(null);
-        setIsPortalOpen(false);
-        setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-        setAddress("");
-        setValue("");
-        setShowDuplicateModal(false);
-        setSelectedCircle(null);
-        setConnectToAddress("");
-        setShowInstructionPopup(false);
-      }
-      // applyNavigationState(st);
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+  // Cannon angle state for dynamic cannon rotation
+  const [cannonAngle, setCannonAngle] = useState(0);
+
+  // Cannon circle states - initialize with random values for testing
+  const [cannonCircle, setCannonCircle] = useState({ 
+    value: Math.floor(Math.random() * 100).toString(), 
+    address: Math.floor(Math.random() * 1000).toString() 
+  });
+
+
+  const [headCircleId, setHeadCircleId] = useState(null);
+  const [tailCircleId, setTailCircleId] = useState(null);
+
+  // Bullet selection modal states
+  const [showBulletModal, setShowBulletModal] = useState(false);
+  const [bulletOptions, setBulletOptions] = useState([]);
+
+  // Level completion modal state
+  const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
+
+  // Points system states
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [showPointsModal, setShowPointsModal] = useState(false);
+  const [earnedPoints, setEarnedPoints] = useState(0);
+  const [roundStartTime, setRoundStartTime] = useState(null); // Track when each round starts
+
+  // Collectible collision states
+  const [collectibles, setCollectibles] = useState([]);
+  const [collectibleCollisions, setCollectibleCollisions] = useState([]);
+
+  // Bomb defusing system states
+  const [bombNode, setBombNode] = useState(null); // Legacy single bomb node (kept for compatibility)
+  const [bombCountdown, setBombCountdown] = useState(0); // Legacy countdown (kept for compatibility)
+  const [activeBombs, setActiveBombs] = useState([]); // Array of active bombs {id, node, countdown, timerId}
+  const [currentDefusingBombId, setCurrentDefusingBombId] = useState(null); // ID of bomb currently being defused
+  const [showDefuseModal, setShowDefuseModal] = useState(false);
+  const [defuseNodes, setDefuseNodes] = useState([]); // Nodes to sort in defuse modal
+  const [selectedDefuseNodes, setSelectedDefuseNodes] = useState([]); // Selected nodes for swapping
+  const [defuseProgressCountdown, setDefuseProgressCountdown] = useState(0); // 3-minute countdown for checking
+  const [isBombDefused, setIsBombDefused] = useState(false); // Success state
+  const bombTimerRef = useRef(null);
+  const bombSpawnTimerRef = useRef(null);
+  const defuseProgressTimerRef = useRef(null);
+  const performDeleteRef = useRef(null);
+  
+  // Notification system for wrong quiz answers
+  const [showWrongAnswerNotification, setShowWrongAnswerNotification] = useState(false);
+  const [showBombBlockingNotification, setShowBombBlockingNotification] = useState(false);
+  
+  // Quiz modal state from collectibles
+  const [showQuizModal, setShowQuizModal] = useState(false);
+
+  // Wrap setters in useCallback to prevent unnecessary re-renders
+  const setCollectiblesCallback = useCallback((updater) => {
+    setCollectibles(updater);
   }, []);
 
-  // Function to find all connected circles recursively
-  const findConnectedCircles = useCallback(
-    (circleId, visited = new Set()) => {
-      if (visited.has(circleId)) return [];
-      visited.add(circleId);
+  // Bomb defusing system functions
+  const spawnBombNode = useCallback(() => {
+    setActiveBombs(currentBombs => {
+      // Check if we already have maximum bombs (3)
+      const currentBombCount = currentBombs.length + (bombNode ? 1 : 0);
+      if (currentBombCount >= 3) {
+        console.log('Maximum bomb limit reached (3), skipping spawn');
+        return currentBombs;
+      }
 
-      const connected = [circleId];
-      connections.forEach((connection) => {
-        if (connection.from === circleId && !visited.has(connection.to)) {
-          connected.push(...findConnectedCircles(connection.to, visited));
-        }
-        if (connection.to === circleId && !visited.has(connection.from)) {
-          connected.push(...findConnectedCircles(connection.from, visited));
-        }
+      // Get all non-initial launched circles (relaxed requirements for more frequent bombs)
+      const eligibleNodes = circles.filter(circle => 
+        !circle.isInitial && 
+        circle.isLaunched && 
+        // Don't spawn bomb on nodes that already have bombs
+        !currentBombs.some(bomb => bomb.id === circle.id) &&
+        !(bombNode && bombNode.id === circle.id)
+      );
+      
+      if (eligibleNodes.length === 0) return currentBombs;
+      
+      // Select random node
+      const randomNode = eligibleNodes[Math.floor(Math.random() * eligibleNodes.length)];
+      
+      // Create new bomb object
+      const newBomb = {
+        id: randomNode.id,
+        node: randomNode,
+        countdown: 30,
+        timerId: null
+      };
+      
+      console.log(`Bomb spawned on node ${randomNode.id} with value ${randomNode.value}`);
+      
+      // Start countdown timer for this specific bomb
+      newBomb.timerId = setInterval(() => {
+        setActiveBombs(prevBombs => {
+          return prevBombs.map(bomb => {
+            if (bomb.id === newBomb.id) {
+              const newCountdown = bomb.countdown - 1;
+              if (newCountdown <= 0) {
+                // Bomb explodes - delete the node
+                clearInterval(bomb.timerId);
+                performDeleteRef.current?.(bomb.id);
+                return null; // Mark for removal
+              }
+              return { ...bomb, countdown: newCountdown };
+            }
+            return bomb;
+          }).filter(bomb => bomb !== null); // Remove exploded bombs
+        });
+      }, 1000);
+      
+      // Add bomb to active bombs list
+      return [...currentBombs, newBomb];
+    });
+  }, [circles, bombNode]);
+
+  const setCollisionCallback = useCallback((updater) => {
+    setCollectibleCollisions(updater);
+  }, []);
+
+  // Generate random linked list for defuse modal
+  const generateDefuseChallenge = useCallback(() => {
+    const nodeCount = 5; // Always 5 nodes for sorting challenge
+    const nodes = [];
+    const usedValues = new Set();
+    
+    // Generate 5 unique random values between 10-99
+    while (nodes.length < nodeCount) {
+      const value = Math.floor(Math.random() * 90) + 10;
+      if (!usedValues.has(value)) {
+        usedValues.add(value);
+        nodes.push({
+          id: `defuse_${nodes.length}`,
+          value: value.toString(),
+          address: `0x${(100 + nodes.length * 100).toString(16).toUpperCase()}`,
+          position: nodes.length, // Track original position
+          isDefuseNode: true
+        });
+      }
+    }
+    
+    // Shuffle the values to randomize their initial order
+    const values = nodes.map(n => ({ value: n.value, address: n.address }));
+    for (let i = values.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [values[i], values[j]] = [values[j], values[i]];
+    }
+    
+    // Assign shuffled values back to nodes
+    nodes.forEach((node, index) => {
+      node.value = values[index].value;
+      node.address = values[index].address;
+    });
+    
+    return nodes;
+  }, []);
+
+  // Check if defuse challenge is solved (nodes in ascending order)
+  const checkDefuseSolution = useCallback(() => {
+    // Sort by position and check if values are in ascending order
+    const sortedByPosition = [...defuseNodes].sort((a, b) => a.position - b.position);
+    const values = sortedByPosition.map(node => parseInt(node.value));
+    
+    // Check if values are in ascending order
+    for (let i = 1; i < values.length; i++) {
+      if (values[i] < values[i - 1]) {
+        return false;
+      }
+    }
+    return true;
+  }, [defuseNodes]);
+
+  // Handle successful defuse
+  const handleDefuseSuccess = useCallback(() => {
+    // Clear progress timer
+    if (defuseProgressTimerRef.current) {
+      clearInterval(defuseProgressTimerRef.current);
+      defuseProgressTimerRef.current = null;
+    }
+    
+    // If defusing a specific bomb from the multi-bomb system
+    if (currentDefusingBombId) {
+      setActiveBombs(prevBombs => {
+        const updatedBombs = prevBombs.filter(bomb => {
+          if (bomb.id === currentDefusingBombId) {
+            // Clear this bomb's timer
+            if (bomb.timerId) {
+              clearInterval(bomb.timerId);
+            }
+            console.log(`Bomb on node ${bomb.id} defused successfully!`);
+            return false; // Remove this bomb
+          }
+          return true; // Keep other bombs
+        });
+        return updatedBombs;
       });
+    }
+    
+    // If defusing legacy single bomb
+    if (bombNode && bombNode.id === currentDefusingBombId) {
+      // Clear legacy bomb timer
+      if (bombTimerRef.current) {
+        clearInterval(bombTimerRef.current);
+        bombTimerRef.current = null;
+      }
+      setBombNode(null);
+      setBombCountdown(0);
+      console.log(`Legacy bomb on node ${currentDefusingBombId} defused successfully!`);
+    }
+    
+    // Reset defuse modal states
+    setCurrentDefusingBombId(null);
+    setShowDefuseModal(false);
+    setDefuseNodes([]);
+    setSelectedDefuseNodes([]);
+    setDefuseProgressCountdown(0);
+    setIsBombDefused(false);
+    
+    console.log('Bomb defused successfully! Node saved from deletion.');
+  }, [currentDefusingBombId, bombNode]);
 
-      return connected;
-    },
-    [connections]
-  );
+  // Start 3-second countdown when solution is correct
+  const startDefuseCountdown = useCallback(() => {
+    setIsBombDefused(true);
+    setDefuseProgressCountdown(3); // 3 seconds
+    
+    // Start timer immediately to prevent delay
+    defuseProgressTimerRef.current = setInterval(() => {
+      setDefuseProgressCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(defuseProgressTimerRef.current);
+          defuseProgressTimerRef.current = null;
+          handleDefuseSuccess();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [handleDefuseSuccess]);
+
+  // Handle node click in defuse modal
+  const handleDefuseNodeClick = useCallback((node) => {
+    setSelectedDefuseNodes(prev => {
+      if (prev.find(n => n.id === node.id)) {
+        // Deselect if already selected
+        return prev.filter(n => n.id !== node.id);
+      } else if (prev.length === 0) {
+        // Select first node
+        return [node];
+      } else if (prev.length === 1) {
+        // Second node clicked - immediately swap and clear selection
+        const [firstNode] = prev;
+        
+        // Swap the values and addresses
+        setDefuseNodes(current => 
+          current.map(n => {
+            if (n.id === firstNode.id) {
+              return { ...n, value: node.value, address: node.address };
+            } else if (n.id === node.id) {
+              return { ...n, value: firstNode.value, address: firstNode.address };
+            }
+            return n;
+          })
+        );
+        
+        // Check if solution is correct after swap
+        setTimeout(() => {
+          if (checkDefuseSolution()) {
+            startDefuseCountdown();
+          }
+        }, 100);
+        
+        return []; // Clear selection after swap
+      }
+      return prev;
+    });
+  }, [checkDefuseSolution, startDefuseCountdown]);
+
+  // Check solution immediately when defuse modal opens or nodes change
+  useEffect(() => {
+    if (showDefuseModal && defuseNodes.length > 0 && !isBombDefused && defuseProgressCountdown === 0) {
+      if (checkDefuseSolution()) {
+        startDefuseCountdown();
+      }
+    }
+  }, [showDefuseModal, defuseNodes, checkDefuseSolution, startDefuseCountdown, isBombDefused, defuseProgressCountdown]);
+
+  // Convert a regular node into a bomb node (for wrong quiz answers)
+  const createBombFromNode = useCallback((targetNode) => {
+    if (!targetNode) {
+      console.log('No target node provided for bomb creation');
+      return;
+    }
+    
+    // Clear any existing bomb timer first
+    if (bombTimerRef.current) {
+      clearInterval(bombTimerRef.current);
+      bombTimerRef.current = null;
+    }
+    
+    console.log(`Converting node ${targetNode.id} with value ${targetNode.value} into a bomb`);
+    
+    // Set this node as the bomb node
+    setBombNode(targetNode);
+    setBombCountdown(30); // 5 seconds to defuse
+    
+    // Start countdown timer - capture the bomb node ID
+    const bombNodeId = targetNode.id;
+    bombTimerRef.current = setInterval(() => {
+      setBombCountdown(prev => {
+        if (prev <= 1) {
+          // Bomb explodes - delete the node
+          clearInterval(bombTimerRef.current);
+          setBombNode(null);
+          setBombCountdown(0);
+          // Delete the bomb node instead of game over
+          performDeleteRef.current?.(bombNodeId);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+
+
+  // Basic helper functions first
+  const createConnection = useCallback((fromId, toId) => {
+    const newConnection = {
+      id: Date.now(),
+      from: fromId,
+      to: toId
+    };
+    setConnections(prev => [...prev, newConnection]);
+    return newConnection;
+  }, []);
+
+  const checkCircleCollision = useCallback((circle1, circle2, radius = 40) => {
+    const dx = circle1.x - circle2.x;
+    const dy = circle1.y - circle2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance <= (radius * 1.5); // Slightly larger collision area for easier targeting
+  }, []);
+
+
+
+  // Generate bullet options for the modal
+  const generateBulletOptions = useCallback(() => {
+    const options = [];
+    const expectedNodes = currentExercise?.expectedStructure || [];
+    const MAX_BULLETS = 15;
+    
+    // Add all expected nodes (correct answers)
+    expectedNodes.forEach(node => {
+      options.push({
+        id: `expected_${node.value}`,
+        value: node.value.toString(),
+        address: node.address,
+        isCorrect: true
+      });
+    });
+    
+    // Add random distractor bullets to reach exactly 15 total bullets
+    const usedValues = new Set(expectedNodes.map(n => n.value));
+    const usedAddresses = new Set(expectedNodes.map(n => n.address));
+    
+    // Calculate how many random bullets we need to reach exactly 15
+    const numRandomBullets = Math.max(0, MAX_BULLETS - expectedNodes.length);
+    
+    for (let i = 0; i < numRandomBullets; i++) {
+      let randomValue, randomAddress;
+      
+      // Generate unique random value
+      do {
+        randomValue = Math.floor(Math.random() * 100) + 1;
+      } while (usedValues.has(randomValue));
+      usedValues.add(randomValue);
+      
+      // Generate unique random address
+      do {
+        const addressTypes = ['aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg', 'hh', 'ii', 'jj'];
+        const numbers = ['10', '20', '30', '40', '50', '60', '70', '80', '90'];
+        randomAddress = addressTypes[Math.floor(Math.random() * addressTypes.length)] + 
+                       numbers[Math.floor(Math.random() * numbers.length)];
+      } while (usedAddresses.has(randomAddress));
+      usedAddresses.add(randomAddress);
+      
+      options.push({
+        id: `random_${i}`,
+        value: randomValue.toString(),
+        address: randomAddress,
+        isCorrect: false
+      });
+    }
+    
+    // Shuffle the options so correct answers aren't always in the same position
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+    
+    return options;
+  }, [currentExercise]);
+
+  // Handle cannon circle click to open bullet selection modal
+  const handleCannonClick = useCallback(() => {
+    const bullets = generateBulletOptions();
+    setBulletOptions(bullets);
+    setShowBulletModal(true);
+  }, [generateBulletOptions]);
+
+  // Handle bullet selection
+  const handleBulletSelect = useCallback((selectedBullet) => {
+    setCannonCircle({
+      value: selectedBullet.value,
+      address: selectedBullet.address
+    });
+    setShowBulletModal(false);
+  }, []);
+
+  // Close bullet modal
+  const closeBulletModal = useCallback(() => {
+    setShowBulletModal(false);
+  }, []);
+
+  // Handle collectible pickup effects (delta seconds: +30 or -45 etc.)
+  const handleCollect = useCallback((deltaSeconds) => {
+    setTimerSeconds((s) => Math.max(0, (s || 0) + (deltaSeconds || 0)));
+    if ((deltaSeconds || 0) > 0) setTimerRunning(true);
+  }, []);
+
+  // Handle quiz modal state changes
+  const handleQuizModalChange = useCallback((isOpen) => {
+    setShowQuizModal(isOpen);
+  }, []);
+  
+  // Handle wrong quiz answers by creating bomb nodes
+  const handleWrongQuizAnswer = useCallback(() => {
+    // Get all eligible nodes (non-initial, connected nodes)
+    const eligibleNodes = circles.filter(circle => 
+      !circle.isInitial && 
+      circle.isLaunched && 
+      connections.some(conn => conn.from === circle.id || conn.to === circle.id)
+    );
+    
+    if (eligibleNodes.length === 0) {
+      console.log('No eligible nodes to convert to bomb');
+      return;
+    }
+    
+    // Select random eligible node
+    const randomNode = eligibleNodes[Math.floor(Math.random() * eligibleNodes.length)];
+    
+    // Show notification about wrong answer and bomb creation
+    setShowWrongAnswerNotification(true);
+    
+    // Hide notification after 3 seconds
+    setTimeout(() => {
+      setShowWrongAnswerNotification(false);
+    }, 3000);
+    
+    // Convert it to a bomb node
+    createBombFromNode(randomNode);
+    
+    console.log(`Wrong quiz answer! Node ${randomNode.id} (value: ${randomNode.value}) is now a bomb!`);
+  }, [circles, connections, createBombFromNode]);
+
+  // Instruction handlers
+  const startExercise = useCallback(() => {
+    setShowInstructionPopup(false);
+    setIsGameStarted(true);
+    
+    // Reset game state
+    setTimerSeconds(120); // Reset to 2 minutes
+    setTimerRunning(true); // Start the timer
+    setShowMissionFailed(false);
+    setShowValidationResult(false);
+    setValidationResult(null);
+    
+    // Start timing for the game and first round
+    const startTime = Date.now();
+    setGameStartTime(startTime);
+    setRoundStartTime(startTime);
+    
+
+    
+    // Disable collectibles initially, then enable after delay
+    setCollectiblesEnabled(false);
+    setTimeout(() => {
+      setCollectiblesEnabled(true);
+    }, 5000); // 5 second delay for collectibles
+    
+    // Load exercise will be called after this function is defined
+  }, []);
+
+  const closeInstructionPopup = useCallback(() => {
+    setShowInstructionPopup(false);
+  }, []);
 
   // Function to check if a circle is a head node (has outgoing connections but no incoming)
   const isHeadNode = useCallback(
@@ -350,317 +623,137 @@ function CompetitiveMode(){
     [connections]
   );
 
-  // Check if portal button should be enabled (requires at least one head AND one tail node)
-  const hasHeadNode = useCallback(() => {
-    return circles.some((circle) => isHeadNode(circle.id));
-  }, [circles, isHeadNode]);
-
-  const hasTailNode = useCallback(() => {
-    return circles.some((circle) => isTailNode(circle.id));
-  }, [circles, isTailNode]);
-
-  const isPortalButtonEnabled =
-    isGameActive && !gameOver && (isPortalOpen || (hasHeadNode() && hasTailNode()));
-
-  // Helper functions to determine if queue operations should be disabled
-  const isOnlyOneCircle = circles.length === 1;
-  const isSingleHeadTail = isOnlyOneCircle && circles.length > 0;
-  
-  // Disable PEEK when no head exists or only one circle (head/tail)
-  const isPeekDisabled = !hasHeadNode() || isSingleHeadTail;
-  
-  // Disable DEQUEUE when no head exists or only one circle (head/tail) 
-  const isDequeueDisabled = !hasHeadNode() || isSingleHeadTail;
-  
-  // ENQUEUE is always available when we have address and value
-
-  
-
-  const loadExercise = useCallback(() => {
-    // Always clear circles/connections and reset launch state before loading new exercise
-    setCircles([]);
-    setConnections([]);
-    setSuckingCircles([]);
-    setSuckedCircles([]);
-    setCurrentEntryOrder([]);
-    setOriginalSubmission(null);
-    setShowValidationResult(false);
-    setValidationResult(null);
-  // removed hasLaunchedRef, no longer needed
-    
-    // Reset game mechanics for new exercise
-    setLaunchButtonUses(5);
-    setHeadInsertUses(2);
-    setTailInsertUses(2);
-    setSpecificInsertUses(3);
-    setEnqueueUses(2);
-    setDequeueUses(5);
-    
-    // Reset all individual counters
-    resetCountersRef.current = {
-      launch: 0,
-      headInsert: 0,
-      tailInsert: 0,
-      specificInsert: 0,
-      enqueue: 0,
-      dequeue: 0
-    };
-    
-    // Now load the new random exercise
-    const exercise = exerciseManagerRef.current.loadRandomExercise();
-    setCurrentExercise(exercise);
-  }, []);
-
-  // Handle loading screen completion
-  const handleLoadingComplete = useCallback(() => {
-    setIsLoading(false);
-    setShowInstructionPopup(true); // Open instruction popup after loading
-  }, []);
-
-  // Comprehensive game reset function
-  const resetGame = useCallback(() => {
-    // Reset all game states
-    setGameOver(false);
-    setTimeLeft(240); // Reset to 4 minutes (same as initial timer)
-    setCompletedExercises(0);
-    setIsGameActive(false);
-    
-    // Reset circles and connections
-    setCircles([]);
-    setConnections([]);
-    setSelectedCircle(null);
-    setConnectToAddress("");
-    
-    // Reset input fields
-    setAddress("");
-    setValue("");
-    setInsertIndex("");
-    
-    // Reset modal states
-    setShowInsertModal(false);
-    setShowQueueModal(false);
-    setShowIndexModal(false);
-    setShowDuplicateModal(false);
-    setShowWarningModal(false);
-    setShowValidationResult(false);
-    setValidationResult(null);
-    
-    // Reset portal state
-    setIsPortalOpen(false);
-    setPortalInfo(prev => ({ ...prev, isVisible: false }));
-    
-    // Reset operation uses
-    setLaunchButtonUses(5);
-    setHeadInsertUses(2);
-    setTailInsertUses(2);
-    setSpecificInsertUses(3);
-    setEnqueueUses(2);
-    setDequeueUses(5);
-    
-    // Reset counters
-    resetCountersRef.current = {
-      launch: 0,
-      headInsert: 0,
-      tailInsert: 0,
-      specificInsert: 0,
-      enqueue: 0,
-      dequeue: 0
-    };
-    
-    // Reset physics and visual states
-    setDraggedCircle(null);
-    setDragOffset({ x: 0, y: 0 });
-    setSuckingCircles([]);
-    setSuckedCircles([]);
-    setHighlightedCircleId(null);
-    setExplosions([]);
-    
-    // Reset input errors
-    setAddressError(false);
-    setValueError(false);
-    
-    // Reset hover states
-    setShowInsertButton(false);
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
+  // Helper functions for head/tail logic (depends on isHeadNode and isTailNode)
+  const getCircleLabel = useCallback((circleId) => {
+    // Check if this is the manually set head/tail (for single node case)
+    if (headCircleId === circleId && tailCircleId === circleId) {
+      return "head/tail";
     }
     
-    // Reset dimming system
-    setStartDimming(false);
+    // Use connection-based detection for multi-node cases
+    const isHead = isHeadNode(circleId);
+    const isTail = isTailNode(circleId);
     
-    // Reset exercise and portal states
-    exerciseManagerRef.current.reset();
+    if (isHead && isTail) {
+      return "head/tail"; // Single isolated node with connections (shouldn't happen normally)
+    } else if (isHead || headCircleId === circleId) {
+      return "head";
+    } else if (isTail || tailCircleId === circleId) {
+      return "tail";
+    }
     
-    // Clear any running timers or intervals
-    mouseHistoryRef.current = [];
-    
-    // Load a new exercise
-    loadExercise();
-  }, [loadExercise, hoverTimer, setStartDimming]);
+    return null;
+  }, [headCircleId, tailCircleId, isHeadNode, isTailNode]);
 
-  const startExercise = useCallback((isRestart = false) => {
-    if (isRestart) {
-      // Show warning modal instead of directly restarting
-      setShowWarningModal(true);
+  // Function to update head/tail IDs based on actual connections
+  const updateHeadTailIds = useCallback(() => {
+    if (circles.length === 0) {
+      setHeadCircleId(null);
+      setTailCircleId(null);
       return;
     }
-    
-    // Normal start game flow
-    setShowInstructionPopup(false);
-    if (!currentExercise) {
-      loadExercise();
+
+    // Find actual head and tail nodes
+    const headNode = circles.find(circle => isHeadNode(circle.id));
+    const tailNode = circles.find(circle => isTailNode(circle.id));
+
+    if (headNode) setHeadCircleId(headNode.id);
+    if (tailNode) setTailCircleId(tailNode.id);
+
+    // If no connections exist but we have circles, the first circle should be head/tail
+    if (connections.length === 0 && circles.length > 0) {
+      const firstCircle = circles[0];
+      setHeadCircleId(firstCircle.id);
+      setTailCircleId(firstCircle.id);
     }
-    // Start the competitive timer when user clicks Start
-    startGameTimer();
-    // Start the dimming effect
-    setStartDimming(true);
-  }, [loadExercise, currentExercise, startGameTimer, setStartDimming]);
+  }, [circles, connections, isHeadNode, isTailNode]);
 
-  // Function to just close the instruction popup without affecting the game
-  const closeInstructionPopup = useCallback(() => {
-    setShowInstructionPopup(false);
-  }, []);
-
-  // Function to handle confirmed restart
-  const handleConfirmedRestart = useCallback(() => {
-    setShowWarningModal(false);
-    setShowInstructionPopup(false);
-    
-    // Reset everything first, then start the game
-    resetGame();
-    
-    // After reset, start the game timer and dimming effect
-    setTimeout(() => {
-      startGameTimer();
-      setStartDimming(true);
-      // Properly reset the energy system with alarm cleanup
-      resetEnergySystem();
-    }, 100); // Small delay to ensure reset is complete
-  }, [resetGame, startGameTimer, setStartDimming, resetEnergySystem]);
-
-  // Function to close warning modal
-  const closeWarningModal = useCallback(() => {
-    setShowWarningModal(false);
-  }, []);
-
-  // Initialize exercise on component mount (only when loading is complete)
+  // Update head/tail IDs whenever connections change
   useEffect(() => {
-    if (!isLoading && !currentExercise) {
-      loadExercise("exercise_one");
-    }
-  }, [isLoading, currentExercise, loadExercise]);
+    updateHeadTailIds();
+  }, [connections, circles, updateHeadTailIds]);
 
-  // Initialize with basic exercise when instruction popup is closed
+  // Bomb spawning system - multiple bombs with different intervals based on connection status
   useEffect(() => {
-    if (!isLoading && !showInstructionPopup && !currentExercise) {
-      loadExercise();
-    }
-  }, [isLoading, showInstructionPopup, currentExercise, loadExercise]);
+    if (!isGameStarted || showMissionFailed || !timerRunning) return;
+    
+    const spawnBomb = () => {
+      // Check for connected launched circles
+      const connectedLaunchedCircles = circles.filter(circle => 
+        !circle.isInitial && 
+        circle.isLaunched && 
+        connections.some(conn => conn.from === circle.id || conn.to === circle.id)
+      );
+      
+      // Determine spawn interval based on connected circles
+      let nextSpawnDelay;
+      if (connectedLaunchedCircles.length > 0) {
+        // Connected circles: 10-15 seconds (slower spawning)
+        nextSpawnDelay = (Math.random() * 5 + 10) * 1000;
+        console.log('Connected circles found, using 10-15s bomb interval');
+      } else {
+        // No connected circles: 5-10 seconds (faster spawning)
+        nextSpawnDelay = (Math.random() * 5 + 5) * 1000;
+        console.log('No connected circles, using 5-10s bomb interval');
+      }
+      
+      // Try to spawn bomb (max 3 simultaneous)
+      if (circles.length > 1) {
+        spawnBombNode();
+      }
+      
+      // Schedule next bomb spawn
+      bombSpawnTimerRef.current = setTimeout(spawnBomb, nextSpawnDelay);
+    };
+    
+    // Initial bomb spawn after 3-8 seconds
+    const initialDelay = (Math.random() * 5 + 3) * 1000;
+    bombSpawnTimerRef.current = setTimeout(spawnBomb, initialDelay);
+    
+    return () => {
+      if (bombSpawnTimerRef.current) {
+        clearTimeout(bombSpawnTimerRef.current);
+      }
+    };
+  }, [isGameStarted, showMissionFailed, timerRunning, circles.length, spawnBombNode, circles, connections]);
 
-  // Auto-close portal when validation modal opens
+  // Clean up bomb timers when game ends
   useEffect(() => {
-    if (showValidationResult) {
-      setIsPortalOpen(false);
-      // Reset energy to 50 and pause decay when validation opens
-      setEnergy(50);
-      pauseEnergyDecay();
+    if (showMissionFailed) {
+      // Clear legacy bomb timer
+      if (bombTimerRef.current) {
+        clearInterval(bombTimerRef.current);
+        bombTimerRef.current = null;
+      }
+      // Clear bomb spawn timer
+      if (bombSpawnTimerRef.current) {
+        clearTimeout(bombSpawnTimerRef.current);
+        bombSpawnTimerRef.current = null;
+      }
+      // Clear all active bomb timers
+      activeBombs.forEach(bomb => {
+        if (bomb.timerId) {
+          clearInterval(bomb.timerId);
+        }
+      });
+      // Reset all bomb states
+      setBombNode(null);
+      setBombCountdown(0);
+      setActiveBombs([]);
+      setCurrentDefusingBombId(null);
     }
-  }, [showValidationResult, setEnergy, pauseEnergyDecay]);
+  }, [showMissionFailed, activeBombs]);
 
-  // Helper functions to find circles by their displayed labels
-  const findHeadTailLabeledCircle = useCallback(() => {
-    return circles.find(circle => {
-      const hasOutgoing = connections.some(conn => conn.from === circle.id);
-      const hasIncoming = connections.some(conn => conn.to === circle.id);
-      const isSingleCircle = circles.length === 1;
-      const isUnconnected = !hasOutgoing && !hasIncoming;
-      
-      const unconnectedCircles = circles.filter(c => {
-        const out = connections.some(conn => conn.from === c.id);
-        const inc = connections.some(conn => conn.to === c.id);
-        return !out && !inc;
-      });
-      const isFirstUnconnected = isUnconnected && unconnectedCircles.length > 0 && unconnectedCircles[0].id === circle.id;
-      
-      const hasProperHeadTailConnection = circles.some(c => {
-        const out = connections.some(conn => conn.from === c.id);
-        const inc = connections.some(conn => conn.to === c.id);
-        return out && !inc;
-      }) && circles.some(c => {
-        const out = connections.some(conn => conn.from === c.id);
-        const inc = connections.some(conn => conn.to === c.id);
-        return !out && inc;
-      });
-      
-      return isSingleCircle || (isFirstUnconnected && !hasProperHeadTailConnection);
-    });
-  }, [circles, connections]);
+  // Check if portal button should be enabled (requires at least one head AND one tail node)
+  // const hasHeadNode = useCallback(() => {
+  //   return circles.some((circle) => isHeadNode(circle.id));
+  // }, [circles, isHeadNode]);
 
-  const findHeadLabeledCircle = useCallback(() => {
-    return circles.find(circle => {
-      const hasOutgoing = connections.some(conn => conn.from === circle.id);
-      const hasIncoming = connections.some(conn => conn.to === circle.id);
-      const isConnected = hasOutgoing || hasIncoming;
-      
-      const possibleHeads = circles.filter(c => {
-        const out = connections.some(conn => conn.from === c.id);
-        const inc = connections.some(conn => conn.to === c.id);
-        return (out && !inc && (out || inc));
-      });
-      
-      return isConnected && hasOutgoing && !hasIncoming && possibleHeads.length > 0 && possibleHeads[0].id === circle.id;
-    });
-  }, [circles, connections]);
+  // const hasTailNode = useCallback(() => {
+  //   return circles.some((circle) => isTailNode(circle.id));
+  // }, [circles, isTailNode]);
 
-  const findTailLabeledCircle = useCallback(() => {
-    return circles.find(circle => {
-      const hasOutgoing = connections.some(conn => conn.from === circle.id);
-      const hasIncoming = connections.some(conn => conn.to === circle.id);
-      const isConnected = hasOutgoing || hasIncoming;
-      
-      return isConnected && hasIncoming && !hasOutgoing;
-    });
-  }, [circles, connections]);
-
-  // Check if there are head/tail labeled circles that allow ENQUEUE
-  const hasHeadTailLabels = useCallback(() => {
-    const headTailNode = findHeadTailLabeledCircle();
-    const headNode = findHeadLabeledCircle();
-    const tailNode = findTailLabeledCircle();
-    return !!(headTailNode || headNode || tailNode);
-  }, [findHeadTailLabeledCircle, findHeadLabeledCircle, findTailLabeledCircle]);
-
-  // Helper function to validate inputs and highlight errors
-  const validateInputs = useCallback(() => {
-    const isAddressEmpty = !address.trim();
-    const isValueEmpty = !value.trim();
-    
-    // If there are errors, force animation restart by clearing and re-applying error states
-    if (isAddressEmpty || isValueEmpty) {
-      // Clear errors first to reset animation
-      setAddressError(false);
-      setValueError(false);
-      
-      // Use setTimeout to re-apply errors after a brief moment, triggering new animation
-      setTimeout(() => {
-        setAddressError(isAddressEmpty);
-        setValueError(isValueEmpty);
-      }, 10);
-    } else {
-      // No errors, just clear them normally
-      setAddressError(false);
-      setValueError(false);
-    }
-    
-    return !isAddressEmpty && !isValueEmpty;
-  }, [address, value]);
-
-  // Helper function to clear input errors
-  const clearInputErrors = useCallback(() => {
-    setAddressError(false);
-    setValueError(false);
-  }, []);
+  // const isPortalButtonEnabled = isPortalOpen || (hasHeadNode() && hasTailNode());
 
   // Helper function to get the complete chain order from head to tail
   const getChainOrder = useCallback(
@@ -671,24 +764,21 @@ function CompetitiveMode(){
 
       // If starting circle is not a head, find the head first
       if (!isHeadNode(startCircleId)) {
-        // Traverse backwards to find the head
-        let searchId = startCircleId;
         const backwardVisited = new Set();
+        let searchId = startCircleId;
 
         while (searchId && !backwardVisited.has(searchId)) {
           backwardVisited.add(searchId);
           const incomingConnection = connections.find(
             (conn) => conn.to === searchId
           );
-          if (incomingConnection && !isHeadNode(incomingConnection.from)) {
+          if (incomingConnection) {
             searchId = incomingConnection.from;
-          } else if (incomingConnection) {
-            currentId = incomingConnection.from; // Found the head
-            break;
           } else {
             break;
           }
         }
+        currentId = searchId || startCircleId;
       }
 
       // Now traverse from head to tail
@@ -717,8 +807,8 @@ function CompetitiveMode(){
 
       // Capture the original submission data before any circles are sucked
       setOriginalSubmission({
-        circles: circles.map((c) => ({ ...c })), // Deep copy
-        connections: connections.map((c) => ({ ...c })), // Deep copy
+        circles: circles.map((c) => ({ ...c })),
+        connections: connections.map((c) => ({ ...c })),
       });
 
       // Get the proper head-to-tail chain order
@@ -736,17 +826,300 @@ function CompetitiveMode(){
       const remainingCircles = chainOrder.filter((id) => id !== startCircleId);
 
       remainingCircles.forEach((circleId, index) => {
-        // Head nodes get sucked first (faster), tail last (slower)
-        const delay = (index + 1) * 150; // Start from 150ms for the first remaining circle
-
         setTimeout(() => {
-          // Add circle to sucking list (this will make it get pulled toward entrance)
-          setSuckingCircles((prev) => [...prev, circleId]);
-        }, delay);
+          setSuckingCircles((prev) => {
+            if (!prev.includes(circleId)) {
+              return [...prev, circleId];
+            }
+            return prev;
+          });
+        }, (index + 1) * 300); // 300ms delay between each circle
       });
     },
     [getChainOrder, circles, connections]
   );
+
+  // // Portal toggle function
+  // const togglePortal = useCallback(() => {
+  //   setIsPortalOpen(!isPortalOpen);
+  // }, [isPortalOpen]);
+
+  
+  // const startGame = useCallback(() => {
+  //   const next = { screen: "mode", mode: null };
+  //   window.history.pushState(next, "");
+  //   // Clear any previous game state so this session is fresh
+  //   setCircles([]);
+  //   setConnections([]);
+  //   setSuckingCircles([]);
+  //   setSuckedCircles([]);
+  //   setCurrentEntryOrder([]);
+  //   setOriginalSubmission(null);
+  //   setShowValidationResult(false);
+  //   setValidationResult(null);
+  //   setIsPortalOpen(false);
+  //   setPortalInfo((prev) => ({ ...prev, isVisible: false }));
+  //   setAddress("");
+  //   setValue("");
+  //   setShowDuplicateModal(false);
+  //   setShowInsertButton(false);
+  //   setShowInsertModal(false);
+  //   setShowIndexModal(false);
+  //   setInsertIndex("");
+  //   setSelectedCircle(null);
+  //   setConnectToAddress("");
+  //   // tutorial removed
+  // }, []);
+
+  // Initialize history state and handle browser back/forward
+  useEffect(() => {
+    const state = window.history.state;
+    if (state && state.screen) {
+      // applyNavigationState(state);
+    } else {
+      const initial = { screen: "menu", mode: null };
+      window.history.replaceState(initial, "");
+      // applyNavigationState(initial);
+    }
+
+    const onPopState = (e) => {
+      const st = e.state || { screen: "menu", mode: null };
+      // If leaving gameplay via browser navigation, end the current game
+      if (st.screen !== "play") {
+        setCircles([]);
+        setConnections([]);
+        setSuckingCircles([]);
+        setSuckedCircles([]);
+        setCurrentEntryOrder([]);
+        setOriginalSubmission(null);
+        setShowValidationResult(false);
+        setValidationResult(null);
+      setPortalInfo((prev) => ({ ...prev, isVisible: false }));
+  // tutorial removed
+        // Reset head/tail state
+        setHeadCircleId(null);
+        setTailCircleId(null);
+      }
+      // applyNavigationState(st);
+    };
+    window.addEventListener("popstate", onPopState);
+
+    // Wheel handler: scroll up -> left mode, scroll down -> right mode
+    const handleWheel = (ev) => {
+      if (Math.abs(ev.deltaY) < 1) return;
+      if (ev.deltaY < 0) setInsertionMode('left');
+      else setInsertionMode('right');
+    };
+    window.addEventListener('wheel', handleWheel, { passive: true });
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
+  // Function to find all connected circles recursively
+  const findConnectedCircles = useCallback(
+    (circleId, visited = new Set()) => {
+      if (visited.has(circleId)) return [];
+      visited.add(circleId);
+
+      const connected = [circleId];
+      connections.forEach((connection) => {
+        if (connection.from === circleId && !visited.has(connection.to)) {
+          connected.push(...findConnectedCircles(connection.to, visited));
+        }
+        if (connection.to === circleId && !visited.has(connection.from)) {
+          connected.push(...findConnectedCircles(connection.from, visited));
+        }
+      });
+
+      return connected;
+    },
+    [connections]
+  );
+
+  // No head/tail logic needed for node creation level
+
+  const loadExercise = useCallback((key = "exercise_one", launchInitial = false) => {
+    // Always clear circles/connections and reset launch state before loading new exercise
+    setCircles([]);
+    setConnections([]);
+    setSuckingCircles([]);
+    setSuckedCircles([]);
+    setCurrentEntryOrder([]);
+    // Clear persistent refs to avoid stale data between runs
+    if (entryOrderRef) entryOrderRef.current = [];
+    if (suckedCirclesRef) suckedCirclesRef.current = [];
+    setOriginalSubmission(null);
+    setShowValidationResult(false);
+    setValidationResult(null);
+    // hasLaunchedRef.current = false;
+    
+    // Reset head/tail state
+    setHeadCircleId(null);
+    setTailCircleId(null);
+    
+    // Now load the new exercise
+    const exercise = exerciseManagerRef.current.loadExercise(key);
+    setCurrentExercise(exercise);
+    setExerciseKey(key);
+
+    // Generate between 1 and 3 initial circle(s) drawn from the exercise sequence
+    const templateInit = getRandomInitialNodes(
+      exercise.sequence || [],
+      exercise.addresses || {},
+      { min: 1, max: 3 }
+    );
+  if (templateInit && templateInit.length > 0) {
+      // Create UI circle objects spaced horizontally and set up sequential connections
+      const centerY = Math.floor(window.innerHeight / 2);
+      const spacing = Math.max(100, Math.floor(window.innerWidth / (templateInit.length + 2)));
+      const startX = 120;
+
+      const uiCircles = templateInit.map((node, idx) => ({
+        id: `initial_${key}_${node.id}`,
+        x: startX + idx * spacing,
+        y: centerY,
+        value: node.value.toString(),
+        address: node.address,
+        velocityX: 0,
+        velocityY: 0,
+        isLaunched: false,
+        isInitial: true,
+      }));
+
+      const uiConnections = [];
+      for (let i = 0; i < uiCircles.length - 1; i++) {
+        uiConnections.push({
+          id: `${Date.now()}_${i}`,
+          from: uiCircles[i].id,
+          to: uiCircles[i + 1].id,
+        });
+      }
+
+      setCircles(uiCircles);
+      if (launchInitial) {
+        // Promote the first template node to a launched protected initial
+        const firstId = uiCircles[0].id;
+        setTimeout(() => {
+          setCircles((prev) =>
+            (prev || []).map((c) =>
+              c && c.id === firstId
+                ? {
+                    ...c,
+                    isLaunched: true,
+                    velocityX: 4,
+                    velocityY: 0,
+                    launchTime: Date.now(),
+                    x: 120,
+                    y: centerY,
+                  }
+                : c
+            )
+          );
+        }, 20);
+      }
+      setConnections(uiConnections);
+      if (uiCircles.length > 0) {
+        setHeadCircleId(uiCircles[0].id);
+        setTailCircleId(uiCircles[uiCircles.length - 1].id);
+      }
+    }
+  }, []);
+
+  
+  // spawnInitialCircle removed - promotion handled via loadExercise(, launchInitial=true)
+
+  // startExercise removed; use loadExercise() or handleRetry() to begin an exercise
+  
+  // Handle retry from mission failed overlay: reset level state and restart without tutorial
+  const handleRetry = useCallback(() => {
+    // Clear runtime state
+    setCircles([]);
+    setConnections([]);
+    setSuckingCircles([]);
+    setSuckedCircles([]);
+    setCurrentEntryOrder([]);
+    entryOrderRef.current = [];
+    suckedCirclesRef.current = [];
+    setOriginalSubmission(null);
+    setValidationResult(null);
+    setShowValidationResult(false);
+  // tutorial removed
+    // Reset points to zero
+    setTotalPoints(0);
+    
+    // Restart exercise and timer
+    setTimerSeconds(120);
+    setTimerRunning(true);
+    setShowMissionFailed(false);
+    
+    // Reset game start time and survival time for accurate time tracking
+    setGameStartTime(Date.now());
+    setFinalSurvivalTime(0);
+    
+
+    
+    // Reset and delay collectibles
+    setCollectiblesEnabled(false);
+    setTimeout(() => {
+      setCollectiblesEnabled(true);
+    }, 5000); // 5 second delay for collectibles
+    // Reload the current exercise and request promotion/launch of its template initial
+    loadExercise(exerciseKey, true);
+    // Ensure an initial launched circle exists after load (promote or create if needed)
+    setTimeout(() => {
+      setCircles((prev) => {
+        const existing = prev || [];
+        // If there's already an initial that is launched, keep it
+        if (existing.some((c) => c && c.isInitial && c.isLaunched)) return existing;
+        // If there's a template initial, promote the first one
+        const templateIdx = existing.findIndex((c) => c && c.isInitial && !c.isLaunched);
+        if (templateIdx >= 0) {
+          return existing.map((c, i) =>
+            i === templateIdx
+              ? { ...c, isLaunched: true, velocityX: 4, velocityY: 0, launchTime: Date.now(), x: 120, y: Math.floor(window.innerHeight / 2) }
+              : c
+          );
+        }
+        // Otherwise append a fresh initial launched circle
+        const initialCircle = {
+          id: `initial_${Date.now()}`,
+          x: 120,
+          y: Math.floor(window.innerHeight / 2),
+          value: (Math.floor(Math.random() * 100) + 1).toString(),
+          address: `init${Math.floor(Math.random() * 900) + 100}`,
+          velocityX: 4,
+          velocityY: 0,
+          isLaunched: true,
+          isInitial: true,
+          launchTime: Date.now(),
+        };
+        return [initialCircle, ...existing];
+      });
+    }, 60);
+  }, [loadExercise, exerciseKey]);
+
+  // Initialize with basic exercise if none loaded (but only if game has started and loading is complete)
+  useEffect(() => {
+    if (!currentExercise && !showInstructionPopup && !showLoadingScreen) {
+      loadExercise();
+    }
+  }, [currentExercise, loadExercise, showInstructionPopup, showLoadingScreen]);
+
+  // Load exercise with initial circles when game starts
+  useEffect(() => {
+    if (isGameStarted && !currentExercise) {
+      loadExercise("exercise_one", true);
+    }
+  }, [isGameStarted, currentExercise, loadExercise]);
+
+  // (Removed duplicate spawnInitialCircle - definition moved above to avoid temporal dead zone)
+
+  // (Removed unused getChainOrder for node creation)
+
+  // No chain suction effect for node creation
 
   // PHYSICS SYSTEM - Simple animation loop adapted for portal
   useEffect(() => {
@@ -761,13 +1134,79 @@ function CompetitiveMode(){
             return circle;
           }
 
+          // Apply natural movement for launched circles - no friction in space!
+          if (circle.isLaunched && (circle.velocityX || circle.velocityY)) {
+            // No friction - circles float forever in space
+            const newVelocityX = circle.velocityX;
+            const newVelocityY = circle.velocityY;
+            
+            // Update position based on velocity
+            const newX = circle.x + newVelocityX;
+            const newY = circle.y + newVelocityY;
+            
+            // Remove circles that go off screen
+            if (newX < -100 || newX > window.innerWidth + 100 || 
+                newY < -100 || newY > window.innerHeight + 100) {
+              return null; // Mark for removal
+            }
+            
+            // Continue moving forever - no stopping in space!
+            return {
+              ...circle,
+              x: newX,
+              y: newY,
+              velocityX: newVelocityX,
+              velocityY: newVelocityY,
+              launchTime: circle.launchTime || Date.now()
+            };
+          }
+
+          // Add gentle floating movement to ALL circles (even stationary ones)
+          if (!circle.isLaunched || (!circle.velocityX && !circle.velocityY)) {
+            // Initialize gentle floating if not already set
+            if (!circle.floatVelocityX || !circle.floatVelocityY) {
+              // Random gentle drift in space
+              const angle = Math.random() * 2 * Math.PI;
+              const speed = 0.2 + Math.random() * 0.3; // Very slow floating speed (0.2 to 0.5 pixels per frame)
+              circle.floatVelocityX = Math.cos(angle) * speed;
+              circle.floatVelocityY = Math.sin(angle) * speed;
+            }
+            
+            // Apply gentle floating movement
+            const newX = circle.x + circle.floatVelocityX;
+            const newY = circle.y + circle.floatVelocityY;
+            
+            // Gentle boundary bouncing for floating circles
+            let newFloatVelocityX = circle.floatVelocityX;
+            let newFloatVelocityY = circle.floatVelocityY;
+            
+            if (newX <= 30 || newX >= window.innerWidth - 30) {
+              newFloatVelocityX = -newFloatVelocityX; // Reverse X direction
+            }
+            if (newY <= 30 || newY >= window.innerHeight - 30) {
+              newFloatVelocityY = -newFloatVelocityY; // Reverse Y direction
+            }
+            
+            // Keep within bounds
+            const boundedX = Math.max(30, Math.min(window.innerWidth - 30, newX));
+            const boundedY = Math.max(30, Math.min(window.innerHeight - 30, newY));
+            
+            return {
+              ...circle,
+              x: boundedX,
+              y: boundedY,
+              floatVelocityX: newFloatVelocityX,
+              floatVelocityY: newFloatVelocityY
+            };
+          }
+
           // Sucking effect (GalistGame logic)
           if (suckingCircles.includes(circle.id)) {
-            const portalCenterX = 10 + portalInfo.canvasWidth / 2;
-            const portalCenterY = window.innerHeight / 2;
-            const dx = portalCenterX - circle.x;
-            const dy = portalCenterY - circle.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            // Portal entrance coordinates
+            const portalEntranceX = 10 + portalInfo.canvasWidth / 2;
+            const portalEntranceY = window.innerHeight / 2;
+            const dx = portalEntranceX - circle.x;
+            const dy = portalEntranceY - circle.y;
 
             // Portal entrance area
             const portalTop = window.innerHeight / 2 - 50;
@@ -775,6 +1214,8 @@ function CompetitiveMode(){
             const entranceTop = portalTop + 10;
             const entranceBottom = portalBottom - 10;
 
+            // If circle is close enough to portal entrance, remove it and trigger validation
+            const distanceToPortal = Math.sqrt(dx * dx + dy * dy);
             if (
               circle.x >= 10 &&
               circle.x <= 35 &&
@@ -782,25 +1223,54 @@ function CompetitiveMode(){
               circle.y <= entranceBottom
             ) {
               setTimeout(() => {
-                setCircles((prevCircles) => {
-                  const newCircles = prevCircles.filter((c) => c.id !== circle.id);
-                  // If last circle, validate
-                  if (newCircles.length === 0 && currentExercise) {
-                    if (!exerciseManagerRef.current.currentExercise) {
-                      exerciseManagerRef.current.loadExercise("exercise_one");
+                setSuckedCircles((prev) => {
+                  let updated = prev;
+                  if (!prev.includes(circle.id)) updated = [...prev, circle.id];
+                  return updated;
+                });
+                setCurrentEntryOrder((prev) => {
+                  let updated = prev;
+                  const addressAlreadyEntered = (
+                    suckedCirclesRef.current || []
+                  ).some((c) => c.address === circle.address);
+                  if (!prev.includes(circle.id) && !addressAlreadyEntered) {
+                    updated = [...prev, circle.id];
+                    suckedCirclesRef.current = [
+                      ...(suckedCirclesRef.current || []),
+                      { ...circle },
+                    ];
+                  }
+                  entryOrderRef.current = updated;
+                  return updated;
+                });
+                setSuckingCircles((prev) =>
+                  prev.filter((id) => id !== circle.id)
+                );
+
+                setTimeout(() => {
+                  const expectedCount =
+                    currentExercise?.expectedStructure?.length || 0;
+                  const suckedIds = entryOrderRef.current;
+                  const suckedCirclesForValidation =
+                    suckedCirclesRef.current || [];
+                  const uniqueCircles = [];
+                  const uniqueIds = [];
+                  const seenAddresses = new Set();
+                  for (let i = 0; i < suckedCirclesForValidation.length; i++) {
+                    const c = suckedCirclesForValidation[i];
+                    if (c && !seenAddresses.has(c.address)) {
+                      uniqueCircles.push({ ...c, value: Number(c.value) });
+                      uniqueIds.push(suckedIds[i]);
+                      seenAddresses.add(c.address);
                     }
-                    const finalEntryOrder = [...currentEntryOrder, circle.id];
-                    const submissionData = originalSubmission || {
-                      circles: [...prevCircles],
-                      connections: [...connections],
-                    };
-                    setTimeout(() => {
+                  }
+                  if (uniqueCircles.length === expectedCount) {
+                    if (currentExercise) {
                       try {
                         const result =
                           exerciseManagerRef.current.validateSubmission(
-                            submissionData.circles,
-                            submissionData.connections,
-                            finalEntryOrder
+                            uniqueCircles,
+                            uniqueIds
                           );
                         setValidationResult(result);
                         setShowValidationResult(true);
@@ -814,29 +1284,33 @@ function CompetitiveMode(){
                         });
                         setShowValidationResult(true);
                       }
-                    }, 500);
+                    }
+                    setCircles((prevCircles) =>
+                      prevCircles.filter((c) => c.id !== circle.id)
+                    );
+                  } else {
+                    setCircles((prevCircles) =>
+                      prevCircles.filter((c) => c.id !== circle.id)
+                    );
                   }
-                  return newCircles;
-                });
-                setSuckedCircles((prev) => {
-                  if (!prev.includes(circle.id)) return [...prev, circle.id];
-                  return prev;
-                });
-                setCurrentEntryOrder((prev) => {
-                  if (!prev.includes(circle.id)) return [...prev, circle.id];
-                  return prev;
-                });
-                setSuckingCircles((prev) => prev.filter((id) => id !== circle.id));
+                }, 0);
               }, 50);
-              return circle;
+              return null; // Remove the circle from rendering immediately
             }
 
-            // Suction force
-            const baseForce = 1.0;
-            const headBoost = 1.0;
-            const suctionForce = baseForce + headBoost;
-            const newVelocityX = (dx / distance) * suctionForce;
-            const newVelocityY = (dy / distance) * suctionForce;
+            // CONSTANT suction speed for all circles (true constant speed, not force)
+            const suctionSpeed = 2.5; // Faster suction for visible effect
+            if (distanceToPortal < suctionSpeed) {
+              return {
+                ...circle,
+                x: portalEntranceX,
+                y: portalEntranceY,
+                velocityX: 0,
+                velocityY: 0,
+              };
+            }
+            const newVelocityX = (dx / distanceToPortal) * suctionSpeed;
+            const newVelocityY = (dy / distanceToPortal) * suctionSpeed;
             return {
               ...circle,
               x: circle.x + newVelocityX,
@@ -846,7 +1320,7 @@ function CompetitiveMode(){
             };
           }
 
-          
+          // Removed gentle suction when portal is open. Only circles in suckingCircles are affected.
 
           // Manual trigger for chain suction
           if (portalInfo.isVisible) {
@@ -865,30 +1339,32 @@ function CompetitiveMode(){
               newY <= entranceBottom &&
               !suckingCircles.includes(circle.id)
             ) {
-              const isHead = isHeadNode(circle.id);
-              const hasAnyHeadNode = prevCircles.some((c) => isHeadNode(c.id));
-              if (isHead || !hasAnyHeadNode) {
-                startChainSuction(circle.id);
-              }
+              // No head/tail logic needed for node creation
               return circle;
             }
           }
+
           return circle;
         });
 
         // Second pass: Apply collision detection and physics
-        const allCirclesForCollision = circlesWithSpecialBehavior;
+        const allCirclesForCollision = circlesWithSpecialBehavior.filter(c => c !== null);
         const draggedCircleData = draggedCircle
-          ? allCirclesForCollision.find((circle) => circle.id === draggedCircle.id)
+          ? allCirclesForCollision.find(
+              (circle) => circle && circle.id === draggedCircle.id
+            )
           : null;
         const updatedAllCircles =
           allCirclesForCollision.length > 0
-            ? collisionDetection.updatePhysics(allCirclesForCollision, suckingCircles)
+            ? collisionDetection.updatePhysics(
+                allCirclesForCollision,
+                suckingCircles
+              )
             : [];
         let finalCircles = updatedAllCircles;
         if (draggedCircleData) {
           finalCircles = updatedAllCircles.map((circle) => {
-            if (circle.id === draggedCircle.id) {
+            if (circle && circle.id === draggedCircle.id) {
               return {
                 ...draggedCircleData,
                 velocityX: circle.velocityX,
@@ -898,7 +1374,533 @@ function CompetitiveMode(){
             return circle;
           });
         }
-        return finalCircles;
+
+        // Third pass: Check for collisions and auto-connect between ANY circles
+        // Use indexed loops to avoid checking each pair twice
+        for (let i = 0; i < finalCircles.length; i++) {
+          for (let j = i + 1; j < finalCircles.length; j++) {
+            const circle1 = finalCircles[i];
+            const circle2 = finalCircles[j];
+            if (!circle1 || !circle2) continue;
+            // At least one circle should be moving for collision to occur
+            const circle1Moving = circle1.isLaunched && (circle1.velocityX || circle1.velocityY);
+            const circle2Moving = circle2.isLaunched && (circle2.velocityX || circle2.velocityY);
+            if (!circle1Moving && !circle2Moving) continue; // Skip if both are stationary
+            // Check collision distance
+            const distance = Math.sqrt(
+              Math.pow(circle1.x - circle2.x, 2) + 
+              Math.pow(circle1.y - circle2.y, 2)
+            );
+            const collisionThreshold = 70; // Larger threshold for easier collision
+            if (distance <= collisionThreshold) {
+              // Check if connection already exists
+              const connectionExists = connections.some(conn => 
+                (conn.from === circle1.id && conn.to === circle2.id) ||
+                (conn.from === circle2.id && conn.to === circle1.id)
+              );
+              if (!connectionExists) {
+                // Count total circles and connections to understand current state
+                const totalConnections = connections.length;
+                // Check connection status of both circles
+                const circle1HasOutgoing = connections.some(conn => conn.from === circle1.id);
+                const circle1HasIncoming = connections.some(conn => conn.to === circle1.id);
+                const circle2HasOutgoing = connections.some(conn => conn.from === circle2.id);
+                const circle2HasIncoming = connections.some(conn => conn.to === circle2.id);
+                // Determine if circles are head, tail, or middle
+                // SPECIAL CASE: Check for manually designated head/tail (for single node scenarios)
+                const circle1IsManualHeadTail = (headCircleId === circle1.id && tailCircleId === circle1.id);
+                const circle2IsManualHeadTail = (headCircleId === circle2.id && tailCircleId === circle2.id);
+                
+                const circle1IsHead = (circle1HasOutgoing && !circle1HasIncoming) || 
+                                     (circle1IsManualHeadTail) || 
+                                     (headCircleId === circle1.id && !circle1HasIncoming);
+                const circle1IsTail = (circle1HasIncoming && !circle1HasOutgoing) || 
+                                      (circle1IsManualHeadTail) || 
+                                      (tailCircleId === circle1.id && !circle1HasOutgoing);
+                const circle1IsMiddle = circle1HasIncoming && circle1HasOutgoing;
+                const circle1IsIsolated = !circle1HasIncoming && !circle1HasOutgoing && !circle1IsManualHeadTail;
+                
+                const circle2IsHead = (circle2HasOutgoing && !circle2HasIncoming) || 
+                                     (circle2IsManualHeadTail) || 
+                                     (headCircleId === circle2.id && !circle2HasIncoming);
+                const circle2IsTail = (circle2HasIncoming && !circle2HasOutgoing) || 
+                                      (circle2IsManualHeadTail) || 
+                                      (tailCircleId === circle2.id && !circle2HasOutgoing);
+                const circle2IsMiddle = circle2HasIncoming && circle2HasOutgoing;
+                const circle2IsIsolated = !circle2HasIncoming && !circle2HasOutgoing && !circle2IsManualHeadTail;
+                
+                // Check if there's already a complete linked list (head and tail exist)
+                const existingHeadNodes = finalCircles.filter(c => {
+                  const hasOut = connections.some(conn => conn.from === c.id);
+                  const hasIn = connections.some(conn => conn.to === c.id);
+                  return hasOut && !hasIn;
+                });
+                const existingTailNodes = finalCircles.filter(c => {
+                  const hasOut = connections.some(conn => conn.from === c.id);
+                  const hasIn = connections.some(conn => conn.to === c.id);
+                  return !hasOut && hasIn;
+                });
+                const hasExistingLinkedList = existingHeadNodes.length > 0 && existingTailNodes.length > 0;
+                
+                // ENHANCED COLLISION PHYSICS: Make launched circles more powerful
+                const movingCircle = circle1Moving ? circle1 : circle2;
+                
+                // Check if the moving circle is a recently launched one (high speed)
+                const circle1Speed = Math.sqrt((circle1.velocityX || 0)**2 + (circle1.velocityY || 0)**2);
+                const circle2Speed = Math.sqrt((circle2.velocityX || 0)**2 + (circle2.velocityY || 0)**2);
+                const launchedThreshold = 3; // Speed threshold to identify launched circles
+                
+                const circle1IsLaunched = circle1.isLaunched && circle1Speed > launchedThreshold;
+                const circle2IsLaunched = circle2.isLaunched && circle2Speed > launchedThreshold;
+                // Enhanced collision physics
+                if (circle1IsLaunched && !circle2IsLaunched) {
+                  const transferRatio = 0.8;
+                  const retentionRatio = 0.4;
+                  circle2.velocityX = circle1.velocityX * transferRatio;
+                  circle2.velocityY = circle1.velocityY * transferRatio;
+                  circle1.velocityX = -circle1.velocityX * retentionRatio;
+                  circle1.velocityY = -circle1.velocityY * retentionRatio;
+                } else if (circle2IsLaunched && !circle1IsLaunched) {
+                  const transferRatio = 0.8;
+                  const retentionRatio = 0.4;
+                  circle1.velocityX = circle2.velocityX * transferRatio;
+                  circle1.velocityY = circle2.velocityY * transferRatio;
+                  circle2.velocityX = -circle2.velocityX * retentionRatio;
+                  circle2.velocityY = -circle2.velocityY * retentionRatio;
+                } else {
+                  // Default collision (both slow or both fast)
+                  const bounceReduction = 0.6;
+                  
+                  if (movingCircle === circle1) {
+                    circle1.velocityX = -circle1.velocityX * bounceReduction;
+                    circle1.velocityY = -circle1.velocityY * bounceReduction;
+                  } else {
+                    circle2.velocityX = -circle2.velocityX * bounceReduction;
+                    circle2.velocityY = -circle2.velocityY * bounceReduction;
+                  }
+                }
+                
+                // LINKED LIST LOGIC:
+                let shouldConnect = false;
+                let shouldDeleteCircle = null;
+                let fromId = null;
+                let toId = null;
+                
+                // Case 1: Two isolated circles - BUT only if no existing linked list exists
+                if (circle1IsIsolated && circle2IsIsolated) {
+                  if (!hasExistingLinkedList) {
+                    shouldConnect = true;
+                    fromId = circle1.id;
+                    toId = circle2.id;
+                    // ...existing code...
+                  } else {
+                    // Delete both circles if linked list already exists
+                    shouldDeleteCircle = [circle1.id, circle2.id];
+                    // ...existing code...
+                  }
+                }
+                // Case 2: Hit head/tail with isolated circle - extend the list
+                else if ((circle1IsHead || circle1IsTail) && circle2IsIsolated) {
+                  // existingNode = circle1, newNode = circle2
+                  const existingNode = circle1;
+                  const newNode = circle2;
+                  const newNodeIsLaunched = !!newNode.isLaunched;
+
+                  if (newNodeIsLaunched) {
+                    // SPECIAL CASE: Single head/tail node (no existing connections)
+                    const isSingleHeadTailNode = (headCircleId === existingNode.id && tailCircleId === existingNode.id);
+                    
+                    if (isSingleHeadTailNode) {
+                      // For single head/tail node, create first connection
+                      setConnections(prev => {
+                        const newConnection = { 
+                          id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, 
+                          from: insertionMode === 'right' ? existingNode.id : newNode.id, 
+                          to: insertionMode === 'right' ? newNode.id : existingNode.id 
+                        };
+                        return [...prev, newConnection];
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      
+                      // Update head/tail IDs for the new 2-node chain
+                      if (insertionMode === 'right') {
+                        setHeadCircleId(existingNode.id); // existing stays head
+                        setTailCircleId(newNode.id);      // new becomes tail
+                      } else {
+                        setHeadCircleId(newNode.id);      // new becomes head
+                        setTailCircleId(existingNode.id); // existing becomes tail
+                      }
+                      
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else if (insertionMode === 'right') {
+                      // Insert AFTER existingNode: rewire existing->newNode and newNode->oldNext
+                      const oldNextConn = connections.find(conn => conn.from === existingNode.id);
+                      const oldNextId = oldNextConn ? oldNextConn.to : null;
+
+                      setConnections(prev => {
+                        // Remove existing->oldNext if present
+                        let updated = prev.filter(c => !(c.from === existingNode.id && c.to === oldNextId));
+                        // Add existing -> newNode
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: existingNode.id, to: newNode.id });
+                        // If there was an old next, connect newNode -> oldNext
+                        if (oldNextId) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: oldNextId });
+                        }
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      if (!oldNextId) setTailCircleId(newNode.id);
+                      setHeadCircleId(prev => prev || existingNode.id);
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else {
+                      // insertionMode === 'left' -> insert BEFORE existingNode: rewire incoming -> newNode -> existing
+                      const incomingConn = connections.find(conn => conn.to === existingNode.id);
+                      const incomingFrom = incomingConn ? incomingConn.from : null;
+
+                      setConnections(prev => {
+                        let updated = prev.filter(c => !(incomingConn && c.from === incomingFrom && c.to === existingNode.id));
+                        if (incomingFrom) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: incomingFrom, to: newNode.id });
+                        }
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: existingNode.id });
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      if (!incomingConn) setHeadCircleId(newNode.id);
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    }
+                  } else {
+                    shouldDeleteCircle = newNode.id;
+                  }
+                }
+                else if ((circle2IsHead || circle2IsTail) && circle1IsIsolated) {
+                  // existingNode = circle2, newNode = circle1
+                  const existingNode = circle2;
+                  const newNode = circle1;
+                  const newNodeIsLaunched = !!newNode.isLaunched;
+
+                  if (newNodeIsLaunched) {
+                    // SPECIAL CASE: Single head/tail node (no existing connections)
+                    const isSingleHeadTailNode = (headCircleId === existingNode.id && tailCircleId === existingNode.id);
+                    
+                    if (isSingleHeadTailNode) {
+                      // For single head/tail node, create first connection
+                      setConnections(prev => {
+                        const newConnection = { 
+                          id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, 
+                          from: insertionMode === 'right' ? existingNode.id : newNode.id, 
+                          to: insertionMode === 'right' ? newNode.id : existingNode.id 
+                        };
+                        return [...prev, newConnection];
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      
+                      // Update head/tail IDs for the new 2-node chain
+                      if (insertionMode === 'right') {
+                        setHeadCircleId(existingNode.id); // existing stays head
+                        setTailCircleId(newNode.id);      // new becomes tail
+                      } else {
+                        setHeadCircleId(newNode.id);      // new becomes head
+                        setTailCircleId(existingNode.id); // existing becomes tail
+                      }
+                      
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else if (insertionMode === 'right') {
+                      const oldNextConn = connections.find(conn => conn.from === existingNode.id);
+                      const oldNextId = oldNextConn ? oldNextConn.to : null;
+
+                      setConnections(prev => {
+                        let updated = prev.filter(c => !(c.from === existingNode.id && c.to === oldNextId));
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: existingNode.id, to: newNode.id });
+                        if (oldNextId) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: oldNextId });
+                        }
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      if (!oldNextId) setTailCircleId(newNode.id);
+                      setHeadCircleId(prev => prev || existingNode.id);
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else {
+                      const incomingConn = connections.find(conn => conn.to === existingNode.id);
+                      const incomingFrom = incomingConn ? incomingConn.from : null;
+
+                      setConnections(prev => {
+                        let updated = prev.filter(c => !(incomingConn && c.from === incomingFrom && c.to === existingNode.id));
+                        if (incomingFrom) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: incomingFrom, to: newNode.id });
+                        }
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: existingNode.id });
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+                      if (!incomingConn) setHeadCircleId(newNode.id);
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    }
+                  } else {
+                    shouldDeleteCircle = newNode.id;
+                  }
+                }
+                // Case 3: Hit head when list has 2+ circles - delete ONLY isolated new circle
+                else if (totalConnections >= 1 && ((circle1IsHead && circle2IsIsolated) || (circle2IsHead && circle1IsIsolated))) {
+                  shouldDeleteCircle = circle1IsHead ? circle2.id : circle1.id;
+                  // ...existing code...
+                }
+                // Case 4: Hit middle node - if a freshly launched isolated circle hits a middle node,
+                // treat this as an insertion: insert the new circle AFTER the hit node instead of deleting it.
+                else if ((circle1IsMiddle && circle2IsIsolated) || (circle2IsMiddle && circle1IsIsolated)) {
+                  const existingNode = circle1IsMiddle ? circle1 : circle2; // node that's part of list
+                  const newNode = circle1IsMiddle ? circle2 : circle1; // isolated/new circle
+
+                  // Only perform insertion when the isolated circle was launched (player shot it)
+                  const newNodeIsLaunched = !!newNode.isLaunched;
+
+                  if (newNodeIsLaunched) {
+                    // Find the existing outgoing connection (if any)
+                    const oldNextConn = connections.find(conn => conn.from === existingNode.id);
+                    const oldNextId = oldNextConn ? oldNextConn.to : null;
+
+                    if (insertionMode === 'right') {
+                      // Build new connections: existing -> newNode, newNode -> oldNext (if exists)
+                      setConnections(prev => {
+                        // Remove the old connection from existingNode to oldNextId (if present)
+                        let updated = prev.filter(c => !(c.from === existingNode.id && c.to === oldNextId));
+
+                        // Add connection existing -> newNode
+                        updated = [
+                          ...updated,
+                          {
+                            id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            from: existingNode.id,
+                            to: newNode.id,
+                          },
+                        ];
+
+                        // If there was a previous next, add newNode -> oldNext
+                        if (oldNextId) {
+                          updated = [
+                            ...updated,
+                            {
+                              id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                              from: newNode.id,
+                              to: oldNextId,
+                            },
+                          ];
+                        }
+
+                        return updated;
+                      });
+
+                      // Ensure the new node exists in circles state
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+
+                      setHeadCircleId(prev => prev || existingNode.id);
+                      if (!oldNextId) setTailCircleId(newNode.id);
+
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    } else {
+                      // insertionMode === 'left' => insert BEFORE existingNode
+                      // Find incoming connection(s) to existingNode
+                      const incomingConn = connections.find(conn => conn.to === existingNode.id);
+                      const incomingFrom = incomingConn ? incomingConn.from : null;
+
+                      setConnections(prev => {
+                        let updated = prev.filter(c => !(c.from === incomingFrom && c.to === existingNode.id));
+                        // If there was an incoming, connect incomingFrom -> newNode
+                        if (incomingFrom) {
+                          updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: incomingFrom, to: newNode.id });
+                        }
+                        // Connect newNode -> existingNode
+                        updated.push({ id: `${Date.now()}_${Math.random().toString(36).substr(2,9)}`, from: newNode.id, to: existingNode.id });
+                        return updated;
+                      });
+
+                      setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
+
+                      // If there was no incoming, the newNode becomes new head
+                      if (!incomingConn) setHeadCircleId(newNode.id);
+
+                      shouldDeleteCircle = null;
+                      shouldConnect = false;
+                    }
+                  } else {
+                    shouldDeleteCircle = newNode.id;
+                  }
+                }
+                // Case 5: Two connected nodes colliding - BOUNCE ONLY (no deletion)
+                else if (!circle1IsIsolated && !circle2IsIsolated) {
+                  // Both circles are part of existing structures - just bounce, don't delete
+                  // ...existing code...
+                }
+                // Default: No action (bounce only)
+                else {
+                  // ...existing code...
+                }
+                
+                // Execute the decision
+                if (shouldConnect) {
+                  // Create connection
+                  const newConnection = {
+                    id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    from: fromId,
+                    to: toId
+                  };
+                  
+                  // ...existing code...
+                  
+                  setConnections(prev => {
+                    const updated = [...prev, newConnection];
+                    // ...existing code...
+                    return updated;
+                  });
+                } else if (shouldDeleteCircle) {
+                  // Delete the specified circle(s)
+                  if (Array.isArray(shouldDeleteCircle)) {
+                    // Delete multiple circles
+                    // ...existing code...
+                    
+                    setTimeout(() => {
+                      setCircles(prev => prev.filter(c => !shouldDeleteCircle.includes(c.id)));
+                    }, 100);
+                  } else {
+                    // Delete single circle
+                    // ...existing code...
+                    
+                    setTimeout(() => {
+                      setCircles(prev => prev.filter(c => c.id !== shouldDeleteCircle));
+                    }, 100);
+                  }
+                }
+                
+                // Give the other circle a small push if it's stationary and not being deleted
+                if (!shouldDeleteCircle) {
+                  const otherCircle = circle1Moving ? circle2 : circle1;
+                  const circle2MovingCheck = circle2Moving;
+                  
+                  setCircles(prev => prev.map(circle => {
+                    if (circle.id === otherCircle.id && !circle2MovingCheck) {
+                      return {
+                        ...circle,
+                        velocityX: movingCircle.velocityX * 0.3,
+                        velocityY: movingCircle.velocityY * 0.3,
+                        isLaunched: true,
+                        launchTime: Date.now()
+                      };
+                    }
+                    return circle;
+                  }));
+                }
+              } else {
+                // ...existing code...
+              }
+            }
+          }
+        }
+
+        // Check for collectible collisions with launched circles (only unconnected ones)
+        const collectibleCollisionsThisFrame = [];
+        const circlesToRemove = new Set(); // Track circles to remove due to collisions
+        const processedPairs = new Set(); // Prevent duplicate collision processing
+        
+        finalCircles.forEach(circle => {
+          if (!circle || !circle.isLaunched || circle.isInitial) return; // Skip non-launched and initial circles
+          
+          // Check if circle is already connected in the linked list
+          const connectedIds = findConnectedCircles(circle.id);
+          const isConnected = connectedIds.length > 1; // More than itself means it's connected
+          
+          console.log(`Circle ${circle.id} connected status: ${isConnected}, connected to: ${connectedIds.length} circles`);
+          
+          // Only allow collisions for unconnected circles
+          if (isConnected) {
+            console.log(`Skipping collision check for connected circle ${circle.id}`);
+            return;
+          }
+          
+          collectibles.forEach(collectible => {
+            // Create unique pair identifier to prevent duplicate processing
+            const pairId = `${circle.id}-${collectible.id}`;
+            if (processedPairs.has(pairId)) return;
+            
+            const dx = circle.x - collectible.x;
+            const dy = circle.y - collectible.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const collisionRadius = 70; // Circle radius (30) + collectible radius (35) + buffer (5)
+            
+            console.log(`Checking collision: Circle ${circle.id} at (${circle.x}, ${circle.y}) vs ${collectible.type} at (${collectible.x}, ${collectible.y}), distance: ${distance.toFixed(2)}, threshold: ${collisionRadius}`);
+            
+            if (distance <= collisionRadius) {
+              processedPairs.add(pairId);
+              
+              console.log(`Collision detected! Circle ${circle.id} hit ${collectible.type} collectible ${collectible.id}`);
+              
+              collectibleCollisionsThisFrame.push({
+                circleId: circle.id,
+                collectibleId: collectible.id,
+                collectibleType: collectible.type
+              });
+              
+              // For both timer and bomb collectibles, mark circle for removal
+              circlesToRemove.add(circle.id);
+            }
+          });
+        });
+        
+        // Update collectible collisions state immediately
+        if (collectibleCollisionsThisFrame.length > 0) {
+          console.log('Setting collectible collisions:', collectibleCollisionsThisFrame);
+          setCollectibleCollisions(collectibleCollisionsThisFrame);
+        }
+
+        // Additional pass: Check for auto-deletion
+        let filteredCircles = finalCircles.filter(circle => {
+          if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
+          
+          // ALWAYS keep initial circles - they are immune to all removal mechanisms
+          if (circle.isInitial) {
+            console.log(`Protecting initial circle ${circle.id} from all removal mechanisms`);
+            return true;
+          }
+          
+          // Remove circles that collided with bombs
+          if (circlesToRemove.has(circle.id)) {
+            console.log(`Removing circle ${circle.id} due to bomb collision`);
+            return false;
+          }
+
+          // Check if circle is already connected in the linked list
+          const connectedIds = findConnectedCircles(circle.id);
+          const isConnected = connectedIds.length > 1; // More than itself means it's connected
+
+          // Auto-delete unlinked circles after 3 seconds (but never delete initial circles)
+          if (!isConnected && circle.launchTime && !circle.isInitial) {
+            const timeSinceLaunch = Date.now() - circle.launchTime;
+            const autoDeleteTime = 3000; // 3 seconds in milliseconds
+            
+            if (timeSinceLaunch > autoDeleteTime) {
+              // Delete circle after 3 seconds if still unlinked
+              return false;
+            }
+            
+
+          }
+          return true; // Keep this circle
+        });
+
+        return filteredCircles.filter(circle => circle !== null); // Remove null circles (fallback)
       });
       animationRef.current = requestAnimationFrame(gameLoop);
     };
@@ -912,79 +1914,77 @@ function CompetitiveMode(){
     portalInfo,
     suckingCircles,
     draggedCircle,
-    isHeadNode,
-    startChainSuction,
     findConnectedCircles,
     connections,
     currentExercise,
     suckedCircles,
     originalSubmission,
     currentEntryOrder,
-    createExplosion,
+    circles,
+    headCircleId,
+    tailCircleId,
+    checkCircleCollision,
+    createConnection,
+    isHeadNode,
+    isTailNode,
+    getChainOrder,
+    startChainSuction,
+
+    insertionMode,
+    collectibles,
   ]);
 
   // Handle connection removal when circles are sucked
-    useEffect(() => {
-      if (suckedCircles.length > 0) {
-        const timer = setTimeout(() => {
-          setConnections((prevConnections) =>
-            prevConnections.filter((connection) => {
-              const fromSucked = suckedCircles.includes(connection.from);
-              const toSucked = suckedCircles.includes(connection.to);
-              return !(fromSucked && toSucked);
-            })
-          );
-        }, 500);
-  
-        return () => clearTimeout(timer);
-      }
-    }, [suckedCircles]);
+  useEffect(() => {
+    if (suckedCircles.length > 0) {
+      const timer = setTimeout(() => {
+        setConnections((prevConnections) =>
+          prevConnections.filter((connection) => {
+            const fromSucked = suckedCircles.includes(connection.from);
+            const toSucked = suckedCircles.includes(connection.to);
+            return !(fromSucked && toSucked);
+          })
+        );
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [suckedCircles]);
 
   // Auto-suction effect when portal opens - prioritize head nodes
-   useEffect(() => {
-      if (portalInfo.isVisible && circles.length > 0) {
-        const headNodes = circles.filter((circle) => isHeadNode(circle.id));
-  
-        if (headNodes.length > 0) {
-          headNodes.forEach((headNode, index) => {
-            setTimeout(() => {
-              startChainSuction(headNode.id);
-            }, index * 1000);
-          });
-        } else {
-          const isolatedNodes = circles.filter(
-            (circle) =>
-              !connections.some(
-                (conn) => conn.from === circle.id || conn.to === circle.id
-              )
-          );
-  
-          if (isolatedNodes.length > 0) {
-            isolatedNodes.forEach((node, index) => {
-              setTimeout(() => {
-                setSuckingCircles((prev) => {
-                  if (!prev.includes(node.id)) {
-                    return [...prev, node.id];
-                  }
-                  return prev;
-                });
-              }, index * 200);
+  useEffect(() => {
+    if (portalInfo.isVisible && circles.length > 0) {
+      // Find head nodes and start chain suction from them
+      const headNodes = circles.filter((circle) => isHeadNode(circle.id));
+      
+      if (headNodes.length > 0) {
+        // Start chain suction from the first head node
+        startChainSuction(headNodes[0].id);
+      } else {
+        // If no head nodes, just suck in all circles individually (fallback)
+        circles.forEach((node, index) => {
+          setTimeout(() => {
+            setSuckingCircles((prev) => {
+              if (!prev.includes(node.id)) {
+                return [...prev, node.id];
+              }
+              return prev;
             });
-          }
-        }
-      } else if (!portalInfo.isVisible) {
-        setSuckingCircles([]);
+          }, index * 200); // 200ms delay between each circle
+        });
       }
-    }, [
-      portalInfo.isVisible,
-      circles,
-      connections,
-      isHeadNode,
-      startChainSuction,
-    ]);
+    } else if (!portalInfo.isVisible) {
+      setSuckingCircles([]);
+    }
+  }, [portalInfo.isVisible, circles, connections, isHeadNode, startChainSuction]);
 
   // Mouse event handlers for dragging
   const handleMouseDown = (e, circle) => {
+    // Prevent dragging launched circles or initial protected circles
+    if (circle.isLaunched || circle.isInitial) {
+      return;
+    }
+    
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     setDraggedCircle(circle);
@@ -1002,877 +2002,192 @@ function CompetitiveMode(){
     ];
   };
 
-  const handleDoubleClick = (circle) => {
-    setSelectedCircle(circle);
-    setConnectToAddress("");
-  };
-  const handleLunchHoverStart = () => {
-    // Clear any existing timer
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
-    }
-    
-    // Set a timer to show the buttons after 0.5 seconds
-    const timer = setTimeout(() => {
-      setShowInsertButton(true);
-    }, 500);
-    setHoverTimer(timer);
-  };
+  // Handle simple clicks on circles to increment a click-counter; delete after 5 clicks
+  // Helper to perform deletion and bridge connections
+  const performDelete = useCallback((circleId) => {
+    setCircles(prev => {
+      const remaining = prev.filter(c => c.id !== circleId);
 
-  const handleLunchHoverEnd = () => {
-    // Don't immediately hide if buttons are visible - give time to move to them
-    if (showInsertButton) {
-      const hideTimer = setTimeout(() => {
-        setShowInsertButton(false);
-      }, 1000); // Give 1 full second to move to buttons
-      setHoverTimer(hideTimer);
-    } else {
-      // If buttons aren't visible yet, just clear the show timer
-      if (hoverTimer) {
-        clearTimeout(hoverTimer);
-        setHoverTimer(null);
-      }
-    }
-  };
+      setConnections(prevConns => {
+        const incoming = prevConns.filter(conn => conn.to === circleId);
+        const outgoing = prevConns.filter(conn => conn.from === circleId);
 
-  const handleInsertHover = () => {
-    // Keep buttons visible - clear any hide timer
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
-    }
-  };
+        let newConns = prevConns.filter(conn => conn.from !== circleId && conn.to !== circleId);
 
-  const handleInsertLeave = () => {
-    // Hide immediately when leaving the buttons container
-    setShowInsertButton(false);
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
-    }
-  };
-
-  const handleInsert = () => {
-    setShowInsertButton(false);
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
-    }
-    setShowInsertModal(true);
-  };
-
-  const handleQueue = () => {
-    setShowInsertButton(false);
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      setHoverTimer(null);
-    }
-    setShowQueueModal(true);
-  };
-
-  // --- QUEUE OPERATIONS ---
-  // PEEK: Highlight the value at the head/front of the queue (first node in the chain)
-  const handlePeek = () => {
-    // Find the head node (no incoming connections, has outgoing)
-    const head = circles.find((circle) => isHeadNode(circle.id));
-   
-    closeQueueModal(); // Close queue modal after clicking peek
-    if (head) {
-       try {
-          const audio = new window.Audio('/sounds/charged.mp3');
-          audio.loop = false;
-          audio.volume = 1;
-          // Play with promise catch for browser compatibility
-          const playPromise = audio.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(() => {});
-          }
-        } catch {
-          // Ignore audio errors
-        }
-      setHighlightedCircleId(head.id);
-      setTimeout(() => setHighlightedCircleId(null), 1500);
-      // Boost energy when using PEEK
-      boostEnergyWithPeek();
-    } else {
-      setHighlightedCircleId(null);
-    }
-  };
-
-  // ENQUEUE: Add a new node to the tail/end of the queue
-  const handleEnqueue = () => {
-    // Play audio effect for enqueue
-    closeQueueModal(); // Close queue modal after clicking enqueue
-
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    
-    // Validate inputs and highlight errors
-    if (!validateInputs()) {
-       try {
-        const audio = new window.Audio('/sounds/error.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
-      return;
-    }
-    
-    const addressExists = circles.some((circle) => circle.address === address.trim());
-    if (addressExists) {
-      setShowDuplicateModal(true);
-      try {
-        const audio = new window.Audio('/sounds/dup_error.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
-      closeQueueModal();
-      return;
-    }
-
-    // Check for labeled circles for auto-connection
-    const headTailNode = findHeadTailLabeledCircle();
-    const tailNode = findTailLabeledCircle();
-
-    // Find the current tail node (has incoming but no outgoing connection)
-    let tail = circles.find((circle) => isTailNode(circle.id));
-
-    // If only one node exists, treat it as both head and tail
-    if (circles.length === 1) {
-      tail = circles[0];
-    }
-
-    // Create new circle
-    const newCircle = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newCircle]);
-
-    // Auto-connect to labeled circles: priority is Head/Tail, then Tail, then normal logic
-    if (headTailNode) {
-      setConnections((prev) => [
-        ...prev,
-        {
-          id: `conn-${headTailNode.id}-${newCircle.id}`,
-          from: headTailNode.id,
-          to: newCircle.id,
-        },
-      ]);
-    } else if (tailNode) {
-      setConnections((prev) => [
-        ...prev,
-        {
-          id: `conn-${tailNode.id}-${newCircle.id}`,
-          from: tailNode.id,
-          to: newCircle.id,
-        },
-      ]);
-    } else if (tail) {
-      // Normal enqueue logic
-      setConnections((prev) => [
-        ...prev,
-        {
-          id: `conn-${tail.id}-${newCircle.id}`,
-          from: tail.id,
-          to: newCircle.id,
-        },
-      ]);
-    }
-
-    setAddress("");
-    setValue("");
-    closeQueueModal();
-  };
-
-  // DEQUEUE: Remove the node at the head/front of the queue
-  const handleDequeue = () => {
-    try{
-      const audio = new window.Audio('/sounds/dequeue_sound.mp3');
-      audio.currentTime = 0;
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {/* Ignore play errors */});
-      }
-    } catch {
-      // Ignore audio errors
-    }
-    // Find the head node (no incoming connections, has outgoing)
-    const head = circles.find((circle) => isHeadNode(circle.id));
-    if (!head) {
-      setHighlightedCircleId(null);
-      closeQueueModal();
-      return;
-    }
-    setHighlightedCircleId(head.id);
-    closeQueueModal();
-    
-    // Prevent double explosions by using a unique identifier
-    const explosionId = `dequeue-${head.id}-${Date.now()}`;
-    
-    setTimeout(() => {
-      setHighlightedCircleId(null);
-      setCircles((prev) => {
-        // Find the current position of the head node right before deletion
-        const currentHead = prev.find((c) => c.id === head.id);
-        if (currentHead) {
-          // Create explosion effect with current position - use unique identifier
-          const explosion = {
-            id: explosionId,
-            x: currentHead.x,
-            y: currentHead.y,
-            color: '#e9e2e1ff',
-          };
-          
-          setExplosions(prevExplosions => {
-            // Check if explosion with this ID already exists
-            const alreadyExists = prevExplosions.some(exp => exp.id === explosionId);
-            if (!alreadyExists) {
-              return [...prevExplosions, explosion];
+        for (const inConn of incoming) {
+          for (const outConn of outgoing) {
+            const fromId = inConn.from;
+            const toId = outConn.to;
+            const exists = newConns.some(c => c.from === fromId && c.to === toId);
+            if (fromId !== toId && !exists) {
+              newConns = [
+                ...newConns,
+                {
+                  id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  from: fromId,
+                  to: toId,
+                },
+              ];
             }
-            return prevExplosions;
-          });
-
-          // Clean up explosion after animation
-          setTimeout(() => {
-            setExplosions(prev => prev.filter(exp => exp.id !== explosionId));
-          }, 2500);
+          }
         }
-        
-        // Remove the head node
-        const newCircles = prev.filter((c) => c.id !== head.id);
-        return newCircles;
+
+        // Update head/tail IDs based on new connection set and remaining circles
+        if (remaining.length === 0) {
+          setHeadCircleId(null);
+          setTailCircleId(null);
+        } else {
+          const headNode = remaining.find(c => !newConns.some(conn => conn.to === c.id));
+          const tailNode = remaining.find(c => !newConns.some(conn => conn.from === c.id));
+          setHeadCircleId(headNode ? headNode.id : remaining[0].id);
+          setTailCircleId(tailNode ? tailNode.id : remaining[remaining.length - 1].id);
+        }
+
+        return newConns;
       });
-      setConnections((prev) => {
-        // Remove all connections to/from head
-        let updated = prev.filter((conn) => conn.from !== head.id && conn.to !== head.id);
+
+      return remaining;
+    });
+  }, [setConnections, setHeadCircleId, setTailCircleId]);
+
+  // Assign performDelete to ref for use in bomb timers
+  useEffect(() => {
+    performDeleteRef.current = performDelete;
+  }, [performDelete]);
+
+  const handleCircleClick = useCallback((circleId, e) => {
+    e.stopPropagation();
+
+    // Check if this is a bomb node - single click to open defuse modal
+    const hasBomb = (bombNode && bombNode.id === circleId) || activeBombs.some(bomb => bomb.id === circleId);
+    if (hasBomb) {
+      // Set which bomb is being defused
+      setCurrentDefusingBombId(circleId);
+      // Open defuse modal
+      const challenge = generateDefuseChallenge();
+      setDefuseNodes(challenge);
+      setShowDefuseModal(true);
+      console.log('Defuse modal opened for bomb node:', circleId);
+      return;
+    }
+
+    setCircles(prev => {
+      const updated = prev.map(c => {
+        if (c.id === circleId) {
+          // Do not change clickCount for initial circles or bomb nodes
+          const hasBomb = (bombNode && bombNode.id === c.id) || activeBombs.some(bomb => bomb.id === c.id);
+          if (c.isInitial || hasBomb) return c;
+          const nextCount = Math.min(5, (c.clickCount || 0) + 1);
+          return { ...c, clickCount: nextCount, deletionReady: nextCount >= 5 ? true : (c.deletionReady || false) };
+        }
+        return c;
+      });
+
+      const clicked = updated.find(c => c.id === circleId);
+      // If clicked circle is initial or bomb node, do nothing further
+      const clickedHasBomb = (bombNode && bombNode.id === clicked?.id) || activeBombs.some(bomb => bomb.id === clicked?.id);
+      if (clicked && (clicked.isInitial || clickedHasBomb)) {
         return updated;
-      });
-    }, 1000);
-  };
+      }
 
-  const closeInsertModal = () => {
-    setShowInsertModal(false);
-  };
+      // If deletionReady just became true, schedule the actual deletion after a short delay
+      if (clicked && clicked.deletionReady) {
+        setTimeout(() => {
+          performDelete(circleId);
+        }, 420); // small delay so user sees the filled background
+      }
 
-  const closeQueueModal = () => {
-    setShowQueueModal(false);
-  };
+      return updated;
+    });
+  }, [performDelete, bombNode, generateDefuseChallenge, activeBombs]);
 
-  const closeIndexModal = () => {
-    setShowIndexModal(false);
-    setInsertIndex("");
-  };
 
-    const handleIndexSubmit = () => {
-    const index = parseInt(insertIndex.trim());
-    if (isNaN(index) || index < 1) {
-      alert("Please enter a valid index (must be >= 1)");
-      return;
-    }
-    const maxIndex = circles.length;
-    if (index > maxIndex) {
-      alert(`Index too large. Maximum index is ${maxIndex}`);
-      return;
-    }
-    handleSpecificInsertion(index);
-    closeIndexModal();
-    closeInsertModal();
-  };
 
-  const handleSpecificInsertion = (index) => {
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    const targetIndex = parseInt(index);
-    if (isNaN(targetIndex) || targetIndex < 0) {
-      alert("Please enter a valid index.");
-      return;
+  // Cannon circle event handlers - removed double-click editing for testing
+
+  // Global right-click handler for launching circles
+  const handleGlobalRightClick = useCallback((e) => {
+    e.preventDefault(); // Prevent context menu
+  // tutorial removed - allow actions regardless
+    
+    // Prevent launching when any modal is open
+    if (showDefuseModal || showBulletModal || showPointsModal || showLevelCompleteModal || showAllCompletedModal || showMissionFailed || showValidationResult || showWrongAnswerNotification || showBombBlockingNotification || showQuizModal) {
+      return; // Don't launch when modals are open
     }
 
-    const newNode = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    const headNodes = circles.filter((circle) => isHeadNode(circle.id));
-
-    if (headNodes.length === 0) {
-      // If no head exists, just add the new node
-      setCircles((prev) => [...prev, newNode]);
-    } else {
-      // Handle specific insertion logic here
-      const head = headNodes[0];
-      const chainOrder = getChainOrder(head.id);
+    // Launch circle from cannon if values are set
+    if (cannonCircle.value && cannonCircle.address) {
+      // Calculate launch position from cannon tip
+      const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
+      const cannonTipY = window.innerHeight - 1; // Cannon base Y
       
-      if (targetIndex === 1) {
-        // Insert at head
-        handleHeadInsertion();
-        return;
-      } else if (targetIndex > chainOrder.length) {
-        // Insert at tail
-        handleTailInsertion();
-        return;
-      } else {
-        // Insert at specific position
-        setCircles((prev) => [...prev, newNode]);
-        
-        // Update connections for specific insertion
-        const actualIndex = targetIndex - 1; // Convert to 0-based
-        if (actualIndex > 0 && actualIndex < chainOrder.length) {
-          const prevNodeId = chainOrder[actualIndex - 1];
-          const nextNodeId = chainOrder[actualIndex];
-          
-          // Remove connection between prev and next
-          setConnections((prev) =>
-            prev.filter(
-              (conn) => !(conn.from === prevNodeId && conn.to === nextNodeId)
-            )
-          );
-          
-          // Add connections prev -> new and new -> next
-          setTimeout(() => {
-            setConnections((prev) => [
-              ...prev,
-              { id: `${prevNodeId}-${newNode.id}`, from: prevNodeId, to: newNode.id },
-              { id: `${newNode.id}-${nextNodeId}`, from: newNode.id, to: nextNodeId },
-            ]);
-          }, 100);
-        }
-      }
-    }
-
-    setAddress("");
-    setValue("");
-    setInsertIndex("");
-  };
-
-  const handleInsertOption = (option) => {
-    // Close the insert modal first
-    closeInsertModal();
-    
-    // Prevent insert operations when no circles are available
-    if (circles.length === 0) {
-      // Play error sound
-      try {
-        const audio = new window.Audio('/sounds/error.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
-      return;
-    }
-
-    // Validate inputs and highlight errors
-    if (!validateInputs()) {
-      // Play error sound for validation failure
-      try {
-        const audio = new window.Audio('/sounds/error.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
-      return;
-    }
-
-    const addressExists = circles.some(
-      (circle) => circle.address === address.trim()
-    );
-    if (addressExists) {
-      setShowDuplicateModal(true);
-      // Play error sound for duplicate address
-      try {
-        const audio = new window.Audio('/sounds/dup_error.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
-      return;
-    }
-
-    // Check individual operation limits
-    switch (option) {
-      case "head": {
-        if (headInsertUses <= 0) {
-          alert("HEAD insert operations exhausted! Use other operations to reset.");
-          return;
-        }
-        setHeadInsertUses(prev => prev - 1);
-        
-        // Auto-insertion: check for Head/Tail labeled circle first, then Head labeled circle
-        const headTailForHead = findHeadTailLabeledCircle();
-        const headLabeled = findHeadLabeledCircle();
-        
-        if (headTailForHead) {
-          handleHeadInsertionWithHeadTail(headTailForHead);
-        } else if (headLabeled) {
-          handleHeadInsertionWithHead(headLabeled);
-        } else {
-          handleHeadInsertion();
-        }
-        handleOperationUsage('headInsert');
-        break;
-      }
-      case "specific": {
-        if (specificInsertUses <= 0) {
-          alert("SPECIFIC insert operations exhausted! Use other operations to reset.");
-          return;
-        }
-        setSpecificInsertUses(prev => prev - 1);
-        
-        // Auto-insertion for Head/Tail labeled circle
-        const headTailForSpecific = findHeadTailLabeledCircle();
-        
-        if (headTailForSpecific) {
-          handleSpecificInsertionWithHeadTail(headTailForSpecific, parseInt(insertIndex));
-        } else {
-          setShowIndexModal(true);
-        }
-        handleOperationUsage('specificInsert');
-        break;
-      }
-      case "tail": {
-        if (tailInsertUses <= 0) {
-          alert("TAIL insert operations exhausted! Use other operations to reset.");
-          return;
-        }
-        setTailInsertUses(prev => prev - 1);
-        
-        // Auto-insertion: check for Head/Tail labeled circle first, then Tail labeled circle
-        const headTailForTail = findHeadTailLabeledCircle();
-        const tailLabeled = findTailLabeledCircle();
-        
-        if (headTailForTail) {
-          handleTailInsertionWithHeadTail(headTailForTail);
-        } else if (tailLabeled) {
-          handleTailInsertionWithTail(tailLabeled);
-        } else {
-          handleTailInsertion();
-        }
-        handleOperationUsage('tailInsert');
-        break;
-      }
-      default:
-        break;
-    }
-
-    closeInsertModal();
-  };
-
-  // --- QUEUE OPERATIONS ---
-  const handleQueueOption = (option) => {
-    // Close the queue modal first
-    closeQueueModal();
-    
-    // Prevent all queue operations when no circles are available
-    if (circles.length === 0) {
-      // Play error sound
-      try {
-        const audio = new window.Audio('/sounds/error.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
-      return;
-    }
-
-    switch (option) {
-      case "peek":
-        // PEEK doesn't use up any operations and has no usage limits
-        handlePeek();
-        break;
-      case "enqueue":
-        // Validate inputs for enqueue
-        if (!validateInputs()) {
-          // Play error sound for validation failure
-          try {
-            const audio = new window.Audio('/sounds/error.mp3');
-            audio.currentTime = 0;
-            audio.play().catch(() => {/* Ignore play errors */});
-          } catch {
-            // Ignore audio errors
-          }
-          return;
-        }
-        
-        if (enqueueUses <= 0) {
-          alert("ENQUEUE operations exhausted! Use other operations to reset.");
-          return;
-        }
-        setEnqueueUses(prev => prev - 1);
-        handleEnqueue();
-        // Track operation usage with specific type
-        handleOperationUsage('enqueue');
-        break;
-      case "dequeue":
-        if (dequeueUses <= 0) {
-          alert("DEQUEUE operations exhausted! Use other operations to reset.");
-          return;
-        }
-        setDequeueUses(prev => prev - 1);
-        handleDequeue();
-        // Track operation usage with specific type
-        handleOperationUsage('dequeue');
-        break;
-      default:
-        break;
-    }
-  };
-
-  const handleHeadInsertion = () => {
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    const newHead = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    const currentHeads = circles.filter((circle) => isHeadNode(circle.id));
-
-    setCircles((prev) => [...prev, newHead]);
-
-    if (currentHeads.length > 0) {
-      const newConnections = currentHeads.map((head) => ({
-        id: Date.now() + Math.random(),
-        from: newHead.id,
-        to: head.id,
-      }));
-
-      setConnections((prev) => [...prev, ...newConnections]);
-    }
-
-    setAddress("");
-    setValue("");
-  };
-
-  const handleTailInsertion = () => {
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    const newTail = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    const currentTails = circles.filter((circle) => isTailNode(circle.id));
-
-    setCircles((prev) => [...prev, newTail]);
-
-    if (currentTails.length > 0) {
-      const newConnections = currentTails.map((tail) => ({
-        id: Date.now() + Math.random(),
-        from: tail.id,
-        to: newTail.id,
-      }));
-
-      setConnections((prev) => [...prev, ...newConnections]);
-    }
-
-    setAddress("");
-    setValue("");
-  };
-
-  // Auto-insertion handlers for Head/Tail nodes
-  const handleHeadInsertionWithHeadTail = (headTailNode) => {
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    
-    const newHead = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newHead]);
-
-    // Connect new head to the Head/Tail node (replace head)
-    setConnections((prev) => [...prev, {
-      id: Date.now() + Math.random(),
-      from: newHead.id,
-      to: headTailNode.id,
-    }]);
-
-    setAddress("");
-    setValue("");
-  };
-
-  const handleTailInsertionWithHeadTail = (headTailNode) => {
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    
-    const newTail = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newTail]);
-
-    // Connect Head/Tail node to new tail (insert at tail)
-    setConnections((prev) => [...prev, {
-      id: Date.now() + Math.random(),
-      from: headTailNode.id,
-      to: newTail.id,
-    }]);
-
-    setAddress("");
-    setValue("");
-  };
-
-  const handleSpecificInsertionWithHeadTail = (headTailNode, index) => {
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    
-    const newNode = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newNode]);
-
-    // For index 1 with Head/Tail node, insert as head (new node -> Head/Tail)
-    if (index === 1) {
-      setConnections((prev) => [...prev, {
-        id: Date.now() + Math.random(),
-        from: newNode.id,
-        to: headTailNode.id,
-      }]);
-    }
-
-    setAddress("");
-    setValue("");
-  };
-
-  // Additional auto-insertion handlers for Head and Tail labeled circles
-  const handleHeadInsertionWithHead = (headNode) => {
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    
-    const newHead = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newHead]);
-
-    // Connect new node as head (new node -> existing head)
-    setConnections((prev) => [...prev, {
-      id: Date.now() + Math.random(),
-      from: newHead.id,
-      to: headNode.id,
-    }]);
-
-    setAddress("");
-    setValue("");
-  };
-
-  const handleTailInsertionWithTail = (tailNode) => {
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-    
-    const newTail = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newTail]);
-
-    // Connect existing tail to new tail (existing tail -> new tail)
-    setConnections((prev) => [...prev, {
-      id: Date.now() + Math.random(),
-      from: tailNode.id,
-      to: newTail.id,
-    }]);
-
-    setAddress("");
-    setValue("");
-  };
-
-  const handleConnect = () => {
-    if (!selectedCircle || !connectToAddress.trim()) return;
-
-    const targetCircle = circles.find(
-      (c) => c.address === connectToAddress.trim()
-    );
-    if (targetCircle && targetCircle.id !== selectedCircle.id) {
-      const newConnection = {
+      // Calculate tip position based on cannon angle
+      const tipDistance = 55; // Distance from base to tip
+      const angleRad = (cannonAngle) * (Math.PI / 180);
+      const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
+      const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
+      
+      // Calculate launch velocity based on cannon direction
+      const launchSpeed = 6; // Pixels per frame - adjust this for faster/slower launch
+      const velocityX = Math.sin(angleRad) * launchSpeed;
+      const velocityY = -Math.cos(angleRad) * launchSpeed; // Negative because Y increases downward
+      
+      // Create new circle at cannon tip with launch velocity
+      const newCircle = {
         id: Date.now(),
-        from: selectedCircle.id,
-        to: targetCircle.id,
+        x: tipX - 30, // Offset for circle radius
+        y: tipY - 30,
+        value: cannonCircle.value,
+        address: cannonCircle.address,
+        velocityX: velocityX,
+        velocityY: velocityY,
+        isLaunched: true, // Flag to indicate this circle was launched
+        launchTime: Date.now(), // Track when it was launched
       };
-      setConnections((prev) => [...prev, newConnection]);
+      
+      
+      setCircles(prev => {
+        // ...existing code...
+        
+        const newCircles = [...prev, newCircle];
+        
+        // If this is the first circle, make it head/tail
+        if (prev.length === 0) {
+          // ...existing code...
+          setHeadCircleId(newCircle.id);
+          setTailCircleId(newCircle.id);
+        }
+        
+  return newCircles;
+      });
+      
+      // Do NOT randomize cannonCircle after launch; keep the selected value/address
+    } else {
+  // ...existing code...
     }
-
-    setSelectedCircle(null);
-    setConnectToAddress("");
-  };
-
-  const closePopup = () => {
-    setSelectedCircle(null);
-    setConnectToAddress("");
-  };
-
-  const closeDuplicateModal = () => {
-    setShowDuplicateModal(false);
-  };
-  const optimizeConnectionsAfterDeletion = (connections) => {
-    const connectionMap = new Map();
-    connections.forEach((conn) => {
-      const key = `${conn.from}-${conn.to}`;
-      if (!connectionMap.has(key)) {
-        connectionMap.set(key, conn);
-      }
-    });
-    return Array.from(connectionMap.values());
-  };
-
-  const handleDeleteCircle = () => {
-    if (!selectedCircle) return;
-    const nodeToDelete = selectedCircle.id;
-    const incomingConnections = connections.filter(
-      (conn) => conn.to === nodeToDelete
-    );
-    const outgoingConnections = connections.filter(
-      (conn) => conn.from === nodeToDelete
-    );
-    const isHead = isHeadNode(nodeToDelete);
-    const isTail = isTailNode(nodeToDelete);
-    const isMiddle =
-      incomingConnections.length > 0 && outgoingConnections.length > 0;
-
-    setCircles((prevCircles) =>
-      prevCircles.filter((circle) => circle.id !== nodeToDelete)
-    );
-
-    setConnections((prevConnections) => {
-      let updatedConnections = prevConnections.filter(
-        (conn) => conn.from !== nodeToDelete && conn.to !== nodeToDelete
-      );
-
-      if (isMiddle) {
-        const newConnections = [];
-        incomingConnections.forEach((inConn) => {
-          outgoingConnections.forEach((outConn) => {
-            if (inConn.from !== outConn.to) {
-              newConnections.push({
-                id: Date.now() + Math.random(),
-                from: inConn.from,
-                to: outConn.to,
-              });
-            }
-          });
-        });
-        updatedConnections = [...updatedConnections, ...newConnections];
-      } else if (isHead && outgoingConnections.length > 0) {
-        // next nodes become heads
-      } else if (isTail && incomingConnections.length > 0) {
-        // previous nodes become tails
-      }
-
-      return optimizeConnectionsAfterDeletion(updatedConnections);
-    });
-
-    closePopup();
-  };
+  }, [cannonCircle.value, cannonCircle.address, cannonAngle, showDefuseModal, showBulletModal, showPointsModal, showLevelCompleteModal, showAllCompletedModal, showMissionFailed, showValidationResult, showWrongAnswerNotification, showBombBlockingNotification, showQuizModal]);
 
   useEffect(() => {
     const handleMouseMoveGlobal = (e) => {
-      if (draggedCircle) {
+      const cannonBaseX = window.innerWidth + 40 - 35; // Right edge + 40px offset - half width (35px)
+      const cannonBaseY = window.innerHeight - 1; // Bottom edge position (bottom: 1px)
+      
+      // Calculate angle from cannon base to mouse cursor
+      const deltaX = e.clientX - cannonBaseX;
+      const deltaY = e.clientY - cannonBaseY;
+      
+      // Calculate angle in degrees (pointing towards mouse)
+      // Fix: We ADD 90 degrees instead of subtracting to correct the direction
+      let angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI) + 90;
+      
+      // For debugging - let's allow full rotation first to see if it works
+      // Then we'll add constraints back
+      
+      // Update cannon angle
+      setCannonAngle(angle);
+
+      // Existing circle dragging logic (only for non-launched circles)
+      if (draggedCircle && !draggedCircle.isLaunched) {
         const newX = e.clientX - dragOffset.x;
         const newY = e.clientY - dragOffset.y;
 
@@ -1880,22 +2195,6 @@ function CompetitiveMode(){
           const circleRadius = 30;
 
           const isValid = (x, y) => {
-            const controlsHeight = 55;
-            const controlsWidth = 1320;
-            const controlsLeft = window.innerWidth * 0.45 - controlsWidth / 2;
-            const controlsRight = controlsLeft + controlsWidth;
-            const controlsTop = window.innerHeight - 5 - controlsHeight;
-            const controlsBottom = window.innerHeight - 10;
-
-            if (
-              x + circleRadius >= controlsLeft &&
-              x - circleRadius <= controlsRight &&
-              y + circleRadius >= controlsTop &&
-              y - circleRadius <= controlsBottom
-            ) {
-              return false;
-            }
-
             const rightSquareSize = 100;
             const rightSquareLeft = window.innerWidth - rightSquareSize;
             const rightSquareRight = window.innerWidth;
@@ -2052,148 +2351,171 @@ function CompetitiveMode(){
 
     document.addEventListener("mousemove", handleMouseMoveGlobal);
     document.addEventListener("mouseup", handleMouseUpGlobal);
+    document.addEventListener("contextmenu", handleGlobalRightClick);
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMoveGlobal);
       document.removeEventListener("mouseup", handleMouseUpGlobal);
+      document.removeEventListener("contextmenu", handleGlobalRightClick);
     };
-  }, [draggedCircle, dragOffset, findConnectedCircles, circles]);
+  }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick]);
 
-  // Helper function to handle operation usage and reset logic
-  const handleOperationUsage = useCallback((operationType) => {
-    // Update counters for all buttons that are at 0 (except the one being used)
-    
-    // Launch button: needs 5 other operations to reset
-    if (operationType !== 'launch' && launchButtonUses === 0) {
-      resetCountersRef.current.launch += 1;
-      if (resetCountersRef.current.launch >= 5) {
-        setLaunchButtonUses(5);
-        resetCountersRef.current.launch = 0; // Reset counter
-      }
+  // Helper: Get current linked list structure as array of {value, address}
+  const getCurrentLinkedList = useCallback(() => {
+    // Find head node (no incoming connection)
+    const head = circles.find(c => !connections.some(conn => conn.to === c.id));
+    if (!head) return [];
+    // Traverse from head using outgoing connections
+    const result = [];
+    let current = head;
+    const visited = new Set();
+    while (current && !visited.has(current.id)) {
+      result.push({ value: current.value, address: current.address });
+      visited.add(current.id);
+      const nextConn = connections.find(conn => conn.from === current.id);
+      current = nextConn ? circles.find(c => c.id === nextConn.to) : null;
     }
-    
-    // Head Insert: needs 5 other operations to reset
-    if (operationType !== 'headInsert' && headInsertUses === 0) {
-      resetCountersRef.current.headInsert += 1;
-      if (resetCountersRef.current.headInsert >= 5) {
-        setHeadInsertUses(2);
-        resetCountersRef.current.headInsert = 0; // Reset counter
-      }
-    }
-    
-    // Tail Insert: needs 5 other operations to reset
-    if (operationType !== 'tailInsert' && tailInsertUses === 0) {
-      resetCountersRef.current.tailInsert += 1;
-      if (resetCountersRef.current.tailInsert >= 5) {
-        setTailInsertUses(2);
-        resetCountersRef.current.tailInsert = 0; // Reset counter
-      }
-    }
-    
-    // Specific Insert: needs 5 other operations to reset
-    if (operationType !== 'specificInsert' && specificInsertUses === 0) {
-      resetCountersRef.current.specificInsert += 1;
-      if (resetCountersRef.current.specificInsert >= 5) {
-        setSpecificInsertUses(2);
-        resetCountersRef.current.specificInsert = 0; // Reset counter
-      }
-    }
-    
-    // Enqueue: needs 5 other operations to reset
-    if (operationType !== 'enqueue' && enqueueUses === 0) {
-      resetCountersRef.current.enqueue += 1;
-      if (resetCountersRef.current.enqueue >= 5) {
-        setEnqueueUses(2);
-        resetCountersRef.current.enqueue = 0; // Reset counter
-      }
-    }
-    
-    // Dequeue: needs 5 other operations to reset
-    if (operationType !== 'dequeue' && dequeueUses === 0) {
-      resetCountersRef.current.dequeue += 1;
-      if (resetCountersRef.current.dequeue >= 5) {
-        setDequeueUses(5);
-        resetCountersRef.current.dequeue = 0; // Reset counter
-      }
-    }
-  }, [launchButtonUses, headInsertUses, tailInsertUses, specificInsertUses, enqueueUses, dequeueUses]);
+    return result;
+  }, [circles, connections]);
 
-  const launchCircle = () => {
-    // Prevent launching when game is not active or is over
-    if (!isGameActive || gameOver) {
-      return;
-    }
-    
-    // Check if launch button uses are exhausted
-    if (launchButtonUses <= 0) {
-      return;
-    }
-    
-    // Validate inputs and highlight errors
-    if (!validateInputs()) {
-      // Play error sound for validation failure
-      try {
-        const audio = new window.Audio('/sounds/error.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
+  // Check for level completion after every connection/circle update
+  useEffect(() => {
+    if (!currentExercise) return;
+    const expected = (currentExercise.expectedStructure || []).map(n => ({ value: n.value.toString(), address: n.address }));
+    const actual = getCurrentLinkedList();
+    // Compare arrays
+    const isMatch = expected.length === actual.length && expected.every((node, i) => node.value === actual[i]?.value && node.address === actual[i]?.address);
+    if (isMatch) {
+      // Check if there's an active bomb - user must defuse it first before claiming points
+      const hasActiveBomb = (bombNode && bombCountdown > 0) || (activeBombs && activeBombs.length > 0);
+      if (hasActiveBomb) {
+        console.log('Expected result achieved but bomb is active! Defuse the bomb first to claim points.');
+        // Show notification to user
+        setShowBombBlockingNotification(true);
+        setTimeout(() => {
+          setShowBombBlockingNotification(false);
+        }, 3000);
+        return; // Don't show points modal until bomb is defused
       }
-      return;
+      // Calculate actual completion time in seconds
+      const currentTime = Date.now();
+      const completionTimeMs = roundStartTime ? (currentTime - roundStartTime) : 0;
+      const completionTime = Math.floor(completionTimeMs / 1000); // Convert to seconds
+      
+      console.log(`Round completed in ${completionTime} seconds`); // Debug log
+      
+      // Time-based point system (maximum 100 points per expected result)
+      let pointsEarned = 0;
+      
+      if (completionTime < 60) {
+        // Under 1 minute: 100 points
+        pointsEarned = 100;
+      } else if (completionTime >= 60 && completionTime < 120) {
+        // 1-2 minutes: 80 points
+        pointsEarned = 80;
+      } else {
+        // Above 2 minutes: 60 points
+        pointsEarned = 60;
+      }
+      
+      setEarnedPoints(pointsEarned);
+      setShowPointsModal(true);
     }
+  }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises, timerSeconds, roundStartTime, bombNode, bombCountdown, activeBombs]);
 
-    const addressExists = circles.some(
-      (circle) => circle.address === address.trim()
+  // Handler for claiming points and generating a new exercise
+  const handleClaimPoints = () => {
+    // Add earned points to total
+    setTotalPoints(prev => prev + earnedPoints);
+    
+    // Close points modal
+    setShowPointsModal(false);
+    
+    // Start timing for the new round
+    setRoundStartTime(Date.now());
+    
+    // Generate new exercise and reset circles
+    const exercise = exerciseManagerRef.current.loadRandomExercise();
+    setCurrentExercise(exercise);
+    
+    // Generate new initial circles using the exercise data
+    const initialNodes = getRandomInitialNodes(
+      exercise.sequence || [],
+      exercise.addresses || {},
+      { min: 1, max: 3 } // Allow up to 3 initial circles with strategic selection
     );
-    if (addressExists) {
-      setShowDuplicateModal(true);
-      // Play error sound for duplicate address
-      try {
-        const audio = new window.Audio('/sounds/dup_error.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(() => {/* Ignore play errors */});
-      } catch {
-        // Ignore audio errors
-      }
-      return;
-    }
-
-    // Play success sound when launching successfully
-    try {
-      const audio = new window.Audio('/sounds/explode.mp3');
-      audio.currentTime = 0;
-      audio.play().catch(() => {/* Ignore play errors */});
-    } catch {
-      // Ignore audio errors
-    }
-
-    const newCircle = {
-      id: Date.now(),
-      address: address.trim(),
-      value: value.trim(),
-      x: window.innerWidth - 10,
-      y: window.innerHeight - 55,
-      velocityX: -8 - Math.random() * 5,
-      velocityY: -5 - Math.random() * 3,
-    };
-
-    setCircles((prev) => [...prev, newCircle]);
-    setLaunchButtonUses(prev => prev - 1); // Decrease launch button uses
+    const gameHeight = window.innerHeight;
     
-    // Reset any other buttons that are at 0
-    handleOperationUsage('launch');
+    const newCircles = initialNodes.map((node, index) => ({
+      id: `initial_claim_${Date.now()}_${index}`,
+      value: node.value.toString(),
+      address: node.address,
+      x: 150 + (index * 100), // Spread them out horizontally
+      y: gameHeight - 200, // Position them near the bottom
+      isInitial: true,
+      isLaunched: false,
+      velocityX: 0,
+      velocityY: 0
+    }));
     
-    setAddress("");
-    setValue("");
+    // Create connections between initial circles (like in loadExercise)
+    const newConnections = [];
+    for (let i = 0; i < newCircles.length - 1; i++) {
+      newConnections.push({
+        id: `claim_conn_${Date.now()}_${i}`,
+        from: newCircles[i].id,
+        to: newCircles[i + 1].id,
+      });
+    }
+    
+    setCircles(newCircles);
+    setConnections(newConnections);
+    
+    // Set head and tail IDs if we have circles
+    if (newCircles.length > 0) {
+      setHeadCircleId(newCircles[0].id);
+      setTailCircleId(newCircles[newCircles.length - 1].id);
+    } else {
+      setHeadCircleId(null);
+      setTailCircleId(null);
+    }
+    
+    // Reset cannon with new values
+    setCannonCircle({
+      value: Math.floor(Math.random() * 100).toString(),
+      address: Math.floor(Math.random() * 1000).toString()
+    });
   };
 
-  // Show loading screen first
-  if (isLoading) {
+  // Handler for Continue button
+  const handleLevelContinue = () => {
+    // Advance to next exercise if possible
+    if (currentExerciseNumber < totalExercises) {
+      setShowLevelCompleteModal(false);
+      const nextKey = EXERCISE_KEYS[currentExerciseNumber];
+      loadExercise(nextKey);
+    } else {
+      // All exercises completed: skip level complete modal for last exercise
+      setShowLevelCompleteModal(false);
+      setShowAllCompletedModal(true);
+    }
+  };
+
+  // Update currentExercise when exerciseKey changes
+  useEffect(() => {
+    // Update currentExercise when exerciseKey changes
+    const exercise = exerciseManagerRef.current.getCurrentExercise(exerciseKey);
+    setCurrentExercise(exercise);
+  }, [exerciseKey]);
+
+
+
+  // Show loading screen first when component mounts
+  if (showLoadingScreen) {
     return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
   }
 
   return (
-    
     <div className={styles.app}>
       <video
         className={styles.videoBackground}
@@ -2203,53 +2525,35 @@ function CompetitiveMode(){
         playsInline
         preload="auto"
         // onError={(e) => console.error("Video error:", e)}
-        // onLoadedData={() => console.log("Video loaded successfully")}
       >
         <source src="./video/compe_bg1.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
-      {/* Dimming overlay for energy system */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'black',
-          opacity: 1 - screenOpacity,
-          pointerEvents: 'none',
-          zIndex: 15,
-          transition: 'opacity 0.3s ease',
-        }}
-      />
-
       
 
-      <button
-        className={styles.instructionButton}
-        onClick={() => setShowInstructionPopup(!showInstructionPopup)}
-      >
-        i
-      </button>
+      {/* Game UI - only show when game has started */}
+      {isGameStarted && (
+        <>
+          {/* Countdown timer (top right) */}
+          <div className={styles.exerciseProgressIndicator} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {Math.floor(timerSeconds / 60).toString().padStart(1, '0')}:{(timerSeconds % 60).toString().padStart(2, '0')}
+          </div>
 
-      {/* Timer (top right) */}
-      <div className={styles.timer}>
-        <span className={`${styles.timerValue} ${timeLeft <= 30 ? styles.timerDanger : ''}`}>
-          {formatTime(timeLeft)}
-        </span>
-      </div>
+          {/* Insertion mode indicator (top-left) */}
+          {/* <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>
+            Insert: {insertionMode === 'left' ? 'Before (←)' : 'After (→)'}
+          </div> */}
+        </>
+      )}
 
-      {/* Score (top left) */}
-      <div className={styles.scoreDisplay}>
-        <span className={styles.progressLabel}>SCORE:</span>
-        <span className={styles.progressValue}>{completedExercises * 100}</span>
-      </div>
-
-      {/* Expected results bar */}
-      {currentExercise && currentExercise.expectedStructure && (
+      {/* Expected results bar - only show when game has started */}
+      {isGameStarted && currentExercise && currentExercise.expectedStructure && (
         <div className={styles.expectedBarWrapper}>
+          {/* Score indicator */}
+          <div className={styles.scoreIndicator}>
+            <span className={styles.scoreText}>Points: {totalPoints}</span>
+          </div>
           <table className={styles.expectedBarTable}>
             <tbody>
               <tr className={styles.expectedBarRow}>
@@ -2257,8 +2561,12 @@ function CompetitiveMode(){
                   <React.Fragment key={node.address}>
                     <td className={styles.expectedBarCell}>
                       <div className={styles.expectedBarCircle}>
-                        <div className={styles.expectedBarValue}>{node.value}</div>
-                        <div className={styles.expectedBarAddress}>{node.address}</div>
+                        <div className={styles.expectedBarValue}>
+                          {node.value}
+                        </div>
+                        <div className={styles.expectedBarAddress}>
+                          {node.address}
+                        </div>
                       </div>
                     </td>
                     {idx < currentExercise.expectedStructure.length - 1 && (
@@ -2273,213 +2581,197 @@ function CompetitiveMode(){
           </table>
         </div>
       )}
-      
-      <CompetitiveInstruction 
-        showInstructionPopup={showInstructionPopup}
-        startExercise={startExercise}
-        closeInstructionPopup={closeInstructionPopup}
-        isGameActive={isGameActive}
-      />
-     
-      <PortalComponent
-        onPortalStateChange={handlePortalStateChange}
-        isOpen={isPortalOpen}
-      />
-      <PortalParticles
-        portalInfo={portalInfo}
-      />
-      <ExplodeParticles
-        explosions={explosions}
-      />
-      <div
-        className={styles.rightSquare}
-        style={{ outlineOffset: "5px" }}
-      />
-      
-      <div className={styles.controls}>
-        <input
-          type="text"
-          placeholder="ENTER ADDRESS"
-          value={address}
-          onChange={(e) => {
-            setAddress(e.target.value);
-            if (addressError) clearInputErrors();
-          }}
-          className={`${styles.inputField} ${addressError ? styles.inputFieldInputError : ''}`}
-          disabled={!isGameActive || gameOver}
-        />
-        <input
-          type="text"
-          placeholder="ENTER VALUE"
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            if (valueError) clearInputErrors();
-          }}
-          className={`${styles.inputField} ${valueError ? styles.inputFieldInputError : ''}`}
-          disabled={!isGameActive || gameOver}
-        />
-        <div className={styles.buttonContainer}>
-          <div
-            className={styles.launchArea}
-            onMouseEnter={handleLunchHoverStart}
-            onMouseLeave={handleLunchHoverEnd}
-          >
-            <button
-              onClick={launchCircle}
-              className={`${styles.launchButton} ${launchButtonUses <= 0 ? styles.buttonDisabled : ''}`}
-              disabled={launchButtonUses <= 0}
-            >
-              {launchButtonUses > 0 
-                ? `LAUNCH (${launchButtonUses})` 
-                : `LAUNCH (${resetCountersRef.current.launch}/5)`
-              }
-            </button>
-            {showInsertButton && (
-              <div 
-                className={styles.hoverButtonsContainer}
-                onMouseEnter={handleInsertHover}
-                onMouseLeave={handleInsertLeave}
-              >
-                <button
-                  onClick={handleInsert}
-                  className={`${styles.insertButton} ${(headInsertUses <= 0 && tailInsertUses <= 0 && specificInsertUses <= 0) ? styles.buttonDisabled : ''}`}
-                  disabled={headInsertUses <= 0 && tailInsertUses <= 0 && specificInsertUses <= 0}
-                >
-                  INSERT 
-                </button>
-                <button
-                  onClick={handleQueue}
-                  className={`${styles.queueButton} ${(enqueueUses <= 0 && dequeueUses <= 0) ? styles.buttonDisabled : ''}`}
-                  disabled={enqueueUses <= 0 && dequeueUses <= 0}
-                >
-                  QUEUE 
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={isPortalButtonEnabled ? togglePortal : undefined}
-          className={`${styles.portalButton} ${
-            !isPortalButtonEnabled ? styles.portalButtonDisabled : ""
-          } ${isPortalOpen ? styles.portalButtonOpen : ""}`}
-          disabled={!isPortalButtonEnabled}
-        >
-          {isPortalOpen ? "CLOSE PORTAL" : "OPEN PORTAL"}
-        </button>
-      </div>
-      
-      {circles.map((circle) => {
-        // Only label as head the unique node with outgoing connections and no incoming connections
-        // that is also the start of a connected component (reachable by others)
-        const hasOutgoing = connections.some(conn => conn.from === circle.id);
-        const hasIncoming = connections.some(conn => conn.to === circle.id);
-        const isConnected = hasOutgoing || hasIncoming;
-        
-        // Special case: if there's only one circle, it should be labeled as "Head/Tail"
-        const isSingleCircle = circles.length === 1;
-        
-        // Check if this circle is unconnected (not part of any connection)
-        const isUnconnected = !hasOutgoing && !hasIncoming;
-        
-        // Find the first unconnected circle (should be the only one with Head/Tail label)
-        const unconnectedCircles = circles.filter(c => {
-          const out = connections.some(conn => conn.from === c.id);
-          const inc = connections.some(conn => conn.to === c.id);
-          return !out && !inc;
-        });
-        const isFirstUnconnected = isUnconnected && unconnectedCircles.length > 0 && unconnectedCircles[0].id === circle.id;
-        
-        // Find all possible heads (connected, has outgoing, no incoming)
-        const possibleHeads = circles.filter(c => {
-          const out = connections.some(conn => conn.from === c.id);
-          const inc = connections.some(conn => conn.to === c.id);
-          return (out && !inc && (out || inc));
-        });
-        
-        // Logic for head/tail labeling
-        const isHead = isConnected && hasOutgoing && !hasIncoming && possibleHeads.length > 0 && possibleHeads[0].id === circle.id;
-        const isTail = isConnected && hasIncoming && !hasOutgoing;
-        
-        // Head/Tail label should only appear if:
-        // 1. There's exactly one circle in total, OR
-        // 2. This is an unconnected circle AND there are no existing head-tail connections
-        const hasProperHeadTailConnection = circles.some(c => {
-          const out = connections.some(conn => conn.from === c.id);
-          const inc = connections.some(conn => conn.to === c.id);
-          return out && !inc; // There's at least one proper head
-        }) && circles.some(c => {
-          const out = connections.some(conn => conn.from === c.id);
-          const inc = connections.some(conn => conn.to === c.id);
-          return !out && inc; // There's at least one proper tail
-        });
-        
-        const isHeadTail = isSingleCircle || (isFirstUnconnected && !hasProperHeadTailConnection);
 
-        return (
+      {/* Game elements - only show when game has started */}
+      {isGameStarted && (
+        <>
+          {/* Tutorial removed */}
+
+          {/* Portal visuals removed */}
+
           
+          
+          <div 
+            className={styles.rightSquare} 
+            style={{ 
+              outlineOffset: "5px",
+              transform: `rotate(${cannonAngle}deg)`,
+              transformOrigin: "bottom center"
+            }} 
+          >
+            
+            {/* Cannon Circle */}
+            <div 
+              className={styles.cannonCircle}
+              onClick={handleCannonClick}
+              style={{ cursor: 'pointer' }}
+            >
+              <div style={{ position: 'absolute', top: -28, color: '#000000ff', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                  {insertionMode === 'left' ? 'Before' : 'After'}
+              </div>
+              <span style={{ fontSize: '10px' }}>
+                {cannonCircle.value}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Circles - only show when game has started */}
+      {isGameStarted && circles.map((circle) => {
+        const label = getCircleLabel(circle.id);
+        const clickProgress = circle.isInitial ? 0 : Math.max(0, Math.min(1, (circle.clickCount || 0) / 5));
+        
+        // Check if circle is unlinked and approaching auto-deletion
+        const connectedIds = findConnectedCircles(circle.id);
+        const isConnected = connectedIds.length > 1;
+        const timeSinceLaunch = circle.launchTime ? Date.now() - circle.launchTime : 0;
+        const isApproachingDeletion = !isConnected && circle.isLaunched && !circle.isInitial && 
+                                     timeSinceLaunch > 2000 && timeSinceLaunch <= 3000; // Warning in last second
+        
+        // Check if this circle has a bomb (legacy single bomb or new multi-bomb system)
+        const hasBomb = (bombNode && bombNode.id === circle.id) || activeBombs.some(bomb => bomb.id === circle.id);
+        const bombData = activeBombs.find(bomb => bomb.id === circle.id) || (bombNode && bombNode.id === circle.id ? { countdown: bombCountdown } : null);
+        
+        return (
           <div
             key={circle.id}
             className={`${styles.animatedCircle} ${
               suckingCircles.includes(circle.id) ? styles.beingSucked : ""
             } ${
-              highlightedCircleId === circle.id ? styles.highlightedCircle : ""
+              hasBomb ? styles.bombNode : ""
             }`}
             style={{
               left: `${circle.x - 30}px`,
               top: `${circle.y - 30}px`,
-              cursor:
-                draggedCircle && circle.id === draggedCircle.id
+              cursor: circle.isInitial ? 'default' : (circle.isLaunched 
+                ? "default" 
+                : (draggedCircle && circle.id === draggedCircle.id
                   ? "grabbing"
-                  : "grab",
+                  : "grab")),
+              opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
+              backgroundColor: hasBomb 
+                ? (bombData && bombData.countdown % 2 === 0 ? '#ff4444' : '#ff8888') // Blinking red effect
+                : (circle.color || '#d3d3d3'),
+              boxShadow: hasBomb 
+                ? '0 0 20px rgba(255, 68, 68, 0.8), 0 0 40px rgba(255, 68, 68, 0.4)'
+                : 'none',
+              animation: circle.isInitial 
+                ? "protectedGlow 2s ease-in-out infinite alternate" 
+                : (hasBomb 
+                  ? "bomb-pulse 0.5s ease-in-out infinite alternate"
+                  : (isApproachingDeletion ? "pulse 0.5s infinite alternate" : "none")),
             }}
             onMouseDown={(e) => handleMouseDown(e, circle)}
-            onDoubleClick={() => handleDoubleClick(circle)}
+            {...(!circle.isInitial ? { onClick: (e) => handleCircleClick(circle.id, e) } : {})}
+            // Double click disabled
           >
-            {(isHead || isTail || isHeadTail) && (
-              <span className={styles.nodeTypeLabel}>
-                {isHeadTail ? "Head/Tail" : (isHead ? "Head" : "Tail")}
-              </span>
+            <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
+            <span className={styles.circleAddress} style={{ position: 'relative', zIndex: 2 }}>{circle.address}</span>
+            {hasBomb && bombData && (
+              <div className={styles.bombCountdown}>
+                💣 {bombData.countdown}
+              </div>
             )}
-            <span className={styles.circleValue}>{circle.value}</span>
-            <span className={styles.circleAddress}>{circle.address}</span>
+
+            {/* Click-to-delete background circle fill (SVG) */}
+            <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
+              <svg width="60" height="60" viewBox="0 0 60 60">
+                <defs>
+                  <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffcfb8" />
+                    <stop offset="100%" stopColor="#ff6b35" />
+                  </linearGradient>
+                </defs>
+                <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
+                <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+                {/* foreground arc representing progress - use stroke-dasharray trick */}
+                <circle
+                  cx="30"
+                  cy="30"
+                  r="24"
+                  fill="none"
+                  stroke={`url(#grad-${circle.id})`}
+                  strokeWidth="12"
+                  strokeLinecap="round"
+                  transform="rotate(-90 30 30)"
+                  style={{
+                    strokeDasharray: 2 * Math.PI * 24,
+                    strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
+                    transition: 'stroke-dashoffset 120ms linear'
+                  }}
+                />
+              </svg>
+            </div>
+
+            {label && (
+              <div 
+                className={styles.headTailLabel}
+                style={{
+                  position: 'absolute',
+                  top: '-25px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: '#ff6b35',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  whiteSpace: 'nowrap',
+                  zIndex: 1000,
+                  border: '1px solid #fff',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+              >
+                {label}
+              </div>
+            )}
           </div>
         );
       })}
-      
-      <svg className={styles.connectionLines}>
-        {connections.map((connection) => {
-          // Only remove the line if BOTH nodes have been sucked
-          const fromSucked = suckedCircles.includes(connection.from);
-          const toSucked = suckedCircles.includes(connection.to);
-          if (fromSucked && toSucked) return null;
 
-          // Only anchor to portal entrance if a node has been sucked; otherwise, skip the line if either node is missing (e.g., during launch)
-          const fromCircle = circles.find((c) => c.id === connection.from);
-          const toCircle = circles.find((c) => c.id === connection.to);
-          const entranceX = 10 + portalInfo.canvasWidth / 2;
-          const entranceY = window.innerHeight / 2;
-          // If neither node is present and neither is sucked, don't render the line (prevents portal-anchored lines during launch)
-          if (!fromCircle && !fromSucked) return null;
-          if (!toCircle && !toSucked) return null;
-          const fromX = fromCircle ? fromCircle.x : entranceX;
-          const fromY = fromCircle ? fromCircle.y : entranceY;
-          const toX = toCircle ? toCircle.x : entranceX;
-          const toY = toCircle ? toCircle.y : entranceY;
-          return (
-            <g key={connection.id}>
-              <line
-                x1={fromX}
-                y1={fromY}
-                x2={toX}
-                y2={toY}
-                className={styles.animatedLine}
-                markerEnd="url(#arrowhead)"
-              />
-            </g>
-          );
-        })}
+
+
+      {/* Connection lines - only show when game has started */}
+      {isGameStarted && (
+        <svg className={styles.connectionLines}>
+          {(() => {
+          return connections.map((connection) => {
+            // Only remove the line if BOTH nodes have been sucked
+            const fromSucked = suckedCircles.includes(connection.from);
+            const toSucked = suckedCircles.includes(connection.to);
+            if (fromSucked && toSucked) return null;
+
+            // Only anchor to portal entrance if a node has been sucked; otherwise, skip the line if either node is missing (e.g., during launch)
+            const fromCircle = circles.find((c) => c.id === connection.from);
+            const toCircle = circles.find((c) => c.id === connection.to);
+            const entranceX = 10 + portalInfo.canvasWidth / 2;
+            const entranceY = window.innerHeight / 2;
+            // If neither node is present and neither is sucked, don't render the line (prevents portal-anchored lines during launch)
+            if (!fromCircle && !fromSucked) return null;
+            if (!toCircle && !toSucked) return null;
+            const fromX = fromCircle ? fromCircle.x : entranceX;
+            const fromY = fromCircle ? fromCircle.y : entranceY;
+            const toX = toCircle ? toCircle.x : entranceX;
+            const toY = toCircle ? toCircle.y : entranceY;
+            
+            // ...existing code...
+            
+            return (
+              <g key={connection.id}>
+                <line
+                  x1={fromX}
+                  y1={fromY}
+                  x2={toX}
+                  y2={toY}
+                  className={styles.animatedLine}
+                  markerEnd="url(#arrowhead)"
+                />
+              </g>
+            );
+          });
+        })()}
         <defs>
           <marker
             id="arrowhead"
@@ -2494,31 +2786,11 @@ function CompetitiveMode(){
           >
             <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
           </marker>
-        </defs>
-      </svg>
-
-      {/* Explosion particles */}
-      {explosions.map((explosion) => (
-        <div
-          key={explosion.id}
-          className={styles.explosionParticle}
-          style={{
-            left: `${explosion.x - 30}px`,
-            top: `${explosion.y - 30}px`,
-            '--explosion-color': explosion.color,
-          }}
-        />
-      ))}
-
-      {/* Collectible Timer System */}
-      {isGameActive && !gameOver && (
-        <Collectibles
-          isGameActive={isGameActive}
-          gameOver={gameOver}
-          onCollect={handleCollectTimerBonus}
-        />
+          </defs>
+        </svg>
       )}
-
+      
+      {/* Validation Result Overlay */}
       {showValidationResult && validationResult && (
         <div className={styles.validationOverlay}>
           <div className={styles.validationContent}>
@@ -2530,483 +2802,631 @@ function CompetitiveMode(){
               </div>
             </div>
 
+            {/* Debug: Show raw validationResult object */}
+            {/* <div
+              style={{
+                color: "#aaa",
+                fontSize: "12px",
+                marginBottom: "10px",
+                wordBreak: "break-all",
+              }}
+            >
+              <strong>Debug validationResult:</strong>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                  background: "#222",
+                  color: "#eee",
+                  padding: "6px",
+                  borderRadius: "4px",
+                }}
+              >
+                {JSON.stringify(validationResult, null, 2)}
+              </pre>
+            </div> */}
+
             <div className={styles.expectedResultsSection}>
               <div className={styles.expectedLabel}>
                 Expected <br /> Results
               </div>
 
-              {currentExercise &&
-                currentExercise.expectedStructure &&
-                originalSubmission &&
-                originalSubmission.circles && (
-                  <table className={styles.validationTable}>
-                    <tbody>
-                      <tr className={styles.expectedRow}>
-                        {currentExercise.expectedStructure.map(
-                          (expectedNode, index) => (
-                            <React.Fragment
-                              key={`expected-${expectedNode.value}`}
-                            >
-                              <td className={styles.expectedCell}>
-                                <div className={styles.expectedValue}>
-                                  {expectedNode.value}
-                                </div>
-                                <div className={styles.expectedAddress}>
-                                  {expectedNode.address}
-                                </div>
-                              </td>
-                              {index <
-                                currentExercise.expectedStructure.length -
-                                  1 && (
-                                <td className={styles.arrowCellEmpty}></td>
-                              )}
-                            </React.Fragment>
-                          )
-                        )}
-                      </tr>
-
-                      <tr className={styles.userRow}>
-                        {(() => {
-                          const userCircles = originalSubmission.circles;
-                          const userConnections =
-                            originalSubmission.connections;
-
-                          const userChain = [];
-                          const visited = new Set();
-
-                          let headCircle = userCircles.find((circle) => {
-                            const hasOutgoing = userConnections.some(
-                              (conn) => conn.from === circle.id
-                            );
-                            const hasIncoming = userConnections.some(
-                              (conn) => conn.to === circle.id
-                            );
-                            return hasOutgoing && !hasIncoming;
-                          });
-
-                          if (headCircle) {
-                            let currentId = headCircle.id;
-                            while (currentId && !visited.has(currentId)) {
-                              visited.add(currentId);
-                              const currentCircle = userCircles.find(
-                                (c) => c.id === currentId
-                              );
-                              if (currentCircle) {
-                                userChain.push(currentCircle);
-                              }
-                              const nextConnection = userConnections.find(
-                                (conn) => conn.from === currentId
-                              );
-                              currentId = nextConnection
-                                ? nextConnection.to
-                                : null;
-                            }
-                          }
-
-                          userCircles.forEach((circle) => {
-                            if (!visited.has(circle.id)) {
-                              userChain.push(circle);
-                            }
-                          });
-
-                          return currentExercise.expectedStructure.map(
-                            (expectedNode, index) => {
-                              const userNode = userChain.find(
-                                (circle) =>
-                                  parseInt(circle.value) === expectedNode.value
-                              );
-
-                              return (
-                                <React.Fragment
-                                  key={`user-${expectedNode.value}`}
-                                >
-                                  <td className={styles.userCell}>
-                                    {userNode ? (
-                                      <div
-                                        className={`${styles.userNode} ${
-                                          validationResult.isCorrect
-                                            ? styles.userNodeCorrect
-                                            : styles.userNodeIncorrect
-                                        }`}
-                                      >
-                                        <div className={styles.userNodeValue}>
-                                          {userNode.value}
-                                        </div>
-                                        <div className={styles.userNodeAddress}>
-                                          {userNode.address}
-                                        </div>
+              {currentExercise && currentExercise.expectedStructure && (
+                <table className={styles.validationTable}>
+                  <tbody>
+                    <tr className={styles.expectedRow}>
+                      {currentExercise.expectedStructure.map(
+                        (expectedNode, index) => (
+                          <React.Fragment
+                            key={`expected-${expectedNode.value}`}
+                          >
+                            <td className={styles.expectedCell}>
+                              <div className={styles.expectedValue}>
+                                {expectedNode.value}
+                              </div>
+                              <div className={styles.expectedAddress}>
+                                {expectedNode.address}
+                              </div>
+                            </td>
+                            {index <
+                              currentExercise.expectedStructure.length - 1 && (
+                              <td className={styles.arrowCellEmpty}></td>
+                            )}
+                          </React.Fragment>
+                        )
+                      )}
+                    </tr>
+                    <tr className={styles.userRow}>
+                      {(() => {
+                        // Prefer validated userCircles to ensure UI matches scoring
+                        const validated =
+                          validationResult &&
+                          Array.isArray(validationResult.userCircles)
+                            ? validationResult.userCircles
+                            : null;
+                        let userOrder =
+                          validated && validated.length > 0
+                            ? validated
+                            : suckedCirclesRef.current || [];
+                        return currentExercise.expectedStructure.map(
+                          (expectedNode, index) => {
+                            const userNode = userOrder[index];
+                            const isCorrect =
+                              userNode &&
+                              parseInt(userNode.value) ===
+                                parseInt(expectedNode.value);
+                            return (
+                              <React.Fragment
+                                key={`user-${expectedNode.value}`}
+                              >
+                                <td className={styles.userCell}>
+                                  {userNode ? (
+                                    <div
+                                      className={`${styles.userNode} ${
+                                        isCorrect
+                                          ? styles.userNodeCorrect
+                                          : styles.userNodeIncorrect
+                                      }`}
+                                    >
+                                      <div className={styles.userNodeValue}>
+                                        {userNode.value}
                                       </div>
-                                    ) : (
-                                      <div
-                                        className={`${styles.userNode} ${styles.userNodeMissing}`}
-                                      >
-                                        <div className={styles.userNodeValue}>
-                                          ?
-                                        </div>
-                                        <div className={styles.userNodeAddress}>
-                                          ?
-                                        </div>
+                                      <div className={styles.userNodeAddress}>
+                                        {userNode.address}
                                       </div>
-                                    )}
-                                  </td>
-                                  {index <
-                                    currentExercise.expectedStructure.length -
-                                      1 && (
-                                    <td className={styles.arrowCell}>→</td>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className={`${styles.userNode} ${styles.userNodeMissing}`}
+                                    >
+                                      <div className={styles.userNodeValue}>
+                                        ?
+                                      </div>
+                                      <div className={styles.userNodeAddress}>
+                                        ?
+                                      </div>
+                                    </div>
                                   )}
-                                </React.Fragment>
-                              );
-                            }
-                          );
-                        })()}
-                      </tr>
-                    </tbody>
-                  </table>
-                )}
+                                </td>
+                                {index <
+                                  currentExercise.expectedStructure.length -
+                                    1 && (
+                                  <td className={styles.arrowCell}>→</td>
+                                )}
+                              </React.Fragment>
+                            );
+                          }
+                        );
+                      })()}
+                    </tr>
+                  </tbody>
+                </table>
+              )}
             </div>
 
             <div className={styles.validationButtons}>
               <button
                 onClick={() => {
                   setShowValidationResult(false);
-                  setValidationResult(null);
-                  // Always close the portal after submitting/validation
-                  setIsPortalOpen(false);
                   setPortalInfo((prev) => ({ ...prev, isVisible: false }));
-                  
-                  // Restart energy decay when validation modal closes
-                  if (startDimming && !gameOver) {
-                    startEnergyDecay();
+                  // Clear refs and local entry state for a clean retry/next
+                  if (entryOrderRef) entryOrderRef.current = [];
+                  if (suckedCirclesRef) suckedCirclesRef.current = [];
+                  setSuckedCircles([]);
+                  setCurrentEntryOrder([]);
+                  if (
+                    validationResult &&
+                    validationResult.isCorrect &&
+                    exerciseKey === "exercise_one"
+                  ) {
+                    loadExercise("exercise_two");
+                  } else if (
+                    validationResult &&
+                    validationResult.isCorrect &&
+                    exerciseKey === "exercise_two"
+                  ) {
+                    loadExercise("exercise_three");
                   }
-                  
-                  // If score is 100, load next exercise and increment counter
-                  if (validationResult && validationResult.score >= 100) {
-                    setCompletedExercises(prev => prev + 1);
-                    exerciseManagerRef.current.markExerciseCompleted();
-                    loadExercise(); // Load new random exercise
-                  }
-                  // Otherwise just continue with current exercise
                 }}
                 className={styles.continueButton}
               >
-                {validationResult && validationResult.score >= 100 ? "NEXT EXERCISE" : "CONTINUE"}
+                {validationResult &&
+                validationResult.isCorrect &&
+                exerciseKey === "exercise_one"
+                  ? "NEXT EXERCISE"
+                  : validationResult &&
+                    validationResult.isCorrect &&
+                    exerciseKey === "exercise_two"
+                  ? "NEXT EXERCISE"
+                  : "CONTINUE"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {gameOver && (
-        <div className={styles.gameOverOverlay}>
-          <div className={styles.gameOverContent}>
-            <div className={styles.gameOverHeader}>
-              <h1 className={styles.gameOverTitle}>TIME&apos;S UP!</h1>
-            </div>
+      {/* Game Over Overlay */}
+      {showMissionFailed && (
+        <div className={styles.popupOverlay}>
+          <div className={`${styles.bulletModalContent} ${styles.gameOverModal}`}>
+            <h1 className={styles.gameOverTitle}>
+              GAME OVER
+            </h1>
+            
             <div className={styles.gameOverStats}>
-               <div className={styles.gameOverStat}>
-                <span className={styles.statLabel}>Final Score:</span>
-                <span className={styles.statValue}>{completedExercises * 100}</span>
-              </div>
               <div className={styles.gameOverStat}>
-                <span className={styles.statLabel}>Exercises Completed:</span>
-                <span className={styles.statValue}>{completedExercises}</span>
+                <div className={styles.gameOverStatValue}>
+                  {totalPoints} pts
+                </div>
+                <div className={styles.gameOverStatLabel}>
+                  TOTAL POINTS
+                </div>
+              </div>
+              
+              <div className={styles.gameOverDivider}></div>
+              
+              <div className={styles.gameOverStat}>
+                <div className={styles.gameOverStatValue}>
+                  {(() => {
+                    const minutes = Math.floor(finalSurvivalTime / 60);
+                    const seconds = finalSurvivalTime % 60;
+                    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                  })()}
+                </div>
+                <div className={styles.gameOverStatLabel}>
+                  TIME SURVIVED
+                </div>
               </div>
             </div>
+            
             <div className={styles.gameOverButtons}>
-              <button 
-                onClick={handleConfirmedRestart}
-                className={styles.playAgainButton}
+              <button
+                onClick={() => handleGoBack()}
+                className={styles.gameOverButton}
               >
-                PLAY AGAIN
+                Menu
+              </button>
+              
+              <button
+                onClick={() => {/* TODO: Add leaderboard functionality */}}
+                className={styles.gameOverButton}
+              >
+                Leaderboard
+              </button>
+              
+              <button
+                onClick={() => handleRetry()}
+                className={styles.gameOverButton}
+              >
+                Retry
               </button>
             </div>
           </div>
         </div>
       )}
-      
-      {selectedCircle && (
-        <div className={styles.popupOverlay} onClick={closePopup}>
-          <div
-            className={styles.popupContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button className={styles.popupCloseBtn} onClick={closePopup}>
-              ×
-            </button>
 
-            <div className={styles.popupCircle}>
-              <span className={styles.popupCircleValue}>
-                {selectedCircle.value}
-              </span>
-              <span className={styles.popupCircleAddress}>
-                {selectedCircle.address}
-              </span>
-            </div>
-            <div className={styles.popupFormContainer}>
-              <div className={styles.popupText}>Connect to?</div>
-              {(() => {
-                // Find if selectedCircle is already connected (has outgoing connection)
-                const outgoingConn = connections.find(
-                  (conn) => conn.from === selectedCircle.id
-                );
-                let connectedAddress = "";
-                if (outgoingConn) {
-                  const targetCircle = circles.find(
-                    (c) => c.id === outgoingConn.to
-                  );
-                  connectedAddress = targetCircle ? targetCircle.address : "";
-                }
-                return (
-                  <input
-                    type="text"
-                    placeholder={outgoingConn ? `${connectedAddress}` : "Enter Address"}
-                    value={connectToAddress}
-                    onChange={(e) => setConnectToAddress(e.target.value)}
-                    className={styles.popupInput}
-                    autoFocus
-                    disabled={!!outgoingConn}
-                  />
-                );
-              })()}
-              <div className={styles.popupButtons}>
-                {(() => {
-                  const outgoingConn = connections.find(
-                    (conn) => conn.from === selectedCircle.id
-                  );
-                  return (
-                    <button
-                      onClick={handleConnect}
-                      disabled={!!outgoingConn}
-                      className={`${styles.popupButton} ${styles.connectBtn}`}
-                    >
-                      CONNECT
-                    </button>
-                  );
-                })()}
-                <button
-                  onClick={handleDeleteCircle}
-                  className={`${styles.popupButton} ${styles.deleteBtn}`}
+
+      {/* Bullet Selection Modal */}
+      {showBulletModal && (
+        <div className={styles.popupOverlay} onClick={closeBulletModal}>
+          <div
+            className={styles.bulletModalContent}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#1a1a1a',
+              border: '3px solid #fff',
+              borderRadius: '15px',
+              padding: '30px',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              overflow: 'auto'
+            }}
+          >
+
+            <h2 style={{ 
+              color: '#fff', 
+              textAlign: 'center', 
+              marginBottom: '30px',
+              fontSize: '24px'
+            }}>
+              Choose Bullet
+            </h2>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: '15px',
+              justifyItems: 'center'
+            }}>
+              {bulletOptions.map((bullet) => (
+                <div
+                  key={bullet.id}
+                  onClick={() => handleBulletSelect(bullet)}
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    backgroundColor: '#d3d3d3',
+                    border: '2px solid #bbb',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    color: '#000',
+                    fontWeight: 'bold'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'scale(1.1)';
+                    e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                   
+                    e.target.style.transform = 'scale(1)';
+                    e.target.style.boxShadow = 'none';
+                  }}
                 >
-                  DELETE
-                </button>
-              </div>
+                  <span style={{ fontSize: '14px', lineHeight: 1 }}>
+                    {bullet.value}
+                  </span>
+                  <span style={{ fontSize: '10px', lineHeight: 1, color: '#333' }}>
+                    {bullet.address}
+                                   </span>
+                </div>
+              ))}
             </div>
+
           </div>
         </div>
       )}
 
-      {showDuplicateModal && (
-        <div className={styles.errorModalOverlay} onClick={closeDuplicateModal}>
-          <div
-            className={styles.errorModalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* Points Modal */}
+      {showPointsModal && (
+        <div className={styles.popupOverlay}>
+          <div className={styles.bulletModalContent} style={{ 
+            backgroundColor: '#000', 
+            border: '3px solid #ff00ff', 
+            borderRadius: '15px', 
+            padding: '40px', 
+            width: '500px',
+            height: '280px', 
+            textAlign: 'center' 
+          }}>
+            <h2 style={{ 
+              color: '#ff00ff', 
+              fontSize: '4.0rem', 
+              marginBottom: '20px',
+              textShadow: '0 0 20px rgba(255, 0, 255, 0.8)'
+            }}>
+              +{earnedPoints} pts
+            </h2>
             <button
-              className={styles.errorModalCloseBtn}
-              onClick={closeDuplicateModal}
+              onClick={handleClaimPoints}
+              style={{
+                background: 'transparent',
+                border: '2px solid #ff00ff',
+                borderRadius: '15px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.2rem',
+                padding: '12px 30px',
+                cursor: 'pointer',
+                marginTop: '20px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(255, 0, 255, 0.2)';
+                e.target.style.boxShadow = '0 0 20px rgba(255, 0, 255, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.boxShadow = 'none';
+              }}
             >
-              ×
+              Claim
             </button>
-            <div className={styles.errorIcon}>
-              <span className={styles.exclamation}>!</span>
-            </div>
-            <div className={styles.errorTitle}>Duplicate Address</div>
-            <div className={styles.errorMessageText}>
-              Nodes cannot have the same address
-            </div>
           </div>
         </div>
       )}
 
-      {showWarningModal && (
-        <div className={styles.errorModalOverlay} onClick={closeWarningModal}>
-          <div
-            className={styles.errorModalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* Level Complete Modal */}
+      {showLevelCompleteModal && currentExerciseNumber < totalExercises && (
+        <div className={styles.popupOverlay}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#1a1a1a', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '400px', textAlign: 'center' }}>
+            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '20px' }}>
+              Level Complete: {currentExerciseNumber}/{totalExercises}
+            </h2>
             <button
-              className={styles.errorModalCloseBtn}
-              onClick={closeWarningModal}
+              style={{
+                background: 'none',
+                border: '2px solid #ff00ff',
+                borderRadius: '10px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.2rem',
+                padding: '10px 30px',
+                cursor: 'pointer',
+                marginTop: '20px',
+              }}
+              onClick={handleLevelContinue}
             >
-              ×
+              Continue
             </button>
-            <div className={styles.errorIcon}>
-              <span className={styles.exclamation}>⚠</span>
-            </div>
-            <div className={styles.errorTitle}>Restart Game</div>
-            <div className={styles.errorMessageText}>
-              Are you sure you want to restart? All progress will be lost.
-            </div>
-            <div className={styles.validationButtons}>
-              <button
-                onClick={handleConfirmedRestart}
-                className={styles.restartButton}
-              >
-                Yes
-              </button>
-              <button
-                onClick={closeWarningModal}
-                className={styles.cancelButton}
-              >
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
       )}
-
-      {showInsertModal && (
-        <div className={styles.insertModalOverlay} onClick={closeInsertModal}>
-          <div
-            className={styles.insertModalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* All Exercises Completed Modal */}
+      {showAllCompletedModal && (
+        <div className={styles.popupOverlay}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #fff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
+            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '30px' }}>
+              Insertion Nodes Completed
+            </h2>
             <button
-              className={styles.insertModalCloseBtn}
-              onClick={closeInsertModal}
+              style={{
+                background: 'none',
+                border: '2px solid #fff',
+                borderRadius: '8px',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                padding: '10px 30px',
+                cursor: 'pointer',
+                marginTop: '20px',
+              }}
+              onClick={handleGoBack}
             >
-              ×
+              Go back
             </button>
-
-            <div className={styles.insertOptions}>
-              <button
-                className={`${styles.insertOptionBtn} head-btn ${(headInsertUses <= 0 || circles.length === 0) ? styles.buttonDisabled : ''}`}
-                onClick={() => handleInsertOption("head")}
-                disabled={headInsertUses <= 0 || circles.length === 0}
-              >
-                <div className={styles.optionTitle}>
-                  {headInsertUses > 0 
-                    ? `HEAD (${headInsertUses})` 
-                    : `HEAD (${resetCountersRef.current.headInsert}/5)`
-                  }
-                </div>
-                <div className={styles.optionSubtitle}>i = 0 (Head)</div>
-              </button>
-
-              <button
-                className={`${styles.insertOptionBtn} specific-btn ${(specificInsertUses <= 0 || connections.length === 0) ? styles.buttonDisabled : ''}`}
-                onClick={() => handleInsertOption("specific")}
-                disabled={specificInsertUses <= 0 || connections.length === 0}
-              >
-                <div className={styles.optionTitle}>
-                  {specificInsertUses > 0 
-                    ? `SPECIFIC (${specificInsertUses})` 
-                    : `SPECIFIC (${resetCountersRef.current.specificInsert}/5)`
-                  }
-                </div>
-                <div className={styles.optionSubtitle}>
-                  specify both i in [1, N-1]
-                </div>
-              </button>
-
-              <button
-                className={`${styles.insertOptionBtn} tail-btn ${(tailInsertUses <= 0 || circles.length === 0) ? styles.buttonDisabled : ''}`}
-                onClick={() => handleInsertOption("tail")}
-                disabled={tailInsertUses <= 0 || circles.length === 0}
-              >
-                <div className={styles.optionTitle}>
-                  {tailInsertUses > 0 
-                    ? `TAIL (${tailInsertUses})` 
-                    : `TAIL (${resetCountersRef.current.tailInsert}/5)`
-                  }
-                </div>
-                <div className={styles.optionSubtitle}>i = N (After Tail)</div>
-              </button>
-            </div>
           </div>
         </div>
       )}
 
-      {showQueueModal && (
-        <div className={styles.insertModalOverlay} onClick={closeQueueModal}>
-          <div
-            className={styles.insertModalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className={styles.insertModalCloseBtn}
-              onClick={closeQueueModal}
-            >
-              ×
-            </button>
-
-            <div className={styles.insertOptions}>
-              <button
-                className={`${styles.insertOptionBtn} head-btn ${(isPeekDisabled || circles.length === 0) ? styles.disabledBtn : ''}`}
-                onClick={() => handleQueueOption("peek")}
-                disabled={isPeekDisabled || circles.length === 0}
-              >
-                <div className={styles.optionTitle}>PEEK</div>
-                <div className={styles.optionSubtitle}>View Front/Head</div>
-              </button>
-
-              <button
-                className={`${styles.insertOptionBtn} specific-btn ${(enqueueUses <= 0 || (circles.length === 0 && !hasHeadTailLabels())) ? styles.disabledBtn : ''}`}
-                onClick={() => handleQueueOption("enqueue")}
-                disabled={enqueueUses <= 0 || (circles.length === 0 && !hasHeadTailLabels())}
-              >
-                <div className={styles.optionTitle}>
-                  {enqueueUses > 0 
-                    ? `ENQUEUE (${enqueueUses})` 
-                    : `ENQUEUE (${resetCountersRef.current.enqueue}/5)`
-                  }
-                </div>
-                <div className={styles.optionSubtitle}>
-                  Add to Rear/Tail
-                </div>
-              </button>
-
-              <button
-                className={`${styles.insertOptionBtn} tail-btn ${(isDequeueDisabled || dequeueUses <= 0 || circles.length === 0) ? styles.disabledBtn : ''}`}
-                onClick={() => handleQueueOption("dequeue")}
-                disabled={isDequeueDisabled || dequeueUses <= 0 || circles.length === 0}
-              >
-                <div className={styles.optionTitle}>
-                  {dequeueUses > 0 
-                    ? `DEQUEUE (${dequeueUses})` 
-                    : `DEQUEUE (${resetCountersRef.current.dequeue}/5)`
-                  }
-                </div>
-                <div className={styles.optionSubtitle}>Remove Front/Head</div>
-              </button>
-            </div>
-          </div>
+      {/* Collectibles layer - spawns floating timers and bombs - kept below modals */}
+      {isGameStarted && collectiblesEnabled && (
+        <div style={{ zIndex: 1 }}>
+          <Collectibles 
+            onCollect={handleCollect} 
+            isGameActive={!!currentExercise && !showMissionFailed} 
+            gameOver={showMissionFailed}
+            collectibles={collectibles}
+            setCollectibles={setCollectiblesCallback}
+            collisions={collectibleCollisions}
+            setCollisions={setCollisionCallback}
+            onWrongQuizAnswer={handleWrongQuizAnswer}
+            onQuizModalChange={handleQuizModalChange}
+            showDefuseModal={showDefuseModal}
+          />
         </div>
       )}
-
-      {showIndexModal && (
-        <div className={styles.indexModalOverlay} onClick={closeIndexModal}>
-          <div
-            className={styles.indexModalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className={styles.indexModalCloseBtn}
-              onClick={closeIndexModal}
-            >
-              ×
-            </button>
-            <div className={styles.indexModalTitle}>Index</div>
-            <div className={styles.indexInputContainer}>
-              <input
-                type="text"
-                placeholder="Enter Index"
-                value={insertIndex}
-                onChange={(e) => setInsertIndex(e.target.value)}
-                className={styles.indexInput}
-                autoFocus
-              />
-              <button onClick={handleIndexSubmit} className={styles.indexGoBtn}>
-                Go
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       
+      
+      
+      {/* Bomb Defuse Modal */}
+      {showDefuseModal && (
+        <div 
+          className={styles.popupOverlay}
+          onClick={isBombDefused ? (() => {
+            setShowDefuseModal(false);
+            setDefuseNodes([]);
+            setSelectedDefuseNodes([]);
+            setDefuseProgressCountdown(0);
+            setIsBombDefused(false);
+            setCurrentDefusingBombId(null);
+          }) : undefined}
+        >
+          <div 
+            className={`${styles.popupContent} defuseModalContent`} 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+            width: '71%', 
+            height: '62%', 
+            backgroundColor: '#000', 
+            border: '4px solid #ff00ff', 
+            borderRadius: '20px',
+            padding: '40px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 2000
+          }}>
+            
+            {/* Title */}
+            <h1 style={{ 
+              color: 'white', 
+              fontSize: '2.5em', 
+              fontWeight: 'normal',
+              textAlign: 'center',
+              margin: '0 0 0px 0'
+            }}>
+              Sort the linked list in a ascending order.
+            </h1>
+            
+            {/* Bomb Defused Message */}
+            {isBombDefused && (
+              <div style={{
+                color: '#00ff00',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                marginTop: '-60px',
+              }}>
+                BOMB DEFUSED!
+              </div>
+            )}
+            
+            {/* Head and Tail labels */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '800px', marginTop: '-40px' }}>
+              <div style={{ 
+                position: 'absolute', 
+                left: '-5px', 
+                top: '-40px', 
+                color: 'white', 
+                fontSize: '1.2em',
+                fontWeight: 'normal'
+              }}>
+                Head
+              </div>
+              
+              <div style={{ 
+                position: 'absolute', 
+                right: '6px', 
+                top: '-40px', 
+                color: 'white', 
+                fontSize: '1.2em',
+                fontWeight: 'normal'
+              }}>
+                Tail
+              </div>
+              
+              {/* Linked list nodes */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                gap: '0px',
+                width: '100%'
+              }}>
+                {defuseNodes.map((node, index) => (
+                  <div key={node.id} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        width: '120px',
+                        height: '120px',
+                        borderRadius: '50%',
+                        backgroundColor: selectedDefuseNodes.find(n => n.id === node.id) ? '#ff00ff' : '#d3d3d3',
+                        border: selectedDefuseNodes.find(n => n.id === node.id) ? '3px solid #ff00ff' : '2px solid #999',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: selectedDefuseNodes.find(n => n.id === node.id) ? '0 0 20px rgba(255, 0, 255, 0.6)' : 'none'
+                      }}
+                      onClick={() => handleDefuseNodeClick(node)}
+                    >
+                      <div style={{ 
+                        fontSize: '2.2em', 
+                        fontWeight: 'bold', 
+                        color: 'black',
+                        lineHeight: '1'
+                      }}>
+                        {node.value}
+                      </div>
+                      <div style={{ 
+                        fontSize: '0.9em', 
+                        color: 'black',
+                        lineHeight: '1',
+                        marginTop: '2px'
+                      }}>
+                        {node.address}
+                      </div>
+                    </div>
+                    {index < defuseNodes.length - 1 && (
+                      <div style={{
+                        fontSize: '2.5em',
+                        color: 'white',
+                        margin: '0 15px',
+                        fontWeight: 'normal'
+                      }}>
+                        →
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Progress Bar */}
+              {isBombDefused && defuseProgressCountdown > 0 && (
+                <div style={{
+                  marginTop: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    width: '870px',
+                    height: '20px',
+                    backgroundColor: '#333',
+                    borderRadius: '10px',
+                    border: '2px solid #FF00E6',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(defuseProgressCountdown / 3) * 100}%`,
+                      height: '100%',
+                      backgroundColor: '#FF00E6',
+                      borderRadius: '8px',
+                      transition: 'width 1s linear',
+                    }} />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+          </div>
+        </div>
+      )}
+      
+      {/* Bomb Blocking Notification */}
+      {/* {showBombBlockingNotification && (
+        <div 
+          className={styles.notification}
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: '#ff6b6b',
+            color: 'white',
+            padding: '20px 30px',
+            borderRadius: '10px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            zIndex: 10000,
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+            border: '2px solid #ff5252',
+            maxWidth: '400px'
+          }}
+        >
+          <div style={{ marginBottom: '10px' }}>⚠️ BOMB ACTIVE! ⚠️</div>
+          <div>Defuse the bomb first to claim your points!</div>
+        </div>
+      )} */}
+      
+      <CompetitiveInstruction
+        showInstructionPopup={showInstructionPopup}
+        startExercise={startExercise}
+        closeInstructionPopup={closeInstructionPopup}
+        isGameActive={isGameStarted}
+      />
     </div>
   );
 }
-
+                
 export default CompetitiveMode;

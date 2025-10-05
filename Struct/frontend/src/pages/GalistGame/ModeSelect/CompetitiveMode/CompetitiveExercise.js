@@ -355,9 +355,9 @@ export class RandomExerciseGenerator {
   }
 
   generateRandomSequence() {
-    // Always generate exactly 5 nodes
-    const sequenceLength = 5;
-    
+    // Generate between 5 and 8 nodes
+    const sequenceLength = Math.floor(Math.random() * 3) + 5; // 5 to 7 nodes
+
     // Generate unique random values between 1 and 50
     const values = new Set();
     while (values.size < sequenceLength) {
@@ -618,4 +618,130 @@ export class ExerciseManager {
     this.completedExercises = 0;
     this.randomGenerator.resetUsedCombinations();
   }
+}
+
+// Helper: generate between 1 and 3 initial nodes from a given exercise sequence
+// Returns an array of objects: { id, value, address }
+// Strategically selects nodes to ensure completion is always possible by:
+// 1. Always including at least one node from the first third of the sequence
+// 2. Avoiding too many nodes from the end that would be hard to connect
+// 3. Preferring nodes from early/middle positions that can be built upon
+export function getRandomInitialNodes(sequence = [], addresses = {}, options = {}) {
+  const minNodes = options.min || 1;
+  const maxNodes = options.max || 3;
+
+  if (!Array.isArray(sequence) || sequence.length === 0) return [];
+
+  // Ensure we don't request more initial nodes than available
+  const allowableMax = Math.min(maxNodes, sequence.length);
+  const count = Math.max(minNodes, Math.floor(Math.random() * allowableMax) + 1);
+
+  // Strategic selection to ensure completion is possible:
+  // 1. For sequences of 5+ nodes, prefer selecting from the first half to avoid isolation
+  // 2. Always include at least one node from the beginning third of the sequence
+  // 3. Avoid selecting too many nodes from the end that would be hard to connect
+  
+  const result = [];
+  const usedIndices = new Set();
+  
+  // Strategy 1: Always include one node from the first third (easier to build upon)
+  const firstThirdEnd = Math.max(1, Math.floor(sequence.length / 3));
+  const firstIndex = Math.floor(Math.random() * firstThirdEnd);
+  usedIndices.add(firstIndex);
+  
+  result.push({
+    id: `init_${Date.now()}_0`,
+    value: sequence[firstIndex],
+    address: addresses[sequence[firstIndex]]
+  });
+  
+  // Strategy 2: Fill remaining slots with enhanced intelligent selection
+  // Designed to ensure 3 nodes can still lead to successful completion
+  let attempts = 0;
+  while (result.length < count && attempts < 30) {
+    attempts++;
+    
+    let candidateIndex;
+    if (result.length === 1) {
+      // For second node, prefer middle section or positions that can bridge to the first
+      const middleStart = Math.floor(sequence.length * 0.25);
+      const middleEnd = Math.floor(sequence.length * 0.75);
+      candidateIndex = middleStart + Math.floor(Math.random() * (middleEnd - middleStart));
+    } else if (result.length === 2) {
+      // For third node, be more strategic to ensure completion is possible
+      // Prefer positions that can connect the existing gaps or extend the sequence
+      const existingIndices = Array.from(usedIndices).sort((a, b) => a - b);
+      const firstIdx = existingIndices[0];
+      const secondIdx = existingIndices[1];
+      
+      // Strategy: Fill gaps between existing nodes or extend from either end
+      const gapStart = Math.min(firstIdx, secondIdx);
+      const gapEnd = Math.max(firstIdx, secondIdx);
+      const gapSize = gapEnd - gapStart;
+      
+      if (gapSize > 2 && Math.random() < 0.6) {
+        // 60% chance to fill the gap between existing nodes
+        candidateIndex = gapStart + 1 + Math.floor(Math.random() * (gapSize - 1));
+      } else if (gapStart > 1 && Math.random() < 0.7) {
+        // 70% chance to place before the first node (easier to extend)
+        candidateIndex = Math.floor(Math.random() * gapStart);
+      } else {
+        // Place after the last node, but not too far to avoid isolation
+        const maxExtension = Math.min(sequence.length - 1, gapEnd + 3);
+        candidateIndex = gapEnd + 1 + Math.floor(Math.random() * (maxExtension - gapEnd));
+      }
+    } else {
+      // Fallback for any additional nodes (should rarely happen with max 3)
+      // Select from the first 75% of the sequence to avoid end isolation
+      const maxSelectableIndex = Math.floor(sequence.length * 0.75);
+      candidateIndex = Math.floor(Math.random() * (maxSelectableIndex + 1));
+    }
+    
+    // Ensure index is within bounds and not already used
+    candidateIndex = Math.max(0, Math.min(candidateIndex, sequence.length - 1));
+    
+    if (!usedIndices.has(candidateIndex)) {
+      usedIndices.add(candidateIndex);
+      result.push({
+        id: `init_${Date.now()}_${result.length}`,
+        value: sequence[candidateIndex],
+        address: addresses[sequence[candidateIndex]]
+      });
+    }
+  }
+
+  // Final validation: Ensure completion is theoretically possible
+  // Check that the selected nodes don't create impossible gaps
+  if (result.length > 1) {
+    const selectedIndices = Array.from(usedIndices).sort((a, b) => a - b);
+    const maxGap = Math.max(...selectedIndices.slice(1).map((idx, i) => idx - selectedIndices[i]));
+    
+    // If there's a gap larger than half the sequence length, it might be hard to complete
+    // In such cases, try to add a bridge node
+    if (maxGap > Math.floor(sequence.length / 2) && result.length < maxNodes) {
+      const largestGapStart = selectedIndices.find((idx, i) => 
+        i < selectedIndices.length - 1 && selectedIndices[i + 1] - idx === maxGap
+      );
+      
+      if (largestGapStart !== undefined) {
+        const bridgeIndex = largestGapStart + Math.floor(maxGap / 2);
+        if (!usedIndices.has(bridgeIndex)) {
+          result.push({
+            id: `init_${Date.now()}_bridge`,
+            value: sequence[bridgeIndex],
+            address: addresses[sequence[bridgeIndex]]
+          });
+        }
+      }
+    }
+  }
+
+  // Sort result by sequence order to make UI display more logical
+  result.sort((a, b) => sequence.indexOf(a.value) - sequence.indexOf(b.value));
+  
+  // Debug logging
+  console.log(`Generated ${result.length} initial nodes from sequence [${sequence.join(', ')}]:`, 
+    result.map(r => `${r.value}(${r.address})`).join(', '));
+  
+  return result;
 }

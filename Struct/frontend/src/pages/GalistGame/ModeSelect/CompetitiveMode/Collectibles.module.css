@@ -1,0 +1,233 @@
+/* Timer Collectible Styles */
+.timerCollectible {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  border: 3px solid #fff;
+  user-select: none;
+  pointer-events: none; /* No longer clickable */
+}
+
+/* Hover effect removed since collectibles are no longer clickable */
+
+.timerIcon {
+  font-size: 30px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.timerBonus {
+  font-size: 10px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  line-height: 1;
+}
+/* Bomb Collectible Styles */
+.bombCollectible {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  background-color: #00000000;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  border: 3px solid #fff;
+  user-select: none;
+  pointer-events: none; /* No longer clickable */
+}
+
+.bombCollectible:hover {
+  background-color: red;
+}
+
+/* Quiz Modal Styles */
+.quizOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.quizModal {
+  background: #000000;
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 800px;
+  width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  border: 3px solid #ff00ff;
+  animation: slideIn 0.4s ease-out;
+  z-index: 2000;
+}
+
+.quizHeader {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.quizHeader h3 {
+  color: #fff;
+  font-size: 24px;
+  margin: 0 0 10px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.quizHeader p {
+  color: #fff;
+  margin: 0;
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.quizQuestion {
+  background-color: transparent;
+  padding: 0 0 30px 0;
+  border-radius: 0;
+  margin-bottom: 30px;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1.4;
+  text-align: center;
+  border: none;
+  font-weight: 400;
+}
+
+.quizOptions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.quizOption {
+  background: transparent;
+  border: 3px solid #ff00ff;
+  border-radius: 15px;
+  padding: 20px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  outline: none;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+}
+
+.quizOption:hover {
+  background: rgba(255, 0, 255, 0.1);
+  border-color: #ff00ff;
+  transform: scale(1.02);
+}
+
+.quizOption:active {
+  transform: scale(0.98);
+}
+
+.quizOption:disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.quizOption:disabled:hover {
+  transform: none;
+  background: transparent;
+}
+
+.quizFooter {
+  text-align: center;
+}
+
+.closeButton {
+  background: transparent;
+  border: 2px solid #ff00ff;
+  border-radius: 8px;
+  padding: 12px 25px;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.closeButton:hover {
+  background: rgba(255, 0, 255, 0.1);
+  border-color: #ff00ff;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Progress bar styles */
+.progressBarContainer {
+  margin-top: 20px;
+  width: 100%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #FF00E6);
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+}
+
+/* Feedback text styles */
+.feedbackText {
+  text-align: center;
+  margin-top: -25px;
+  font-size: 20px;
+  font-weight: bold;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.correctText {
+  color: #00ff00;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.incorrectText {
+  color: #ff0000;
+  text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}

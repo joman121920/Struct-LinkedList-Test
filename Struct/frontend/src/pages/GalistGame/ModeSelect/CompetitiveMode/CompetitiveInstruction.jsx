@@ -37,27 +37,29 @@ const CompetitiveInstruction = ({
                 <div className={styles.howToPlayLeft}>
                   <h2 className={styles.howToPlayTitle}>How to play</h2>
                   <div className={styles.howToPlaySteps}>
-                    <p>1. Input the address and the value of the node</p>
-                    <p>2. Click launch to create a node</p>
-                    <p>3. Double click to open up the circle</p>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Input the address of the circle inorder to connect them</p>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Click delete if you want to delete the circle/node</p>
-                    <p>4. Click open portal to open the portal. This is where you submit your answers.</p>
+                    <p>1. Meet the expected results</p>
+                    <p>2. Launching A node</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Use you mouse to move around the cannon. Right-click to shoot a circle</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Click the circle in the middle of the cannon to choose a node to launch.</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;c. Use scroll to select where the node will be inserted.</p>
+                    <p>3. Collect collectibles</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Hit the timer collectible to add more time.</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Avoid hitting the bomb to avoid losing time.</p>
+                    <p>4. In order to be in the leaderboard, you need at least 500 points.</p>
                   </div>
                 </div>
                 <div className={styles.howToPlayRight}>
-                  <h2 className={styles.gameButtonsTitle}>Game buttons</h2>
+                  <h2 className={styles.gameButtonsTitle}>Game Mechanics</h2>
                   <div className={styles.gameButtonsSteps}>
-                    <p>1. Launch Button - To create a circle or a node</p>
-                    <p>2. Open portal - To open the portal or to submit your answers</p>
-                    <p>3. Insert Button - To open insert options. (Hover the launch button)</p>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Head - Insert in the head of the linked lists</p>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Specific - Insert circle into a specific index</p>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;c. Tail - Insert in the tail of the linked lists</p>
-                    <p>4. Queue Menu - To open queue options. (Hover the launch button)</p>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Peek - To get the head of the linked lists. To generate energy</p>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Enqueue - Insert at the last index of the linked lists</p>
-                    <p>&nbsp;&nbsp;&nbsp;&nbsp;c. Dequeue - Remove the first index which is the head</p>
+                    <p>1. Score Calculation</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Points are awarded based on how quickly you build a linked list</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. The faster you finish, the more points you earn</p>
+                    <p>2. Bombs on Nodes</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;a. Use the scroll wheel to select the insertion point</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;b. Click a bomb node to open the defuse modal and solve the sorting challenge.</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;c. If you fail to defuse, the bombed node will be deleted and the list will reconnect automatically.</p>
+                    <p>&nbsp;&nbsp;&nbsp;&nbsp;d. You cannot finish the task as long there is a bomb in your linked lists.</p>
+                    <p>3. The game continues until you run out of time.</p>
                   </div>
                 </div>
               </div>
