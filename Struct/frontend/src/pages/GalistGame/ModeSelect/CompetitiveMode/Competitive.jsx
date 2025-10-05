@@ -6,13 +6,17 @@ import styles from "./Competitive.module.css";
 import { ExerciseManager, getRandomInitialNodes } from "./CompetitiveExercise.js";
 import Collectibles from './Collectibles.jsx';
 import CompetitiveInstruction from './CompetitiveInstruction.jsx';
+import LoadingScreen from '../../LoadingScreen/LoadingScreen.jsx';
 import { collisionDetection } from "../../CollisionDetection.js";
 // Portal visual components removed
 // Tutorial removed: import kept out intentionally
 
 function CompetitiveMode() {
-  // Instruction modal state
-  const [showInstructionPopup, setShowInstructionPopup] = useState(true);
+  // Loading screen state - show first when component mounts
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
+  
+  // Instruction modal state - show after loading completes
+  const [showInstructionPopup, setShowInstructionPopup] = useState(false);
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [collectiblesEnabled, setCollectiblesEnabled] = useState(false);
   
@@ -23,6 +27,13 @@ function CompetitiveMode() {
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
     window.history.back();
+  }, []);
+  
+  // Handler for loading screen completion
+  const handleLoadingComplete = useCallback(() => {
+    console.log('Loading completed, showing instruction popup');
+    setShowLoadingScreen(false);
+    setShowInstructionPopup(true);
   }, []);
   // --- Add refs to reliably track entry order and sucked circles ---
   const entryOrderRef = useRef([]);
@@ -1090,12 +1101,12 @@ function CompetitiveMode() {
     }, 60);
   }, [loadExercise, exerciseKey]);
 
-  // Initialize with basic exercise if none loaded (but only if game has started)
+  // Initialize with basic exercise if none loaded (but only if game has started and loading is complete)
   useEffect(() => {
-    if (!currentExercise && !showInstructionPopup) {
+    if (!currentExercise && !showInstructionPopup && !showLoadingScreen) {
       loadExercise();
     }
-  }, [currentExercise, loadExercise, showInstructionPopup]);
+  }, [currentExercise, loadExercise, showInstructionPopup, showLoadingScreen]);
 
   // Load exercise with initial circles when game starts
   useEffect(() => {
@@ -2499,6 +2510,11 @@ function CompetitiveMode() {
 
 
 
+  // Show loading screen first when component mounts
+  if (showLoadingScreen) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
+  }
+
   return (
     <div className={styles.app}>
       <video
@@ -2510,7 +2526,7 @@ function CompetitiveMode() {
         preload="auto"
         // onError={(e) => console.error("Video error:", e)}
       >
-        <source src="./video/bubble_bg.mp4" type="video/mp4" />
+        <source src="./video/compe_bg1.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
