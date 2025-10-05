@@ -162,7 +162,7 @@
 
 .howToPlaySteps {
   color: #ffffff;
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1.6;
   margin-left: 20px;
   margin-bottom: 50px;
@@ -250,7 +250,7 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   border: 3px solid #F609E2;
-  margin-top: -22px;
+  margin-top: -42px;
 }
 
 .startButton:hover {

@@ -125,8 +125,10 @@ function CompetitiveMode() {
   const [collectibleCollisions, setCollectibleCollisions] = useState([]);
 
   // Bomb defusing system states
-  const [bombNode, setBombNode] = useState(null); // The node that will explode
-  const [bombCountdown, setBombCountdown] = useState(0); // Countdown in seconds
+  const [bombNode, setBombNode] = useState(null); // Legacy single bomb node (kept for compatibility)
+  const [bombCountdown, setBombCountdown] = useState(0); // Legacy countdown (kept for compatibility)
+  const [activeBombs, setActiveBombs] = useState([]); // Array of active bombs {id, node, countdown, timerId}
+  const [currentDefusingBombId, setCurrentDefusingBombId] = useState(null); // ID of bomb currently being defused
   const [showDefuseModal, setShowDefuseModal] = useState(false);
   const [defuseNodes, setDefuseNodes] = useState([]); // Nodes to sort in defuse modal
   const [selectedDefuseNodes, setSelectedDefuseNodes] = useState([]); // Selected nodes for swapping
@@ -151,39 +153,61 @@ function CompetitiveMode() {
 
   // Bomb defusing system functions
   const spawnBombNode = useCallback(() => {
-    // Get all non-initial circles that are connected in the linked list
-    const eligibleNodes = circles.filter(circle => 
-      !circle.isInitial && 
-      circle.isLaunched && 
-      connections.some(conn => conn.from === circle.id || conn.to === circle.id)
-    );
-    
-    if (eligibleNodes.length === 0) return;
-    
-    // Select random node
-    const randomNode = eligibleNodes[Math.floor(Math.random() * eligibleNodes.length)];
-    setBombNode(randomNode);
-    setBombCountdown(30); // 30 seconds to defuse
-    
-    console.log(`Bomb spawned on node ${randomNode.id} with value ${randomNode.value}`);
-    
-    // Start countdown timer - capture the bomb node ID
-    const bombNodeId = randomNode.id;
-    bombTimerRef.current = setInterval(() => {
-      setBombCountdown(prev => {
-        if (prev <= 1) {
-          // Bomb explodes - delete the node
-          clearInterval(bombTimerRef.current);
-          setBombNode(null);
-          setBombCountdown(0);
-          // Delete the bomb node instead of game over
-          performDeleteRef.current?.(bombNodeId);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [circles, connections]);
+    setActiveBombs(currentBombs => {
+      // Check if we already have maximum bombs (3)
+      const currentBombCount = currentBombs.length + (bombNode ? 1 : 0);
+      if (currentBombCount >= 3) {
+        console.log('Maximum bomb limit reached (3), skipping spawn');
+        return currentBombs;
+      }
+
+      // Get all non-initial launched circles (relaxed requirements for more frequent bombs)
+      const eligibleNodes = circles.filter(circle => 
+        !circle.isInitial && 
+        circle.isLaunched && 
+        // Don't spawn bomb on nodes that already have bombs
+        !currentBombs.some(bomb => bomb.id === circle.id) &&
+        !(bombNode && bombNode.id === circle.id)
+      );
+      
+      if (eligibleNodes.length === 0) return currentBombs;
+      
+      // Select random node
+      const randomNode = eligibleNodes[Math.floor(Math.random() * eligibleNodes.length)];
+      
+      // Create new bomb object
+      const newBomb = {
+        id: randomNode.id,
+        node: randomNode,
+        countdown: 30,
+        timerId: null
+      };
+      
+      console.log(`Bomb spawned on node ${randomNode.id} with value ${randomNode.value}`);
+      
+      // Start countdown timer for this specific bomb
+      newBomb.timerId = setInterval(() => {
+        setActiveBombs(prevBombs => {
+          return prevBombs.map(bomb => {
+            if (bomb.id === newBomb.id) {
+              const newCountdown = bomb.countdown - 1;
+              if (newCountdown <= 0) {
+                // Bomb explodes - delete the node
+                clearInterval(bomb.timerId);
+                performDeleteRef.current?.(bomb.id);
+                return null; // Mark for removal
+              }
+              return { ...bomb, countdown: newCountdown };
+            }
+            return bomb;
+          }).filter(bomb => bomb !== null); // Remove exploded bombs
+        });
+      }, 1000);
+      
+      // Add bomb to active bombs list
+      return [...currentBombs, newBomb];
+    });
+  }, [circles, bombNode]);
 
   const setCollisionCallback = useCallback((updater) => {
     setCollectibleCollisions(updater);
@@ -243,21 +267,44 @@ function CompetitiveMode() {
 
   // Handle successful defuse
   const handleDefuseSuccess = useCallback(() => {
-    // Clear bomb timer
-    if (bombTimerRef.current) {
-      clearInterval(bombTimerRef.current);
-      bombTimerRef.current = null;
-    }
-    
     // Clear progress timer
     if (defuseProgressTimerRef.current) {
       clearInterval(defuseProgressTimerRef.current);
       defuseProgressTimerRef.current = null;
     }
     
-    // Reset bomb states
-    setBombNode(null);
-    setBombCountdown(0);
+    // If defusing a specific bomb from the multi-bomb system
+    if (currentDefusingBombId) {
+      setActiveBombs(prevBombs => {
+        const updatedBombs = prevBombs.filter(bomb => {
+          if (bomb.id === currentDefusingBombId) {
+            // Clear this bomb's timer
+            if (bomb.timerId) {
+              clearInterval(bomb.timerId);
+            }
+            console.log(`Bomb on node ${bomb.id} defused successfully!`);
+            return false; // Remove this bomb
+          }
+          return true; // Keep other bombs
+        });
+        return updatedBombs;
+      });
+    }
+    
+    // If defusing legacy single bomb
+    if (bombNode && bombNode.id === currentDefusingBombId) {
+      // Clear legacy bomb timer
+      if (bombTimerRef.current) {
+        clearInterval(bombTimerRef.current);
+        bombTimerRef.current = null;
+      }
+      setBombNode(null);
+      setBombCountdown(0);
+      console.log(`Legacy bomb on node ${currentDefusingBombId} defused successfully!`);
+    }
+    
+    // Reset defuse modal states
+    setCurrentDefusingBombId(null);
     setShowDefuseModal(false);
     setDefuseNodes([]);
     setSelectedDefuseNodes([]);
@@ -265,7 +312,7 @@ function CompetitiveMode() {
     setIsBombDefused(false);
     
     console.log('Bomb defused successfully! Node saved from deletion.');
-  }, []);
+  }, [currentDefusingBombId, bombNode]);
 
   // Start 3-second countdown when solution is correct
   const startDefuseCountdown = useCallback(() => {
@@ -615,22 +662,41 @@ function CompetitiveMode() {
     updateHeadTailIds();
   }, [connections, circles, updateHeadTailIds]);
 
-  // Bomb spawning system - spawn bomb every 15-25 seconds during gameplay
+  // Bomb spawning system - multiple bombs with different intervals based on connection status
   useEffect(() => {
     if (!isGameStarted || showMissionFailed || !timerRunning) return;
     
     const spawnBomb = () => {
-      if (!bombNode && circles.length > 2) { // Only spawn if no active bomb and enough circles
+      // Check for connected launched circles
+      const connectedLaunchedCircles = circles.filter(circle => 
+        !circle.isInitial && 
+        circle.isLaunched && 
+        connections.some(conn => conn.from === circle.id || conn.to === circle.id)
+      );
+      
+      // Determine spawn interval based on connected circles
+      let nextSpawnDelay;
+      if (connectedLaunchedCircles.length > 0) {
+        // Connected circles: 10-15 seconds (slower spawning)
+        nextSpawnDelay = (Math.random() * 5 + 10) * 1000;
+        console.log('Connected circles found, using 10-15s bomb interval');
+      } else {
+        // No connected circles: 5-10 seconds (faster spawning)
+        nextSpawnDelay = (Math.random() * 5 + 5) * 1000;
+        console.log('No connected circles, using 5-10s bomb interval');
+      }
+      
+      // Try to spawn bomb (max 3 simultaneous)
+      if (circles.length > 1) {
         spawnBombNode();
       }
       
-      // Schedule next bomb spawn (15-25 seconds)
-      const nextSpawnDelay = (Math.random() * 10 + 15) * 1000;
+      // Schedule next bomb spawn
       bombSpawnTimerRef.current = setTimeout(spawnBomb, nextSpawnDelay);
     };
     
-    // Initial bomb spawn after 10-15 seconds
-    const initialDelay = (Math.random() * 5 + 10) * 1000;
+    // Initial bomb spawn after 3-8 seconds
+    const initialDelay = (Math.random() * 5 + 3) * 1000;
     bombSpawnTimerRef.current = setTimeout(spawnBomb, initialDelay);
     
     return () => {
@@ -638,23 +704,34 @@ function CompetitiveMode() {
         clearTimeout(bombSpawnTimerRef.current);
       }
     };
-  }, [isGameStarted, showMissionFailed, timerRunning, bombNode, circles.length, spawnBombNode]);
+  }, [isGameStarted, showMissionFailed, timerRunning, circles.length, spawnBombNode, circles, connections]);
 
   // Clean up bomb timers when game ends
   useEffect(() => {
     if (showMissionFailed) {
+      // Clear legacy bomb timer
       if (bombTimerRef.current) {
         clearInterval(bombTimerRef.current);
         bombTimerRef.current = null;
       }
+      // Clear bomb spawn timer
       if (bombSpawnTimerRef.current) {
         clearTimeout(bombSpawnTimerRef.current);
         bombSpawnTimerRef.current = null;
       }
+      // Clear all active bomb timers
+      activeBombs.forEach(bomb => {
+        if (bomb.timerId) {
+          clearInterval(bomb.timerId);
+        }
+      });
+      // Reset all bomb states
       setBombNode(null);
       setBombCountdown(0);
+      setActiveBombs([]);
+      setCurrentDefusingBombId(null);
     }
-  }, [showMissionFailed]);
+  }, [showMissionFailed, activeBombs]);
 
   // Check if portal button should be enabled (requires at least one head AND one tail node)
   // const hasHeadNode = useCallback(() => {
@@ -1971,7 +2048,10 @@ function CompetitiveMode() {
     e.stopPropagation();
 
     // Check if this is a bomb node - single click to open defuse modal
-    if (bombNode && bombNode.id === circleId) {
+    const hasBomb = (bombNode && bombNode.id === circleId) || activeBombs.some(bomb => bomb.id === circleId);
+    if (hasBomb) {
+      // Set which bomb is being defused
+      setCurrentDefusingBombId(circleId);
       // Open defuse modal
       const challenge = generateDefuseChallenge();
       setDefuseNodes(challenge);
@@ -1984,7 +2064,8 @@ function CompetitiveMode() {
       const updated = prev.map(c => {
         if (c.id === circleId) {
           // Do not change clickCount for initial circles or bomb nodes
-          if (c.isInitial || (bombNode && bombNode.id === c.id)) return c;
+          const hasBomb = (bombNode && bombNode.id === c.id) || activeBombs.some(bomb => bomb.id === c.id);
+          if (c.isInitial || hasBomb) return c;
           const nextCount = Math.min(5, (c.clickCount || 0) + 1);
           return { ...c, clickCount: nextCount, deletionReady: nextCount >= 5 ? true : (c.deletionReady || false) };
         }
@@ -1993,7 +2074,8 @@ function CompetitiveMode() {
 
       const clicked = updated.find(c => c.id === circleId);
       // If clicked circle is initial or bomb node, do nothing further
-      if (clicked && (clicked.isInitial || (bombNode && bombNode.id === clicked.id))) {
+      const clickedHasBomb = (bombNode && bombNode.id === clicked?.id) || activeBombs.some(bomb => bomb.id === clicked?.id);
+      if (clicked && (clicked.isInitial || clickedHasBomb)) {
         return updated;
       }
 
@@ -2006,7 +2088,7 @@ function CompetitiveMode() {
 
       return updated;
     });
-  }, [performDelete, bombNode, generateDefuseChallenge]);
+  }, [performDelete, bombNode, generateDefuseChallenge, activeBombs]);
 
 
 
@@ -2294,7 +2376,8 @@ function CompetitiveMode() {
     const isMatch = expected.length === actual.length && expected.every((node, i) => node.value === actual[i]?.value && node.address === actual[i]?.address);
     if (isMatch) {
       // Check if there's an active bomb - user must defuse it first before claiming points
-      if (bombNode && bombCountdown > 0) {
+      const hasActiveBomb = (bombNode && bombCountdown > 0) || (activeBombs && activeBombs.length > 0);
+      if (hasActiveBomb) {
         console.log('Expected result achieved but bomb is active! Defuse the bomb first to claim points.');
         // Show notification to user
         setShowBombBlockingNotification(true);
@@ -2327,7 +2410,7 @@ function CompetitiveMode() {
       setEarnedPoints(pointsEarned);
       setShowPointsModal(true);
     }
-  }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises, timerSeconds, roundStartTime, bombNode, bombCountdown]);
+  }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises, timerSeconds, roundStartTime, bombNode, bombCountdown, activeBombs]);
 
   // Handler for claiming points and generating a new exercise
   const handleClaimPoints = () => {
@@ -2530,13 +2613,17 @@ function CompetitiveMode() {
         const isApproachingDeletion = !isConnected && circle.isLaunched && !circle.isInitial && 
                                      timeSinceLaunch > 2000 && timeSinceLaunch <= 3000; // Warning in last second
         
+        // Check if this circle has a bomb (legacy single bomb or new multi-bomb system)
+        const hasBomb = (bombNode && bombNode.id === circle.id) || activeBombs.some(bomb => bomb.id === circle.id);
+        const bombData = activeBombs.find(bomb => bomb.id === circle.id) || (bombNode && bombNode.id === circle.id ? { countdown: bombCountdown } : null);
+        
         return (
           <div
             key={circle.id}
             className={`${styles.animatedCircle} ${
               suckingCircles.includes(circle.id) ? styles.beingSucked : ""
             } ${
-              bombNode && bombNode.id === circle.id ? styles.bombNode : ""
+              hasBomb ? styles.bombNode : ""
             }`}
             style={{
               left: `${circle.x - 30}px`,
@@ -2547,15 +2634,15 @@ function CompetitiveMode() {
                   ? "grabbing"
                   : "grab")),
               opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
-              backgroundColor: bombNode && bombNode.id === circle.id 
-                ? (bombCountdown % 2 === 0 ? '#ff4444' : '#ff8888') // Blinking red effect
+              backgroundColor: hasBomb 
+                ? (bombData && bombData.countdown % 2 === 0 ? '#ff4444' : '#ff8888') // Blinking red effect
                 : (circle.color || '#d3d3d3'),
-              boxShadow: bombNode && bombNode.id === circle.id 
+              boxShadow: hasBomb 
                 ? '0 0 20px rgba(255, 68, 68, 0.8), 0 0 40px rgba(255, 68, 68, 0.4)'
                 : 'none',
               animation: circle.isInitial 
                 ? "protectedGlow 2s ease-in-out infinite alternate" 
-                : (bombNode && bombNode.id === circle.id 
+                : (hasBomb 
                   ? "bomb-pulse 0.5s ease-in-out infinite alternate"
                   : (isApproachingDeletion ? "pulse 0.5s infinite alternate" : "none")),
             }}
@@ -2565,9 +2652,9 @@ function CompetitiveMode() {
           >
             <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
             <span className={styles.circleAddress} style={{ position: 'relative', zIndex: 2 }}>{circle.address}</span>
-            {bombNode && bombNode.id === circle.id && (
+            {hasBomb && bombData && (
               <div className={styles.bombCountdown}>
-                💣 {bombCountdown}
+                💣 {bombData.countdown}
               </div>
             )}
 
@@ -3122,8 +3209,21 @@ function CompetitiveMode() {
       
       {/* Bomb Defuse Modal */}
       {showDefuseModal && (
-        <div className={styles.popupOverlay}>
-          <div className={`${styles.popupContent} defuseModalContent`} style={{ 
+        <div 
+          className={styles.popupOverlay}
+          onClick={isBombDefused ? (() => {
+            setShowDefuseModal(false);
+            setDefuseNodes([]);
+            setSelectedDefuseNodes([]);
+            setDefuseProgressCountdown(0);
+            setIsBombDefused(false);
+            setCurrentDefusingBombId(null);
+          }) : undefined}
+        >
+          <div 
+            className={`${styles.popupContent} defuseModalContent`} 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
             width: '71%', 
             height: '62%', 
             backgroundColor: '#000', 

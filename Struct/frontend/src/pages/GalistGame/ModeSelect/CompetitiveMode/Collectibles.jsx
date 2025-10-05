@@ -143,22 +143,22 @@ const QUIZ_QUESTIONS = [
 //
 const SPAWN_CONFIG = {
   // Maximum collectibles on screen at once
-  MAX_TOTAL_COLLECTIBLES: 7,
-  MAX_TIMERS: 2,
+  MAX_TOTAL_COLLECTIBLES: 8,
+  MAX_TIMERS: 3,
   MAX_BOMBS: 5,
   
   // Spawn timing (in milliseconds)
-  INITIAL_SPAWN_DELAY: 0,    // Wait 1 second before first spawn
-  SPAWN_INTERVAL: Math.floor(Math.random() * 7000) + 3000,        // Check for spawning every 3-10 seconds
+  INITIAL_SPAWN_DELAY: 0,    
+  SPAWN_INTERVAL: Math.floor(Math.random() * 5000) + 5000,        // Check for spawning every 5-10 seconds
   
   // Spawn probabilities (0.0 to 1.0)
   TIMER_SPAWN_CHANCE: 0.3,      // 30% chance to spawn timer
   BOMB_SPAWN_CHANCE: 0.7,       // 70% chance to spawn bomb
 
   // Lifespan (how long they stay on screen)
-  TIMER_LIFESPAN: 15000,        // 15 seconds
-  BOMB_LIFESPAN: 25000,         // 25 seconds
-  
+  TIMER_LIFESPAN: 17000,        // 17 seconds
+  BOMB_LIFESPAN: 20000,         // 20 seconds
+
   // Movement speed
   MIN_SPEED: 0.8,
   MAX_SPEED: 2.0,
@@ -553,11 +553,12 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
 
   // Close quiz modal
   const closeQuizModal = () => {
-    if (showFeedback) return; // Prevent closing during feedback display
+    // Allow closing at any time after an answer is selected
     setShowQuizModal(false);
     setCurrentQuestion(null);
     setSelectedAnswer(null);
     setShowFeedback(false);
+    setProgressWidth(100);
   };
 
   if (!isGameActive || gameOver) return null;
@@ -595,7 +596,10 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
       
       {/* Quiz Modal */}
       {showQuizModal && currentQuestion && (
-        <div className={styles.quizOverlay} onClick={closeQuizModal}>
+        <div 
+          className={styles.quizOverlay} 
+          onClick={selectedAnswer !== null ? closeQuizModal : undefined}
+        >
           <div className={styles.quizModal} onClick={(e) => e.stopPropagation()}>
             
             <div className={styles.quizQuestion}>
