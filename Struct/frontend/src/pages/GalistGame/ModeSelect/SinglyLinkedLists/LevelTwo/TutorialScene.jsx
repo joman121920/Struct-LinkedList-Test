@@ -606,11 +606,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           }} 
         >
           <div className={styles.cannonCircle}>
-            <span style={{ fontSize: '10px' }}>
+            <span style={{ fontSize: '14px' }}>
               {cannonCircle.value}
-            </span>
-            <span style={{ fontSize: '8px' }}>
-              {cannonCircle.address}
             </span>
           </div>
         </div>

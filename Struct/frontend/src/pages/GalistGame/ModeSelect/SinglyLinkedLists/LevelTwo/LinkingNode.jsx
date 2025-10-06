@@ -1771,11 +1771,8 @@ function GalistGameLinkingNode() {
             onClick={handleCannonClick}
             style={{ cursor: 'pointer' }}
           >
-            <span style={{ fontSize: '10px' }}>
+            <span style={{ fontSize: '14px' }}>
               {cannonCircle.value}
-            </span>
-            <span style={{ fontSize: '8px' }}>
-              {cannonCircle.address}
             </span>
           </div>
         </div>

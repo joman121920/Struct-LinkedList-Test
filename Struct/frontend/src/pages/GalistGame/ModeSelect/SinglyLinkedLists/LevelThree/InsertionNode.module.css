@@ -345,7 +345,7 @@
   transform: translateX(-50%);
   width: 8px;
   height: 8px;
-  background: #ff6b6b;
+  background: transparent;
   border-radius: 50%;
   box-shadow: 0 0 5px rgba(255, 107, 107, 0.8);
 }
