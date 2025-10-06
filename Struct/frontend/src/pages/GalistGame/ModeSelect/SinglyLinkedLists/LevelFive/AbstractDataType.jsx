@@ -66,8 +66,8 @@ function GalistAbstractDataType() {
   // ADT mode for this level: 'enqueue' (shooting at tail links new node) or 'dequeue' (shooting at head removes it)
   const [adtMode, setAdtMode] = useState('enqueue');
 
-  // Timer for the challenge (2 minutes)
-  const [timerSeconds, setTimerSeconds] = useState(120); // total seconds remaining
+  // Timer for the challenge (5 minutes)
+  const [timerSeconds, setTimerSeconds] = useState(300); // total seconds remaining
   const [timerRunning, setTimerRunning] = useState(false);
   const [showMissionFailed, setShowMissionFailed] = useState(false);
   
@@ -97,8 +97,6 @@ function GalistAbstractDataType() {
     address: Math.floor(Math.random() * 1000).toString() 
   });
 
-  // Black hole states for challenge mechanics
-  const [blackHoles, setBlackHoles] = useState([]);
   const [headCircleId, setHeadCircleId] = useState(null);
   const [tailCircleId, setTailCircleId] = useState(null);
 
@@ -128,39 +126,7 @@ function GalistAbstractDataType() {
     return distance <= (radius * 1.5); // Slightly larger collision area for easier targeting
   }, []);
 
-  // Generate random black hole positions
-  const generateBlackHoles = useCallback(() => {
-    const numBlackHoles = Math.floor(Math.random() * 3) + 2; // 1-3 black holes
-    const newBlackHoles = [];
 
-    for (let i = 0; i < numBlackHoles; i++) {
-      let attempts = 0;
-      let x, y;
-      const maxAttempts = 50;
-
-      // Try to find a position that doesn't overlap with other black holes
-      do {
-        x = Math.random() * (window.innerWidth - 200) + 100; // Keep away from edges
-        y = Math.random() * (window.innerHeight - 200) + 100;
-        attempts++;
-      } while (attempts < maxAttempts &&
-        newBlackHoles.some(bh => {
-          const dx = x - bh.x;
-          const dy = y - bh.y;
-          return Math.sqrt(dx * dx + dy * dy) < 120; // Minimum distance between black holes
-        })
-      );
-
-      newBlackHoles.push({
-        id: `blackhole_${i}`,
-        x,
-        y,
-        radius: 60 // Very large radius for testing - 120px diameter
-      });
-    }
-
-    return newBlackHoles;
-  }, []); // Remove circles dependency to prevent constant repositioning
 
   // Generate bullet options for the modal
   const generateBulletOptions = useCallback(() => {
@@ -596,7 +562,7 @@ function GalistAbstractDataType() {
         setTailCircleId(uiCircles[uiCircles.length - 1].id);
       }
     }
-  }, []);
+  }, [exerciseManagerRef]);
   // spawnInitialCircle removed - promotion handled via loadExercise(, launchInitial=true)
 
   const startExercise = useCallback(() => {
@@ -605,7 +571,7 @@ function GalistAbstractDataType() {
     // Load the current exercise and request that the initial be launched
     loadExercise(exerciseKey, true);
     // Start or reset the timer whenever an exercise starts
-    setTimerSeconds(120);
+    setTimerSeconds(300);
     setTimerRunning(true);
     setShowMissionFailed(false);
   }, [loadExercise, exerciseKey]);
@@ -641,11 +607,13 @@ const handleTutorialValueShoot = useCallback((mode) => {
     // Ensure tutorial does not show
     setShowInstructionPopup(false);
     // Restart exercise and timer
-    setTimerSeconds(120);
+    setTimerSeconds(300);
     setTimerRunning(true);
     setShowMissionFailed(false);
-    // Reload the current exercise and request promotion/launch of its template initial
-    loadExercise(exerciseKey, true);
+    // Reset to exercise one
+    setExerciseKey("exercise_one");
+    // Reload exercise one and request promotion/launch of its template initial
+    loadExercise("exercise_one", true);
     // Ensure an initial launched circle exists after load (promote or create if needed)
     setTimeout(() => {
       setCircles((prev) => {
@@ -677,7 +645,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
         return [initialCircle, ...existing];
       });
     }, 60);
-  }, [loadExercise, exerciseKey]);
+  }, [loadExercise]);
 
   // Initialize with basic exercise when instruction popup is closed
   useEffect(() => {
@@ -921,26 +889,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
             }
           }
 
-          // Check for black hole collision - only affects launched circles WITHIN 3 seconds of launch and NOT already connected
-          if (circle.isLaunched && !circle.isInitial && blackHoles.length > 0 && circle.launchTime) {
-            const timeSinceLaunch = Date.now() - circle.launchTime;
-            const maxVulnerableTime = 3000; // 3 seconds in milliseconds
-            // Check if circle is already connected in the linked list
-            const connectedIds = findConnectedCircles(circle.id);
-            const isConnected = connectedIds.length > 1; // More than itself means it's connected
-            if (timeSinceLaunch <= maxVulnerableTime && !isConnected) {
-              for (const blackHole of blackHoles) {
-                const dx = circle.x - blackHole.x;
-                const dy = circle.y - blackHole.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                // If freshly launched and unconnected circle hits black hole, remove it
-                if (distance <= (20 + blackHole.radius)) {
-                  console.log('Black hole collision detected!', { circle: circle.id, blackHole: blackHole.id, distance, timeSinceLaunch });
-                  return null; // Remove the circle
-                }
-              }
-            }
-          }          return circle;
+          return circle;
         });
 
         // Second pass: Apply collision detection and physics
@@ -1040,8 +989,11 @@ const handleTutorialValueShoot = useCallback((mode) => {
                   // If a launched circle hits the head node, remove head and transfer head to next
                   const launched = circle1IsLaunched ? circle1 : (circle2IsLaunched ? circle2 : null);
                   const target = circle1IsLaunched ? circle2 : (circle2IsLaunched ? circle1 : null);
-                  if (launched && target) {
-                    const targetIsHead = (connections.some(conn => conn.from === target.id) && !connections.some(conn => conn.to === target.id)) || headCircleId === target.id;
+                  if (launched && target && launched.isDequeueBullet) {
+                    // More reliable head detection: check if target is the stored head OR has head characteristics
+                    const targetIsHead = (target.id === headCircleId) || 
+                                        (isHeadNode(target.id)) || 
+                                        (connections.some(conn => conn.from === target.id) && !connections.some(conn => conn.to === target.id));
                     if (targetIsHead) {
                       // Remove head: find its outgoing connection and promote next node to head
                       const outConn = connections.find(conn => conn.from === target.id);
@@ -1155,6 +1107,37 @@ const handleTutorialValueShoot = useCallback((mode) => {
 
                 // Defensive: if either circle is a dequeue bullet, never allow it to form connections
                 const dequeueBulletId = circle1.isDequeueBullet ? circle1.id : (circle2.isDequeueBullet ? circle2.id : null);
+                
+                // Immediately handle dequeue bullet collision before any connection logic
+                if (dequeueBulletId && adtMode === 'dequeue') {
+                  const dequeueBullet = circle1.isDequeueBullet ? circle1 : circle2;
+                  const targetCircle = circle1.isDequeueBullet ? circle2 : circle1;
+                  
+                  // PROTECT INITIAL CIRCLES: Never remove initial circles in dequeue operations
+                  if (targetCircle.isInitial) {
+                    // Just remove the dequeue bullet, leave initial circle untouched
+                    setCircles(prev => prev.filter(c => c.id !== dequeueBullet.id));
+                    continue;
+                  }
+                  
+                  // If dequeue bullet hits head, remove head; otherwise just remove bullet
+                  const targetIsHead = (targetCircle.id === headCircleId) || isHeadNode(targetCircle.id);
+                  if (targetIsHead) {
+                    // Remove head: find its outgoing connection and promote next node to head
+                    const outConn = connections.find(conn => conn.from === targetCircle.id);
+                    const nextId = outConn ? outConn.to : null;
+                    // Remove connections involving the old head
+                    setConnections((prev) => prev.filter(c => c.from !== targetCircle.id && c.to !== targetCircle.id));
+                    // Remove head circle and the bullet - but protect initial circles
+                    setCircles((prev) => prev.filter(c => (c.id !== targetCircle.id || c.isInitial) && c.id !== dequeueBullet.id));
+                    // Update head id
+                    if (nextId) setHeadCircleId(nextId); else setHeadCircleId(null);
+                  } else {
+                    // Non-head hit: just remove the dequeue bullet
+                    setCircles(prev => prev.filter(c => c.id !== dequeueBullet.id));
+                  }
+                  continue; // Skip all other collision processing
+                }
                 
                 // Case 1: Two isolated circles - BUT only if no existing linked list exists
                 if (circle1IsIsolated && circle2IsIsolated) {
@@ -1392,18 +1375,18 @@ const handleTutorialValueShoot = useCallback((mode) => {
                 } else if (shouldDeleteCircle) {
                   // Delete the specified circle(s)
                   if (Array.isArray(shouldDeleteCircle)) {
-                    // Delete multiple circles
+                    // Delete multiple circles - but protect initial circles
                     // ...existing code...
                     
                     setTimeout(() => {
-                      setCircles(prev => prev.filter(c => !shouldDeleteCircle.includes(c.id)));
+                      setCircles(prev => prev.filter(c => !shouldDeleteCircle.includes(c.id) || c.isInitial));
                     }, 100);
                   } else {
-                    // Delete single circle
+                    // Delete single circle - but protect initial circles
                     // ...existing code...
                     
                     setTimeout(() => {
-                      setCircles(prev => prev.filter(c => c.id !== shouldDeleteCircle));
+                      setCircles(prev => prev.filter(c => (c.id !== shouldDeleteCircle) || c.isInitial));
                     }, 100);
                   }
                 }
@@ -1433,7 +1416,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
           }
         }
 
-        // Additional pass: Check for black hole collisions and remove affected circles
+
         // Also remove launched bullets that have lived longer than `maxLifetime` without connecting
         let filteredCircles = finalCircles.filter(circle => {
           if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
@@ -1447,25 +1430,13 @@ const handleTutorialValueShoot = useCallback((mode) => {
             const now = Date.now();
             const timeSinceLaunch = now - circle.launchTime;
             const maxLifetime = 3000; // after this, a launched bullet that didn't connect is removed
-            const maxVulnerableTime = 3000; // 3 seconds in milliseconds for black hole vulnerability
 
             // If the bullet exceeded its lifetime without connecting, remove it
             if (timeSinceLaunch > maxLifetime) {
               return false;
             }
 
-            // Otherwise, still within vulnerable window: check black holes as before
-            if (timeSinceLaunch <= maxVulnerableTime) {
-              for (const blackHole of blackHoles) {
-                const dx = circle.x - blackHole.x;
-                const dy = circle.y - blackHole.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance <= (20 + blackHole.radius)) {
-                  // Delete if not connected and within 3 seconds and inside black hole
-                  return false;
-                }
-              }
-            }
+
           }
 
           return true; // Keep this circle
@@ -1500,7 +1471,6 @@ const handleTutorialValueShoot = useCallback((mode) => {
     isTailNode,
     getChainOrder,
     startChainSuction,
-    blackHoles,
     adtMode,
   ]);
 
@@ -1733,7 +1703,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
     } else {
   // ...existing code...
     }
-  }, [cannonCircle, cannonAngle, adtMode, showInstructionPopup]);
+  }, [circles.length, showInstructionPopup, cannonCircle.value, cannonCircle.address, cannonAngle, adtMode]);
 
   // Wheel handler to toggle ADT mode: scroll up -> dequeue, scroll down -> enqueue
   useEffect(() => {
@@ -2025,20 +1995,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
     setCurrentExercise(exercise);
   }, [exerciseKey]);
 
-  // Black hole repositioning timer - every 20 seconds
-  useEffect(() => {
-    const repositionBlackHoles = () => {
-      setBlackHoles(generateBlackHoles());
-    };
 
-    // Initial positioning
-    repositionBlackHoles();
-
-    // Set up interval for repositioning every 20 seconds
-    const interval = setInterval(repositionBlackHoles, Math.random() * 5000 + 5000); // Random interval between 5-10 seconds
-
-    return () => clearInterval(interval);
-  }, [generateBlackHoles]); // Include generateBlackHoles dependency
 
   return (
     <div className={styles.app}>
@@ -2051,7 +2008,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
         preload="auto"
         // onError={(e) => console.error("Video error:", e)}
       >
-        <source src="./video/bubble_bg.mp4" type="video/mp4" />
+        <source src="./video/rocks.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
@@ -2065,8 +2022,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
       )}
 
       {/* Insertion mode indicator (top-left) */}
-      <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #fff' }}>
-        Mode: {adtMode === 'dequeue' ? 'Dequeue (↑)' : 'Enqueue (↓)'}
+      <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 10px', borderRadius: 12, border: '1px solid #ffffffff' }}>
+        Mode: {adtMode === 'dequeue' ? 'Dequeue' : 'Enqueue'}
       </div>
 
       {/* Expected results bar */}
@@ -2132,13 +2089,13 @@ const handleTutorialValueShoot = useCallback((mode) => {
           <div 
             className={styles.cannonCircle}
             onClick={handleCannonClick}
-            style={{ cursor: 'pointer' }}
+            style={{ 
+              cursor: 'pointer',
+              backgroundColor: adtMode === 'dequeue' ? '#ff4040' : '#4CAF50'
+            }}
           >
-            <span style={{ fontSize: '10px' }}>
-              {cannonCircle.value}
-            </span>
-            <span style={{ fontSize: '8px' }}>
-              {cannonCircle.address}
+            <span style={{ fontSize: '14px' }}>
+              {adtMode === 'dequeue' ? '' : cannonCircle.value}
             </span>
           </div>
         </div>
@@ -2216,7 +2173,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
               </div>
             )}
 
-            {label && (
+            {label && !isSmallBullet && (
               <div 
                 className={styles.headTailLabel}
                 style={{
@@ -2242,25 +2199,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
           </div>
         );
       })}
-      {/* {!showInstructionPopup &&
-        blackHoles.map((blackHole) => (
-          <div
-            key={blackHole.id}
-            style={{
-              position: 'absolute',
-              left: `${blackHole.x - blackHole.radius}px`,
-              top: `${blackHole.y - blackHole.radius}px`,
-              width: `${blackHole.radius * 2}px`,
-              height: `${blackHole.radius * 2}px`,
-              borderRadius: '50%',
-              backgroundColor: '#000',
-              border: '4px solid #ff0000',
-              boxShadow: '0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5)',
-              zIndex: 10,
-              animation: 'blackHolePulse 2s infinite ease-in-out',
-            }}
-          />
-        ))} */}
+
 
       <svg
         className={styles.connectionLines}

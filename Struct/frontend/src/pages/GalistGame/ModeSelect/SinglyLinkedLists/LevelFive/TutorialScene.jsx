@@ -595,8 +595,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   if (scene === "scene1") {
     return (
       <div className={styles.app}>
-        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
-          <source src="./video/bubble_bg.mp4" type="video/mp4" />
+        <video className={styles.videoBackground2} autoPlay loop muted playsInline preload="auto">
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
         </video>
         <div className={tutorialStyles.tutorialOverlay}>
           <div className={tutorialStyles.tutorialPopup}>
@@ -617,8 +617,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   if (scene === "scene2") {
     return (
       <div className={styles.app}>
-        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
-          <source src="./video/bubble_bg.mp4" type="video/mp4" />
+        <video className={styles.videoBackground2} autoPlay loop muted playsInline preload="auto">
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
         </video>
 
         <div className={tutorialStyles.tutorialInstructionBar}>
@@ -631,7 +631,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         >
           <div className={styles.cannonCircle}>
             <span style={{ fontSize: "10px" }}>{cannonCircle.value}</span>
-            <span style={{ fontSize: "8px" }}>{cannonCircle.address}</span>
           </div>
         </div>
 
@@ -685,7 +684,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             }}
           >
             <span className={styles.circleValue}>{bullet.value}</span>
-            <span className={styles.circleAddress}>{bullet.address}</span>
           </div>
         ))}
 
@@ -734,8 +732,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   if (scene === "scene3") {
     return (
       <div className={styles.app}>
-        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
-          <source src="./video/bubble_bg.mp4" type="video/mp4" />
+        <video className={styles.videoBackground2} autoPlay loop muted playsInline preload="auto">
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
         </video>
 
         <div className={tutorialStyles.tutorialInstructionBar}>
@@ -760,7 +758,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               style={{ left: `${circle.x - 30}px`, top: `${circle.y - 30}px`, cursor: "default" }}
             >
               <span className={styles.circleValue}>{circle.value}</span>
-              <span className={styles.circleAddress}>{circle.address}</span>
               {label && (
                 <div
                   className={styles.headTailLabel}
@@ -837,7 +834,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 <p>You now understand how a queue works: new elements are added at the rear (enqueue) and removed from the front (dequeue). This “first in, first out” principle is what makes queues so useful in real-world scenarios like task scheduling and waiting lines.</p>
                 <p><strong>Time to put your knowledge to the test in the mission!</strong></p>
                 <button className={tutorialStyles.tutorialButton} onClick={() => setShowScene4(true)}>
-                  Start Mission
+                  Continue
                 </button>
               </div>
             </div>
