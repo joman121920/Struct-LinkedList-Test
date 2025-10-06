@@ -262,14 +262,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     return (
       <div className={styles.app}>
         <video
-          className={styles.videoBackground}
+          className={styles.videoBackground2}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
         >
-          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
@@ -315,14 +315,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     return (
       <div className={styles.app}>
         <video
-          className={styles.videoBackground}
+          className={styles.videoBackground2}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
         >
-          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
@@ -436,14 +436,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     return (
       <div className={styles.app}>
         <video
-          className={styles.videoBackground}
+          className={styles.videoBackground2}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
         >
-          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
@@ -565,14 +565,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         // }}
             >
         <video
-          className={styles.videoBackground}
+          className={styles.videoBackground2}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
         >
-          <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 

@@ -1132,7 +1132,7 @@ function MainGameComponent() {
         // onError={(e) => console.error("Video error:", e)}
         // onLoadedData={() => console.log("Video loaded successfully")}
       >
-        <source src="./video/node_creation_bg.mp4" type="video/mp4" />
+        <source src="./video/earth.mp4" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
