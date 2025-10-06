@@ -70,6 +70,11 @@ function MainGameComponent() {
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [isAllLevelsComplete, setIsAllLevelsComplete] = useState(false);
 
+  // Bullet count and failure management
+  const [bulletsRemaining, setBulletsRemaining] = useState(10); // Start with 10 bullets per exercise
+  const [showFailedModal, setShowFailedModal] = useState(false);
+  const [maxBulletsPerExercise] = useState(10); // Constant bullets per exercise
+
   // Floating target circles - some with values, some with addresses
   // Floating circles state and ref for performance optimization
   const [floatingCircles, setFloatingCircles] = useState([]);
@@ -322,6 +327,9 @@ function MainGameComponent() {
     // Reset completion states
     setIsLevelCompleted(false);
     setCompletionMessage("");
+    // Reset bullet count and failure modal
+    setBulletsRemaining(maxBulletsPerExercise);
+    setShowFailedModal(false);
     
     // Now load the new exercise
     const exercise = exerciseManagerRef.current.loadExercise(key);
@@ -333,7 +341,7 @@ function MainGameComponent() {
       value: exercise.expectedOutput.value,
       address: exercise.expectedOutput.address
     });
-  }, []);
+  }, [maxBulletsPerExercise]);
 
   
 
@@ -712,11 +720,23 @@ function MainGameComponent() {
     window.history.back();
   };
 
+  // Retry handler for failed modal
+  const handleRetry = () => {
+    setShowFailedModal(false);
+    // Go back to the first exercise (level_1)
+    loadExercise("level_1");
+  };
+
   // Cannon circle event handlers - removed double-click editing for testing
 
   // Global right-click handler for launching circles
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
+    
+    // Check if bullets remaining
+    if (bulletsRemaining <= 0) {
+      return; // No bullets left, can't shoot
+    }
     
     // Calculate launch position from cannon tip
     const cannonTipX = window.innerWidth + 40 - 35; // Cannon base X
@@ -745,7 +765,34 @@ function MainGameComponent() {
     };
     
     setCircles(prev => [...prev, newBullet]);
-  }, [cannonAngle]);
+    
+    // Consume one bullet
+    setBulletsRemaining(prev => {
+      const newCount = prev - 1;
+      
+      // Check for failure after a short delay to allow current shot to complete
+      setTimeout(() => {
+        if (newCount === 0 && !isLevelCompleted) {
+          // Check if level is completed with current square node state
+          if (currentExercise && squareNode.value && squareNode.address) {
+            const validation = exerciseManagerRef.current.validateLevel(
+              exerciseKey, 
+              squareNode.value, 
+              squareNode.address
+            );
+            if (!validation.isCorrect) {
+              setShowFailedModal(true);
+            }
+          } else {
+            // No complete square node and no bullets left = failure
+            setShowFailedModal(true);
+          }
+        }
+      }, 2000); // Give 2 seconds for the bullet to potentially hit something
+      
+      return newCount;
+    });
+  }, [cannonAngle, bulletsRemaining, isLevelCompleted, currentExercise, squareNode, exerciseKey]);
 
   // Animation loop for launched circles
   useEffect(() => {
@@ -1169,6 +1216,16 @@ function MainGameComponent() {
         </div>
       )}
 
+      {/* Bullet Counter */}
+      <div className={styles.bulletCounter}>
+        <div className={styles.bulletCounterLabel}>Bullets:</div>
+        <div className={styles.bulletCounterValue} style={{
+          color: bulletsRemaining <= 3 ? '#ff4444' : '#fff'
+        }}>
+          {bulletsRemaining}
+        </div>
+      </div>
+
       
 
       {/* Portal particles for vacuum effect */}
@@ -1519,6 +1576,29 @@ function MainGameComponent() {
               >
                 Go back
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Failed Modal */}
+      {showFailedModal && (
+        <div className={styles.completionOverlay}>
+          <div className={styles.completionPopup}>
+            <div className={styles.completionContent}>
+              <h2 style={{ color: '#ff4444' }}>Mission Failed</h2>
+              <p style={{ color: '#fff', marginBottom: '20px' }}>
+                You&apos;ve run out of bullets! Try again to complete the level.
+              </p>
+              <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+                <button 
+                  onClick={handleRetry}
+                  className={styles.retryButton}
+                  style={{ backgroundColor: 'transparent' }}
+                >
+                  Retry
+                </button>
+              </div>
             </div>
           </div>
         </div>
