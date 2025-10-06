@@ -8,11 +8,13 @@ import { collisionDetection } from "../../../CollisionDetection";
 import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
+import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
 
 // Exercise keys constant moved outside component to avoid useCallback dependency issues
 const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
 
 function GalistGameLinkingNode() {
+  const [isLoading, setIsLoading] = useState(true);
   const [tutorialScene, setTutorialScene] = useState("scene1");
   // Completion modal state for all exercises done
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
@@ -20,6 +22,10 @@ function GalistGameLinkingNode() {
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
     window.history.back();
+  }, []);
+
+  const handleLoadingComplete = useCallback(() => {
+    setIsLoading(false);
   }, []);
   // --- Add refs to reliably track entry order and sucked circles ---
   const entryOrderRef = useRef([]);
@@ -1708,7 +1714,11 @@ function GalistGameLinkingNode() {
         </div>
       )}
 
-      {showInstructionPopup && (
+      {isLoading && (
+        <LoadingScreen onLoadingComplete={handleLoadingComplete} />
+      )}
+
+      {!isLoading && showInstructionPopup && (
       <TutorialScene 
         scene={tutorialScene}
         onContinue={handleTutorialContinue}

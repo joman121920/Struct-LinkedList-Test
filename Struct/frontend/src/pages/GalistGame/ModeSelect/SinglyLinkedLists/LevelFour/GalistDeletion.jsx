@@ -5,6 +5,8 @@ import styles from "./GalistDeletion.module.css";
 import { ExerciseManager } from "./GalistDeletionExercise.js";
 import TutorialScene from "./TutorialScene.jsx";
 
+import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
+
 // Main Game Component (your existing game)
 function MainGameComponent() {
   const navigate = useNavigate();
@@ -2458,6 +2460,7 @@ function MainGameComponent() {
 
 // Main Tutorial Wrapper Component
 function GalistGameDeletion() {
+  const [isLoading, setIsLoading] = useState(true);
   const [currentScene, setCurrentScene] = useState("scene1");
 
   const handleSceneTransition = () => {
@@ -2475,6 +2478,14 @@ function GalistGameDeletion() {
   const handleValueShoot = () => {
     // Value was shot in tutorial, could add logic here if needed
   };
+
+  const handleLoadingComplete = () => {
+    setIsLoading(false);
+  };
+
+  if (isLoading) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
+  }
 
   if (
     currentScene === "scene1" ||

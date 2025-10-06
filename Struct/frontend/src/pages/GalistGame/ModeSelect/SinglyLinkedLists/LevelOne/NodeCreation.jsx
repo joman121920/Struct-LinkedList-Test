@@ -8,6 +8,7 @@ import { collisionDetection } from "../../../CollisionDetection";
 import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
+import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
 
 // Main Game Component (your existing game)
 function MainGameComponent() {
@@ -1542,6 +1543,7 @@ function MainGameComponent() {
 
 // Main Tutorial Wrapper Component
 function GalistNodeCreation() {
+  const [isLoading, setIsLoading] = useState(true);
   const [currentScene, setCurrentScene] = useState('scene1');
 
   const handleSceneTransition = () => {
@@ -1559,6 +1561,14 @@ function GalistNodeCreation() {
   const handleValueShoot = () => {
     // Value was shot in tutorial, could add logic here if needed
   };
+
+  const handleLoadingComplete = () => {
+    setIsLoading(false);
+  };
+
+  if (isLoading) {
+    return <LoadingScreen onLoadingComplete={handleLoadingComplete} />;
+  }
 
   if (currentScene === 'scene1' || currentScene === 'scene2' || currentScene === 'scene3' || currentScene === 'scene4') {
     return (

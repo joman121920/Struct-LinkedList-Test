@@ -8,14 +8,20 @@ import { collisionDetection } from "../../../CollisionDetection";
 import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
+import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
 
 function GalistAbstractDataType() {
+  const [isLoading, setIsLoading] = useState(true);
   // Completion modal state for all exercises done
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
   
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
     window.history.back();
+  }, []);
+
+  const handleLoadingComplete = useCallback(() => {
+    setIsLoading(false);
   }, []);
   // --- Add refs to reliably track entry order and sucked circles ---
   const entryOrderRef = useRef([]);
@@ -2069,7 +2075,11 @@ const handleTutorialValueShoot = useCallback((mode) => {
       )}
     
 
-      {showInstructionPopup && (
+      {isLoading && (
+        <LoadingScreen onLoadingComplete={handleLoadingComplete} />
+      )}
+
+      {!isLoading && showInstructionPopup && (
         <TutorialScene
           scene={tutorialScene}
           onContinue={handleTutorialContinue}
