@@ -523,6 +523,7 @@ function GalistAbstractDataType() {
         velocityY: 0,
         isLaunched: false,
         isInitial: true,
+        mass: 1.0, // Standard mass for circles
       }));
 
       const uiConnections = [];
@@ -545,8 +546,8 @@ function GalistAbstractDataType() {
                 ? {
                     ...c,
                     isLaunched: true,
-                    velocityX: 4,
-                    velocityY: 0,
+                    velocityX: 0, // Keep initial circles stationary
+                    velocityY: 0, // Keep initial circles stationary
                     launchTime: Date.now(),
                     x: 120,
                     y: centerY,
@@ -641,18 +642,26 @@ const handleTutorialValueShoot = useCallback((mode) => {
           isLaunched: true,
           isInitial: true,
           launchTime: Date.now(),
+          mass: 1.0, // Standard mass for circles
         };
         return [initialCircle, ...existing];
       });
     }, 60);
   }, [loadExercise]);
 
-  // Initialize with basic exercise when instruction popup is closed
+  // This effect is no longer needed since startExercise handles the exercise loading
+  // useEffect(() => {
+  //   if (!showInstructionPopup && !currentExercise) {
+  //     loadExercise("exercise_one", true); // Load with launchInitial=true
+  //   }
+  // }, [showInstructionPopup, currentExercise, loadExercise]);
+
+  // Load initial exercise on component mount - but only after tutorial is completed
   useEffect(() => {
-    if (!showInstructionPopup && !currentExercise) {
-      loadExercise();
+    if (!currentExercise && !showInstructionPopup) {
+      loadExercise("exercise_one", false); // Load without launching initially
     }
-  }, [showInstructionPopup, currentExercise, loadExercise]);
+  }, [currentExercise, loadExercise, showInstructionPopup]);
 
   useEffect(() => {
   if (showInstructionPopup) {
@@ -689,9 +698,9 @@ const handleTutorialValueShoot = useCallback((mode) => {
             const newX = circle.x + newVelocityX;
             const newY = circle.y + newVelocityY;
             
-            // Remove circles that go off screen
-            if (newX < -100 || newX > window.innerWidth + 100 || 
-                newY < -100 || newY > window.innerHeight + 100) {
+            // Remove circles that go off screen - but protect initial circles
+            if (!circle.isInitial && (newX < -100 || newX > window.innerWidth + 100 || 
+                newY < -100 || newY > window.innerHeight + 100)) {
               return null; // Mark for removal
             }
             
@@ -1667,6 +1676,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
           launchTime: Date.now(),
           isDequeueBullet: true,
           _radius: smallRadius,
+          mass: 3.0, // Heavy bullets for better physics
         };
       } else {
         const normalRadius = 30;
@@ -1680,6 +1690,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
           velocityY: velocityY,
           isLaunched: true, // Flag to indicate this circle was launched
           launchTime: Date.now(), // Track when it was launched
+          mass: 2.5, // Heavy bullets for better physics
         };
       }
       

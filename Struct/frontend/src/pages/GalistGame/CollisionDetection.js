@@ -228,9 +228,9 @@ export class CollisionDetection {
           newX += separationX;
           newY += separationY;
           
-          // Calculate masses (assuming equal mass for simplicity)
-          const mass1 = 1;
-          const mass2 = 1;
+          // Calculate masses from circle properties (bullets are heavier)
+          const mass1 = currentCircle.mass || 1.0; // Default to 1.0 if not set
+          const mass2 = otherCircle.mass || 1.0;   // Default to 1.0 if not set
           
           // Get velocities
           const v1x = newVelocityX;
