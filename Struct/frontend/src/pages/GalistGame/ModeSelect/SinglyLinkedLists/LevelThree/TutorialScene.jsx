@@ -711,8 +711,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   if (scene === "scene1") {
     return (
       <div className={styles.app}>
-        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
-          <source src="./video/mars.mp4" type="video/mp4" />
+        <video className={styles.videoBackground2} autoPlay loop muted playsInline preload="auto">
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
         </video>
 
         <div className={tutorialStyles.tutorialOverlay}>
@@ -736,8 +736,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   if (scene === "scene2") {
     return (
       <div className={styles.app}>
-        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
-          <source src="./video/mars.mp4" type="video/mp4" />
+        <video className={styles.videoBackground2} autoPlay loop muted playsInline preload="auto">
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
         </video>
 
         {!showInsertionMastered && (
@@ -874,8 +874,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   if (scene === "scene3") {
     return (
       <div className={styles.app}>
-        <video className={styles.videoBackground} autoPlay loop muted playsInline preload="auto">
-          <source src="./video/mars.mp4" type="video/mp4" />
+        <video className={styles.videoBackground2} autoPlay loop muted playsInline preload="auto">
+          <source src="./video/insertion_bg.mp4" type="video/mp4" />
           </video>
 
         <div className={tutorialStyles.instructionOverlay}>
