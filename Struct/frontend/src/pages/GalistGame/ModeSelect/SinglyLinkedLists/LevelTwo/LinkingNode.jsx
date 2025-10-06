@@ -9,6 +9,9 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 
+// Exercise keys constant moved outside component to avoid useCallback dependency issues
+const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
+
 function GalistGameLinkingNode() {
   const [tutorialScene, setTutorialScene] = useState("scene1");
   // Completion modal state for all exercises done
@@ -35,12 +38,11 @@ function GalistGameLinkingNode() {
   const [originalSubmission, setOriginalSubmission] = useState(null);
 
   // Exercise progress indicator logic
-  const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
   const currentExerciseNumber = EXERCISE_KEYS.indexOf(exerciseKey) + 1;
   const totalExercises = EXERCISE_KEYS.length;
 
   // Timer state (replace progress indicator)
-  const [timerSeconds, setTimerSeconds] = useState(120); // 2 minutes default
+  const [timerSeconds, setTimerSeconds] = useState(300); // 5 minutes default
   const [timerRunning, setTimerRunning] = useState(false);
   const [showMissionFailed, setShowMissionFailed] = useState(false);
 
@@ -78,8 +80,7 @@ function GalistGameLinkingNode() {
     address: Math.floor(Math.random() * 1000).toString() 
   });
 
-  // Black hole states for challenge mechanics
-  const [blackHoles, setBlackHoles] = useState([]);
+  // Head/tail states for labeling
   const [headCircleId, setHeadCircleId] = useState(null);
   const [tailCircleId, setTailCircleId] = useState(null);
 
@@ -108,39 +109,7 @@ function GalistGameLinkingNode() {
     return distance <= (radius * 1.5); // Slightly larger collision area for easier targeting
   }, []);
 
-  // Generate random black hole positions
-  const generateBlackHoles = useCallback(() => {
-    const numBlackHoles = Math.floor(Math.random() * 3) + 2; // 1-3 black holes
-    const newBlackHoles = [];
 
-    for (let i = 0; i < numBlackHoles; i++) {
-      let x, y;
-      let attempts = 0;
-      const maxAttempts = 50;
-
-      // Try to find a position that doesn't overlap with other black holes
-      do {
-        x = Math.random() * (window.innerWidth - 200) + 100; // Keep away from edges
-        y = Math.random() * (window.innerHeight - 200) + 100;
-        attempts++;
-      } while (attempts < maxAttempts &&
-        newBlackHoles.some(bh => {
-          const dx = x - bh.x;
-          const dy = y - bh.y;
-          return Math.sqrt(dx * dx + dy * dy) < 120; // Minimum distance between black holes
-        })
-      );
-
-      newBlackHoles.push({
-        id: `blackhole_${i}`,
-        x,
-        y,
-        radius: 60 // Very large radius for testing - 120px diameter
-      });
-    }
-
-    return newBlackHoles;
-  }, []); // Remove circles dependency to prevent constant repositioning
 
   // Generate bullet options for the modal
   const generateBulletOptions = useCallback(() => {
@@ -203,6 +172,12 @@ function GalistGameLinkingNode() {
 
   const performDelete = useCallback((circleId) => {
   setCircles(prev => {
+    // Prevent deletion of initial circle
+    const circleToDelete = prev.find(c => c.id === circleId);
+    if (circleToDelete && circleToDelete.isInitial) {
+      return prev; // Don't delete initial circle
+    }
+    
     const remaining = prev.filter(c => c.id !== circleId);
 
     // Clean up from suction-related state
@@ -257,13 +232,19 @@ function GalistGameLinkingNode() {
   setCircles(prev => {
     const updated = prev.map(c => {
       if (c.id !== circleId) return c;
-      // Allow deletion for any circle (even if isLaunched)
+      
+      // Prevent deletion of initial circle
+      if (c.isInitial) {
+        return c; // Don't update click count for initial circle
+      }
+      
+      // Allow deletion for any other circle (even if isLaunched)
       const nextCount = Math.min(5, (c.clickCount || 0) + 1);
       return { ...c, clickCount: nextCount, deletionReady: nextCount >= 5 };
     });
 
     const clicked = updated.find(c => c.id === circleId);
-    if (clicked && clicked.deletionReady) {
+    if (clicked && clicked.deletionReady && !clicked.isInitial) {
       setTimeout(() => {
         performDelete(circleId);
       }, 300);
@@ -574,19 +555,67 @@ function GalistGameLinkingNode() {
     setExerciseKey(key);
   }, []);
 
+  // Helper function to create initial circle for current exercise
+  const createInitialCircle = useCallback((targetExerciseKey = null) => {
+    const exerciseToUse = targetExerciseKey || exerciseKey;
+    
+    // Load the exercise if it's different from current, or get current exercise
+    let exerciseData;
+    if (targetExerciseKey && targetExerciseKey !== exerciseKey) {
+      exerciseData = exerciseManagerRef.current.loadExercise(exerciseToUse);
+    } else {
+      exerciseData = exerciseManagerRef.current.getCurrentExercise();
+      // If no current exercise, load the specified one
+      if (!exerciseData) {
+        exerciseData = exerciseManagerRef.current.loadExercise(exerciseToUse);
+      }
+    }
+    
+    if (exerciseData && exerciseData.expectedStructure && exerciseData.expectedStructure.length > 0) {
+      const firstNode = exerciseData.expectedStructure[0];
+      const initialCircle = {
+        id: 'initial-' + Date.now(),
+        x: 400, // Position it in a good starting location
+        y: 300,
+        value: firstNode.value.toString(),
+        address: firstNode.address,
+        clickCount: 0,
+        deletionReady: false,
+        isInitial: true, // Mark as initial circle
+        isLaunched: true // Launch immediately when created
+      };
+      
+      setCircles([initialCircle]);
+      setHeadCircleId(initialCircle.id); // Set as initial head
+    }
+  }, [exerciseKey, exerciseManagerRef]);
+
+  // Ensure initial circle is created when exercise is loaded
+  useEffect(() => {
+    if (currentExercise && !showInstructionPopup && circles.length === 0) {
+      createInitialCircle();
+    }
+  }, [currentExercise, showInstructionPopup, circles.length, createInitialCircle]);
+
   const startExercise = useCallback(() => {
     setShowInstructionPopup(false);
     // Start timer only if it's not already running (preserve across exercises)
     if (!timerRunning) {
       // If timer had expired previously, reset to full duration
-      setTimerSeconds((s) => (s <= 0 ? 120 : s));
+      setTimerSeconds((s) => (s <= 0 ? 300 : s));
       setTimerRunning(true);
       setShowMissionFailed(false);
     }
-    if (!currentExercise) {
-      loadExercise();
-    }
-  }, [loadExercise, currentExercise, timerRunning]);
+    
+    // Always load the current exercise and create initial circle
+    const currentKey = exerciseKey || "exercise_one";
+    loadExercise(currentKey);
+    
+    // Create initial circle after a short delay to ensure exercise is loaded
+    setTimeout(() => {
+      createInitialCircle(currentKey);
+    }, 100);
+  }, [loadExercise, timerRunning, createInitialCircle, exerciseKey]);
 
   const handleTutorialContinue = useCallback(() => {
   if (tutorialScene === "scene1") {
@@ -631,6 +660,13 @@ function GalistGameLinkingNode() {
       loadExercise();
     }
   }, [showInstructionPopup, currentExercise, loadExercise]);
+
+  // Initialize exercise on component mount
+  useEffect(() => {
+    if (!currentExercise) {
+      loadExercise(exerciseKey || "exercise_one");
+    }
+  }, [currentExercise, exerciseKey, loadExercise]);
 
   // (Removed unused getChainOrder for node creation)
 
@@ -859,26 +895,7 @@ function GalistGameLinkingNode() {
             }
           }
 
-          // Check for black hole collision - only affects launched circles WITHIN 3 seconds of launch and NOT already connected
-          if (circle.isLaunched && blackHoles.length > 0 && circle.launchTime) {
-            const timeSinceLaunch = Date.now() - circle.launchTime;
-            const maxVulnerableTime = 3000; // 3 seconds in milliseconds
-            // Check if circle is already connected in the linked list
-            const connectedIds = findConnectedCircles(circle.id);
-            const isConnected = connectedIds.length > 1; // More than itself means it's connected
-            if (timeSinceLaunch <= maxVulnerableTime && !isConnected) {
-              for (const blackHole of blackHoles) {
-                const dx = circle.x - blackHole.x;
-                const dy = circle.y - blackHole.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                // If freshly launched and unconnected circle hits black hole, remove it
-                if (distance <= (20 + blackHole.radius)) {
-                  console.log('Black hole collision detected!', { circle: circle.id, blackHole: blackHole.id, distance, timeSinceLaunch });
-                  return null; // Remove the circle
-                }
-              }
-            }
-          }          return circle;
+          return circle;
         });
 
         // Second pass: Apply collision detection and physics
@@ -1138,30 +1155,10 @@ function GalistGameLinkingNode() {
           }
         }
 
-        // Additional pass: Check for black hole collisions and remove affected circles
+
         let filteredCircles = finalCircles.filter(circle => {
           if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
 
-          // Check if circle is already connected in the linked list
-          const connectedIds = findConnectedCircles(circle.id);
-          const isConnected = connectedIds.length > 1; // More than itself means it's connected
-
-          // Only allow deletion if NOT connected and within 3 seconds of launch
-          if (!isConnected && circle.launchTime) {
-            const timeSinceLaunch = Date.now() - circle.launchTime;
-            const maxVulnerableTime = 3000; // 3 seconds in milliseconds
-            if (timeSinceLaunch <= maxVulnerableTime) {
-              for (const blackHole of blackHoles) {
-                const dx = circle.x - blackHole.x;
-                const dy = circle.y - blackHole.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance <= (20 + blackHole.radius)) {
-                  // Only delete if not connected and within 3 seconds
-                  return false;
-                }
-              }
-            }
-          }
           return true; // Keep this circle
         });
 
@@ -1194,7 +1191,7 @@ function GalistGameLinkingNode() {
     isTailNode,
     getChainOrder,
     startChainSuction,
-    blackHoles,
+
   ]);
 
   // Handle connection removal when circles are sucked
@@ -1243,8 +1240,8 @@ function GalistGameLinkingNode() {
   
   // Mouse event handlers for dragging
   const handleMouseDown = (e, circle) => {
-    // Prevent dragging launched circles
-    if (circle.isLaunched) {
+    // Prevent dragging launched circles and initial circles
+    if (circle.isLaunched || circle.isInitial) {
       return;
     }
     
@@ -1551,19 +1548,25 @@ function GalistGameLinkingNode() {
   }, [circles, connections, currentExercise, getCurrentLinkedList, currentExerciseNumber, totalExercises]);
 
   // Handler for Continue button
-  const handleLevelContinue = () => {
+  const handleLevelContinue = useCallback(() => {
     // Advance to next exercise if possible
     if (currentExerciseNumber < totalExercises) {
       setShowLevelCompleteModal(false);
       const nextKey = EXERCISE_KEYS[currentExerciseNumber];
+      setExerciseKey(nextKey);
       // Load next exercise (do not reset the timer)
       loadExercise(nextKey);
+      
+      // Create initial circle for the next exercise after a short delay
+      setTimeout(() => {
+        createInitialCircle(nextKey);
+      }, 100);
     } else {
       // All exercises completed: skip level complete modal for last exercise
       setShowLevelCompleteModal(false);
       setShowAllCompletedModal(true);
     }
-  };
+  }, [currentExerciseNumber, totalExercises, loadExercise, createInitialCircle]);
 
   // Format seconds to MM:SS
   const formatTime = useCallback((secs) => {
@@ -1606,11 +1609,19 @@ function GalistGameLinkingNode() {
     setHeadCircleId(null);
     setTailCircleId(null);
 
-    // Reload the current exercise and restart timer
-    loadExercise(exerciseKey);
-    setTimerSeconds(120);
+    // Reset to exercise_one and restart timer
+    setExerciseKey("exercise_one");
+    setTimerSeconds(300);
     setTimerRunning(true);
-  }, [loadExercise, exerciseKey]);
+    
+    // Load exercise_one and create initial circle after a short delay
+    setTimeout(() => {
+      loadExercise("exercise_one");
+      setTimeout(() => {
+        createInitialCircle();
+      }, 100);
+    }, 50);
+  }, [loadExercise, createInitialCircle]);
 
   // Update currentExercise when exerciseKey changes
   useEffect(() => {
@@ -1618,37 +1629,6 @@ function GalistGameLinkingNode() {
     const exercise = exerciseManagerRef.current.getCurrentExercise(exerciseKey);
     setCurrentExercise(exercise);
   }, [exerciseKey]);
-
-  // Black hole repositioning timer - every 20 seconds (DISABLED DURING TUTORIAL)
-  useEffect(() => {
-    if (showInstructionPopup) {
-      setBlackHoles([]);
-      return;
-    }
-    const repositionBlackHoles = () => {
-      setBlackHoles(generateBlackHoles());
-    };
-    repositionBlackHoles();
-    const interval = setInterval(repositionBlackHoles, Math.random() * 5000 + 5000);
-    return () => clearInterval(interval);
-  }, [generateBlackHoles, showInstructionPopup]);
-
-  // Countdown effect (DISABLED DURING TUTORIAL)
-  useEffect(() => {
-    if (showInstructionPopup || !timerRunning) return;
-    const tick = () => {
-      setTimerSeconds((s) => {
-        if (s <= 1) {
-          setTimerRunning(false);
-          setShowMissionFailed(true);
-          return 0;
-        }
-        return s - 1;
-      });
-    };
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [timerRunning, showInstructionPopup]);
 
   return (
     <div className={styles.app}>
@@ -1749,7 +1729,6 @@ function GalistGameLinkingNode() {
                 <li><strong>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets, To change the bullets, Click the circle at the middle of the cannon.</li>
                 <li><strong>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
                 <li><strong>Scoring:</strong> Earn points for each successful node creation</li>
-                <li><strong>Obstacles:</strong> Watch out for the black hole, freshly created node that collides with it will be destroyed!</li>
                 <li><strong>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
               </ul>
             </div>
@@ -1812,47 +1791,52 @@ function GalistGameLinkingNode() {
       style={{
         left: `${circle.x - 30}px`,
         top: `${circle.y - 30}px`,
-        cursor: (draggedCircle && circle.id === draggedCircle.id) ? "grabbing" : "grab",
+        cursor: circle.isInitial 
+          ? "default" 
+          : (draggedCircle && circle.id === draggedCircle.id) ? "grabbing" : "grab",
         opacity: circle.isLaunched ? 0.9 : 1,
         boxShadow: circle.isLaunched 
           ? "0 0 15px rgba(255, 255, 0, 0.6)" 
           : "0 4px 8px rgba(0, 0, 0, 0.3)",
       }}
-      onMouseDown={(e) => handleMouseDown(e, circle)}
+      onMouseDown={(e) => circle.isInitial ? e.preventDefault() : handleMouseDown(e, circle)}
       onClick={(e) => handleCircleClick(circle.id, e)}
     >
             <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
             <span className={styles.circleAddress} style={{ position: 'relative', zIndex: 2 }}>{circle.address}</span>
 
-            {/* Click-to-delete background circle fill (SVG) */}
-            <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
-              <svg width="60" height="60" viewBox="0 0 60 60">
-                <defs>
-                  <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ffcfb8" />
-                    <stop offset="100%" stopColor="#ff6b35" />
-                  </linearGradient>
-                </defs>
-                <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
-                <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
-                <circle
-        cx="30"
-        cy="30"
-        r="24"
-        fill="none"
-        stroke={`url(#grad-${circle.id})`}
-        strokeWidth="12"
-        strokeLinecap="round"
-        transform="rotate(-90 30 30)"
-        style={{
-          strokeDasharray: 2 * Math.PI * 24,
-          strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
-          transition: 'stroke-dashoffset 120ms linear'
-        }}
-      />
-              </svg>
-            </div>
+            {/* Click-to-delete background circle fill (SVG) - Only show for non-initial circles */}
+            {!circle.isInitial && (
+              <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
+                <svg width="60" height="60" viewBox="0 0 60 60">
+                  <defs>
+                    <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#ffcfb8" />
+                      <stop offset="100%" stopColor="#ff6b35" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
+                  <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+                  <circle
+          cx="30"
+          cy="30"
+          r="24"
+          fill="none"
+          stroke={`url(#grad-${circle.id})`}
+          strokeWidth="12"
+          strokeLinecap="round"
+          transform="rotate(-90 30 30)"
+          style={{
+            strokeDasharray: 2 * Math.PI * 24,
+            strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
+            transition: 'stroke-dashoffset 120ms linear'
+          }}
+        />
+                </svg>
+              </div>
+            )}
 
+            {/* Head/Tail label for all circles */}
             {label && (
               <div 
                 className={styles.headTailLabel}
@@ -1880,7 +1864,7 @@ function GalistGameLinkingNode() {
         );
       })}
 
-      {/* Black holes for challenge - HIDE DURING TUTORIAL or instruction modal */}
+
       {/* {!showInstructionPopup && !showInstructionModal && blackHoles.map((blackHole) => (
         <div
           key={blackHole.id}
