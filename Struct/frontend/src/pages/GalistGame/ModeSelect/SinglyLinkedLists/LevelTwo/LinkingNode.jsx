@@ -1889,7 +1889,7 @@ function GalistGameLinkingNode() {
             animation: 'blackHolePulse 2s infinite ease-in-out',
           }}
         />
-      ))} */}
+      ))} aa*/}
 
       <svg className={styles.connectionLines}>
         {(() => {
