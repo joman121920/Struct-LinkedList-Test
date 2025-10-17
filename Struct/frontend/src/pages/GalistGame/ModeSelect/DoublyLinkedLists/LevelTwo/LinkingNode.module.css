@@ -1,0 +1,1464 @@
+/* Exercise Progress Indicator (top right) */
+.exerciseProgressIndicator {
+  position: absolute;
+  top: 10px;
+  right: 30px;
+  font-size: 2rem;
+  color: #fff;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0);
+  border-radius: 10px;
+  padding: 6px 22px 6px 18px;
+  z-index: 20;
+  border: 2px solid #ffffff00;
+  letter-spacing: 2px;
+  min-width: 60px;
+  text-align: right;
+}
+/* Expected Results Bar Styles */
+.expectedBarWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px 0;
+  border: transparent;
+  z-index: 10;
+  border-radius: 8px;
+}
+
+.expectedBarTable {
+  border-collapse: collapse;
+  border-spacing: 0 0;
+}
+
+
+.expectedBarCell {
+  padding: 0 8px;
+}
+
+.expectedBarCircle {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  border: 2px solid #bbb;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0);
+  position: relative;
+  letter-spacing: 1px;
+}
+
+.expectedBarValue {
+  font-size: 15px;
+  font-weight: 1000;
+  line-height: 1.1;
+}
+
+.expectedBarAddress {
+  font-size: 12px;
+  color: #1a1a1a;
+  opacity: 0.85;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.expectedBarArrowCell {
+  padding: 0 4px;
+  vertical-align: middle;
+}
+
+.expectedBarArrow {
+  font-size: 1.7rem;
+  color: #fff;
+  font-weight: 700;
+  vertical-align: middle;
+  user-select: none;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+  background-color: #000;
+  color: white;
+  font-family: Arial, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Video background styling */
+.videoBackground {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.header {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 10;
+}
+
+.header h1 {
+  font-size: 24px;
+  font-weight: normal;
+  margin-bottom: 10px;
+}
+
+.header h2 {
+  font-size: 18px;
+  font-weight: normal;
+}
+
+/* Instruction button in top left */
+.instructionButton {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #333;
+  color: white;
+  border: 2px solid #fff;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 10;
+  transition: background-color 0.3s;
+}
+
+.instructionButton:hover {
+  background-color: #555;
+}
+
+/* Instruction popup styles */
+.instructionPopup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.instructionContent {
+  background-color: #000;
+  border: 2px solid #fff;
+  border-radius: 15px;
+  padding: 40px;
+  max-width: 500px;
+  text-align: center;
+  color: white;
+}
+
+.instructionContent h1 {
+  font-size: 24px;
+  margin-bottom: 30px;
+  color: #fff;
+  text-decoration: underline;
+}
+
+.instructionList {
+  margin: 20px 0;
+}
+
+.instructionItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 15px 0;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+}
+
+.instructionValue {
+  color: #00ffff;
+  font-weight: bold;
+}
+
+.instructionArrow {
+  color: #fff;
+  margin: 0 10px;
+}
+
+.instructionAddress {
+  color: #ff9900;
+  font-weight: bold;
+}
+
+.startButton {
+  background-color: #333;
+  color: white;
+  border: 2px solid #fff;
+  border-radius: 25px;
+  padding: 12px 30px;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: background-color 0.3s;
+}
+
+.startButton:hover {
+  background-color: #555;
+}
+
+.simpleHeader {
+  text-align: center;
+}
+
+.simpleHeader h1 {
+  font-size: 24px;
+  color: #00ff00;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
+  margin-bottom: 10px;
+}
+
+.simpleHeader h2 {
+  font-size: 18px;
+  color: #fff;
+}
+
+.freeModeHeader {
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  border-radius: 10px;
+  border: 2px solid #ff6600;
+  box-shadow: 0 0 15px rgba(255, 102, 0, 0.3);
+}
+
+.freeModeHeader h1 {
+  color: #ff6600;
+  text-shadow: 0 0 5px rgba(255, 102, 0, 0.8);
+}
+
+.animatedCircle {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background-color: #d3d3d3;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: black;
+  font-weight: bold;
+  z-index: 5;
+  font-size: 12px;
+  user-select: none;
+  transition: transform 0.1s ease;
+}
+
+.animatedCircle:hover {
+  transform: scale(1.05);
+}
+
+.animatedCircle:active {
+  transform: scale(0.95);
+}
+
+.beingSucked {
+  box-shadow: 0 0 12px rgba(174, 8, 163, 0.8), 0 0 24px rgba(174, 8, 163, 0.4);
+}
+
+.circleValue {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.circleAddress {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.animatedCircle .circleValue {
+  font-size: 14px;
+}
+
+.animatedCircle .circleAddress {
+  font-size: 9px;
+}
+
+.nodeTypeLabel {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: bold;
+  color: #00ff00;
+  text-shadow: 0 0 3px rgba(0, 255, 0, 0.8);
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 2px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+  z-index: 6;
+}
+
+.rightSquare {
+  position: absolute;
+  bottom: 1px;
+  right: -40px;
+  width: 70px;
+  height: 110px;
+  background: linear-gradient(to top, #666 0%, #888 50%, #aaa 100%);
+  border: 2px solid #fff;
+  z-index: 10;
+  transform-origin: bottom center;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  border-radius: 5px 5px 15px 15px;
+}
+
+.rightSquare::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(255, 107, 107, 0.8);
+}
+
+.cannonCircle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  background: #4CAF50;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  transition: all 0.2s ease;
+  animation: pulse 1.5s infinite;
+}
+
+.cannonCircle:hover {
+  background: #45a049;
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  }
+}
+
+.controls {
+  position: absolute;
+  bottom: 10px;
+  left: 45%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 40px;
+  z-index: 10;
+}
+
+.inputContainer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+}
+
+.inputField {
+  padding: 15px 20px;
+  background-color: #d3d3d300;
+  border: none;
+  color: rgb(255, 255, 255);
+  font-weight: bold;
+  text-align: center;
+  font-size: 14px;
+  border: 3px solid #e4d9ff;
+  border-radius: 6px;
+  width: 300px;
+}
+
+.inputField:disabled {
+  background-color: #444 !important;
+  color: #aaa !important;
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.inputFieldInputError {
+  border-color: #ff4444;
+  animation: shake 0.3s ease-in-out;
+}
+
+.errorMessage {
+  color: #ff4444;
+  font-size: 12px;
+  margin-top: 5px;
+  text-align: center;
+  font-weight: bold;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+.launchButton {
+  padding: 12px 30px;
+  background-color: #676767;
+  color: black;
+  font-weight: bold;
+  font-size: 14px;
+  width: 300px;
+  cursor: pointer;
+  height: 55px;
+  transition: background-color 0.2s;
+  border-radius: 8px;
+  border: none;
+  box-sizing: border-box;
+}
+.launchButton:disabled{
+  background-color: #444 !important;
+  color: #aaa !important;
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+/* .launchButton:hover {
+  background-color: #bbb;
+} */
+
+.buttonContainer {
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 10px;
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.insertButton {
+  padding: 12px 30px;
+  background-color: #888888;
+  color: black;
+  font-weight: bold;
+  font-size: 14px;
+  width: 300px;
+  height: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  border: none;
+  animation: slideUp 0.3s ease-out;
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 10px;
+  z-index: 5;
+}
+
+.insertButton:hover {
+  background-color: #aaa;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.portalButton {
+  padding: 12px 30px;
+  background-color: #555555;
+  color: rgb(0, 0, 0);
+  font-weight: bold;
+  font-size: 14px;
+  width: 300px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 8px;
+  border: none;
+}
+
+.portalButton:hover {
+  background-color: #8c8c8c;
+}
+
+.portalButton:disabled{
+  background-color: #282828;
+  cursor: not-allowed;
+}
+
+/* Open state overrides disabled state */
+.portalButtonOpen {
+  background-color: #ae08a3 !important;
+  color: white !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  border: 2px solid #bb0faf;
+  box-shadow: 0 0 20px rgba(174, 8, 163, 0.8), 0 0 40px rgba(174, 8, 163, 0.4),
+    inset 0 0 10px rgba(174, 8, 163, 0.3);
+  animation: portal-button-glow 2s ease-in-out infinite alternate;
+}
+
+.portalButtonOpen:hover {
+  background-color: #bb0faf;
+  box-shadow: 0 0 25px rgba(187, 15, 175, 1), 0 0 50px rgba(187, 15, 175, 0.6),
+    inset 0 0 15px rgba(187, 15, 175, 0.4);
+}
+
+@keyframes portal-button-glow {
+  0% {
+    box-shadow: 0 0 20px rgba(174, 8, 163, 0.8), 0 0 40px rgba(174, 8, 163, 0.4),
+      inset 0 0 10px rgba(174, 8, 163, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(174, 8, 163, 1), 0 0 60px rgba(174, 8, 163, 0.6),
+      inset 0 0 15px rgba(174, 8, 163, 0.5);
+  }
+}
+
+.connectionLines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.animatedLine {
+  stroke: #fff;
+  stroke-width: 4;
+  stroke-dasharray: 12 6;
+  animation: flow 2s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.8));
+}
+
+@keyframes flow {
+  0% {
+    stroke-dashoffset: 18;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.popupOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.popupContent {
+  background-color: #33333300;
+  border: 2px solid #fff;
+  padding: 40px;
+  border-radius: 15px;
+  width: 60%;
+  height: 70%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 90px;
+}
+
+/* Instruction Modal Styles (used after tutorial scene2) */
+.instruction-modal-overlay {
+  /* reuses popup overlay; declared separately for clarity if needed */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgb(0, 0, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.instructionModalContent {
+  background-color: #000;
+  border: 3px solid #f609e2;
+  border-radius: 12px;
+  padding: 36px;
+  max-width: 1000px;
+  width: 95%;
+  color: #fff;
+  box-sizing: border-box;
+  /* entrance animation */
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  animation: modalAppear 3400ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.instructionTitle {
+  color: #f609e2;
+  text-align: center;
+  font-size: 28px;
+  margin-bottom: 18px;
+  font-weight: 700;
+}
+
+.instructionList {
+  color: #ddd;
+  line-height: 1.9;
+  padding-left: 22px;
+  margin: 0;
+}
+
+.instructionList li {
+  margin-bottom: 10px;
+}
+
+.instructionList strong {
+  color: #ff6bff;
+  margin-right: 6px;
+}
+
+.instructionButtonWrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.instructionContinueBtn {
+  background: transparent;
+  border: 2px solid #ff00ff;
+  border-radius: 20px;
+  color: #fff;
+  padding: 8px 26px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.instructionContinueBtn:hover {
+  background: rgb(255, 0, 255);
+}
+
+@media (max-width: 720px) {
+  .instructionModalContent { padding: 20px; }
+  .instructionTitle { font-size: 20px; }
+  .instructionList { line-height: 1.6; font-size: 14px; }
+  .instructionContinueBtn { padding: 8px 18px; font-size: 14px; }
+}
+
+@keyframes modalAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* X button to close popup */
+.popupCloseBtn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background-color: #ff4444;
+  color: white;
+  border: none;
+  font-size: 14px;
+  font-weight: normal;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.popupCloseBtn:hover {
+  background-color: #ff0000;
+  transform: scale(1.1);
+}
+
+.popupCircle {
+  width: 350px;
+  height: 350px;
+  background-color: #d3d3d3;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-left: 30px;
+  justify-content: center;
+  color: black;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.popupCircleValue {
+  font-size: 89px;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.popupCircleAddress {
+  font-size: 52px;
+  line-height: 1;
+}
+
+/* Container for the form elements on the right */
+.popupFormContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+}
+
+
+.popupText {
+  color: white;
+  font-size: 14px;
+  margin-bottom: 15px;
+  font-weight: normal;
+  align-self: flex-start;
+}
+
+.popupInput {
+  width: 100%;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  background-color: #222;
+  border: 1px solid #555;
+  border-radius: 10px;
+  color: rgb(0, 0, 0);
+  font-weight: normal;
+  text-align: left;
+  font-size: 14px;
+  outline: none;
+  max-width: 280px;
+}
+.popupInput:disabled{
+  background-color: #121212;
+  color: #7c6c6c00;
+  cursor: not-allowed;
+}
+
+.popupInput::placeholder {
+  color: #323131;
+}
+.popupInput:focus {
+  outline: none;
+  border-color: #777;
+}
+
+.popupButtons {
+  display: flex;
+  gap: 15px;
+  align-self: flex-start;
+}
+
+.popupButton {
+  padding: 12px 25px;
+  border: none;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 10px;
+  min-width: 130px;
+  text-transform: uppercase;
+}
+
+.connectBtn {
+  background-color: #666;
+}
+.connectBtn:disabled{
+  background-color: #2c2c2c;
+  color: #414040;
+  cursor: not-allowed;
+}
+
+
+.deleteBtn {
+  background-color: #ff4444;
+}
+
+.deleteBtn:hover {
+  background-color: #ff0000;
+}
+
+/* Validation Overlay */
+.validationOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+}
+
+.validationContent {
+  background: #000;
+  border: 2px solid #444;
+  border-radius: 15px;
+  padding: 40px;
+  height: 70%;
+  width: 85%;
+  animation: slideIn 0.4s ease-out;
+  position: relative;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.validationHeader {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 30px;
+}
+
+.scoreSection {
+  display: flex;
+  align-items: center;
+}
+
+.scoreLabel {
+  font-size: 18px;
+  color: #fff;
+  font-weight: normal;
+}
+
+.expectedResultsSection {
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.expectedLabel {
+  font-size: 16px;
+  color: #aaa;
+  margin-bottom: 10px;
+  text-align: left;
+  position: absolute;
+  top: 10px;
+  left: 0;
+}
+
+.validationButtons {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.validationTable {
+  border-collapse: collapse;
+  margin: 20px auto;
+  width: auto;
+}
+
+.validationTable td {
+  vertical-align: middle;
+  text-align: center;
+  padding: 10px;
+}
+
+.expectedCell {
+  padding: 15px 10px;
+}
+
+.expectedValue {
+  font-size: 16px;
+  font-weight: normal;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.expectedAddress {
+  font-size: 16px;
+  font-weight: normal;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.userCell {
+  padding: 15px 10px;
+}
+
+.arrowCell {
+  font-size: 34px;
+  color: #fff;
+  font-weight: normal;
+  padding: 0 50px;
+  width: 110px;
+  transform: scaleX(2.5);
+}
+
+.arrowCellEmpty {
+  font-size: 24px;
+  color: transparent;
+  font-weight: normal;
+  padding: 0 15px;
+  width: 50px;
+}
+
+.expectedRow td {
+  border-bottom: 2px solid transparent;
+  padding-bottom: 30px;
+}
+
+.userRow td {
+  border-top: 2px solid transparent;
+}
+
+.continueButton {
+  margin-top: 70px;
+  padding: 12px 30px;
+  border: 1px solid #666;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: normal;
+  background-color: transparent;
+  color: white;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  width: 250px;
+}
+
+.continueButton:hover {
+  background-color: #333;
+  border-color: #888;
+}
+
+/* Animation for sequential node content reveal */
+@keyframes showNodeContent {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animation for showing node background */
+@keyframes showCorrectNode {
+  0% {
+    background: transparent;
+    border: 3px dashed #666;
+  }
+  100% {
+    background: #fff;
+    border: 3px solid #4caf50;
+  }
+}
+
+/* User Node styles used in validation table */
+.userNode {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #000;
+  font-weight: bold;
+  position: relative;
+  border: 3px dashed #666;
+}
+
+.userNodeCorrect {
+  animation: showCorrectNode 0.5s ease-in-out forwards;
+}
+
+.userNodeIncorrect {
+  animation: showIncorrectNode 0.5s ease-in-out forwards;
+}
+
+.userNodeMissing {
+  background: transparent;
+  border: 3px dashed #666;
+  color: #666;
+}
+
+.userNodeValue {
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 1;
+  opacity: 0;
+  animation: showNodeContent 0.5s ease-in-out forwards;
+}
+
+.userNodeAddress {
+  font-size: 12px;
+  font-weight: normal;
+  opacity: 0.7;
+  opacity: 0;
+  animation: showNodeContent 0.5s ease-in-out forwards;
+}
+
+@keyframes showIncorrectNode {
+  0% {
+    background: transparent;
+    border: 3px dashed #666;
+  }
+  100% {
+    background: #fff;
+    border: 3px solid #f44336;
+  }
+}
+
+/* Error Modal Styles */
+.errorModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.errorModalContent {
+  background-color: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 15px;
+  padding: 40px;
+  text-align: center;
+  position: relative;
+  max-width: 400px;
+  width: 90%;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.errorModalCloseBtn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.errorModalCloseBtn:hover {
+  background: #ff6666;
+}
+
+.errorIcon {
+  width: 80px;
+  height: 80px;
+  border: 3px solid white;
+  border-radius: 50%;
+  margin: 0 auto 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+}
+
+.exclamation {
+  color: #ff4444;
+  font-size: 48px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.errorTitle {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: white;
+}
+
+.errorMessageText {
+  font-size: 16px;
+  color: #ccc;
+  line-height: 1.4;
+}
+
+/* Insert Modal Styles */
+.insert-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.insert-modal-content {
+  background-color: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 15px;
+  padding: 40px;
+  position: relative;
+  width: 80%;
+  height: 60%;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.insert-modal-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.insert-modal-close-btn:hover {
+  background: #ff6666;
+}
+
+.insert-options {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.insert-option-btn {
+  margin-top: 45px;
+  background-color: #666666;
+  border: none;
+  border-radius: 15px;
+  padding: 40px 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: black;
+  font-family: Arial, sans-serif;
+  height: 300px;
+  flex: 1;
+}
+
+.insert-option-btn:hover {
+  background-color: #777777;
+  transform: translateY(-2px);
+}
+
+.option-title {
+  font-size: 42px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.option-subtitle {
+  font-size: 18px;
+  text-align: center;
+  color: #333;
+  line-height: 1.3;
+}
+
+/* Index Modal Styles */
+.index-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+}
+
+.index-modal-content {
+  background-color: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 15px;
+  padding: 40px;
+  position: relative;
+  width: 90%;
+  max-width: 500px;
+  height: 25%;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+.index-modal-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 23px;
+  height: 23px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.index-modal-close-btn:hover {
+  background: #ff6666;
+}
+
+.index-modal-title {
+  font-size: 36px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-align: left;
+  color: white;
+}
+
+.index-input-container {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.index-input {
+  background-color: #333;
+  border: 1px solid #555;
+  border-radius: 5px;
+  padding: 15px 20px;
+  color: white;
+  font-size: 16px;
+  width: 330px;
+  outline: none;
+}
+
+.index-input:focus {
+  border-color: #777;
+}
+
+.index-input::placeholder {
+  color: #aaa;
+  font-style: italic;
+}
+
+.index-go-btn {
+  background-color: #666;
+  border: none;
+  border-radius: 5px;
+  padding: 15px 30px;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.index-go-btn:hover {
+  background-color: #777;
+}
+
+.index-subtitle {
+  font-size: 14px;
+  color: #aaa;
+  margin-top: 10px;
+}
+
+/* Black hole animation */
+@keyframes blackHolePulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5);
+  }
+  50% {
+    transform: scale(1.2);
+    box-shadow: 0 0 50px rgba(255, 0, 0, 1.2), inset 0 0 50px rgba(255, 0, 0, 0.7);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5);
+  }
+}
+
+
+.bulletCircle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  backgroundColor: '#d3d3d3';
+  border: 2px solid #bbb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #000;
+  font-weight: bold;
+  padding: 5px;
+}
+
+.bulletPrevAddress {
+  font-size: 10px;
+  color: #555;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.bulletValue {
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+  margin: 3px 0;
+}
+
+.bulletAddress {
+  font-size: 11px;
+  color: #333;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.bulletNextAddress {
+  font-size: 10px;
+  color: #555;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.circleTextStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+.circlePointer {
+  font-size: 9px;
+  color: #666;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.circleValue {
+  font-size: 18px;
+  font-weight: bold;
+  color: #000;
+  line-height: 1;
+}

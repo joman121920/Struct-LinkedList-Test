@@ -1,0 +1,503 @@
+/* Instruction Modal Overlay */
+.instructionOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.881);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Main Modal Container */
+.instructionModal {
+  background-color: #37353500;
+  color: white;
+  width: 85%;
+  max-width: 1400px;
+  height: 85%;
+  max-height: 1000px;
+  border-radius: 20px;
+  border: 2px solid #c0c0c0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Close Button */
+.closeButton {
+  position: absolute;
+  top: 7px;
+  right: 14px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  background: #ff6666;
+}
+
+/* Tab Navigation */
+.tabNavigation {
+  display: flex;
+  border-bottom: 2px solid #ffffff;
+  background-color: #2a2a2a00;
+}
+
+.tab {
+  flex: 1;
+  padding: 15px 20px;
+  background: none;
+  border: 1px solid white;
+  color: #ccc;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tab:hover {
+  background-color: #333;
+  color: white;
+}
+
+.activeTab {
+  background-color: #1a1a1a !important;
+  color: white !important;
+}
+
+/* Tab Content */
+.tabContent {
+  flex: 1;
+  padding: 0;
+  overflow-y: auto;
+  background-color: #1a1a1a00;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Learn Content Styles */
+.learnContent {
+  display: flex;
+  gap: 40px;
+  height: 100%;
+  padding: 30px;
+  width: 100%;
+}
+
+.learningSection {
+  flex: 1;
+  min-width: 300px;
+}
+
+.conceptSection {
+  flex: 1;
+  min-width: 400px;
+  height: 100%;
+  padding-left: 40px;
+}
+
+.sectionTitle {
+  font-size: 22px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  color: #fff;
+  font-style: italic;
+}
+
+.objective {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  color: #ddd;
+}
+
+.objectiveList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.objectiveList li {
+  margin-bottom: 15px;
+  padding-left: 20px;
+  position: relative;
+  line-height: 1.5;
+  color: #ddd;
+}
+
+.objectiveList li:before {
+  content: "•";
+  color: #d6d7d6;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.conceptIntro {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  color: #ddd;
+}
+
+.conceptSubtitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #fff;
+}
+
+.operationsList {
+  margin-bottom: 25px;
+}
+
+.operation {
+  margin-bottom: 25px;
+}
+
+.operationTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #ffffff;
+}
+
+.operationDetails {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.operationDetails li {
+  margin-bottom: 8px;
+  padding-left: 20px;
+  position: relative;
+  line-height: 1.4;
+  color: #ccc;
+  font-size: 14px;
+}
+
+.operationDetails li:before {
+  content: "◦";
+  color: #cecece;
+  position: absolute;
+  left: 0;
+}
+
+/* Game exercise Content */
+.exerciseContent {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+.portalDisplay {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.portalTitle {
+    margin-top: -20px;
+  font-size: 32px;
+  font-weight: 300;
+  color: #fff;
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+.portalDescription {
+  font-size: 18px;
+  color: #ddd;
+  margin-bottom: 50px;
+  max-width: 1000px;
+  line-height: 1.5;
+}
+
+.linkedListVisualization {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin: 10px auto;
+  flex-wrap: nowrap;
+  width: 95%;
+  padding: 0 20px;
+  margin-bottom: 50px;
+}
+
+.nodeContainer {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.nodeCircle {
+  width: 80px;
+  height: 80px;
+  background-color: #e0e0e0;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid #ccc;
+}
+
+.nodeValue {
+  font-size: 24px;
+  font-weight: bold;
+  color: #000;
+  margin-bottom: 2px;
+}
+
+.nodeAddress {
+  font-size: 10px;
+  color: #010101;
+  font-family: 'Courier New', monospace;
+}
+
+.nodeArrow {
+  font-size: 44px;
+  color: #fefefe;
+  font-weight: bold;
+}
+
+.sequentialNote {
+  font-size: 16px;
+  color: #ddd;
+  margin-top: 30px;
+  font-style: italic;
+}
+
+/* Navigation Buttons */
+.navButton {
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #555;
+  padding: 5px 15px;
+  width: 120px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 0 10px;
+}
+
+.navButton:hover:not(:disabled) {
+  background-color: hsl(0, 0%, 35%);
+}
+
+.navButton:disabled {
+  background-color: #1a1a1a;
+  color: #666;
+  border-color: #333;
+  cursor: not-allowed;
+}
+
+.controlsList strong {
+  color: #4CAF50;
+}
+
+/* Button Container */
+.buttonContainer {
+  padding: 10px 15px;
+  background-color: #00000000;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .instructionModal {
+    width: 95%;
+    height: 90%;
+  }
+  
+  .learnContent {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .conceptSection {
+    border-left: none;
+    border-top: 1px solid #444;
+    padding-left: 0;
+    padding-top: 20px;
+  }
+  
+  .tabContent {
+    padding: 20px;
+  }
+}
+
+/* Transparent Scrollbar Styling */
+.tabContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tabContent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabContent::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.tabContent::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Firefox */
+.tabContent {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Game Mechanics - How to Play Styles */
+.mechanicsContent {
+  display: flex;
+  flex-direction: column;
+  height: 90%;
+  width: 100%;
+  margin: 20px 20px;
+  padding: 20px;
+}
+
+
+.howToPlaySection {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.howToPlayLeft {
+  flex: 1;
+}
+
+.howToPlayRight {
+  flex: 1;
+  margin-left: 100px;
+}
+
+.howToPlayTitle {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-style: italic;
+}
+
+.queueOptionsTitle {
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-style: italic;
+}
+
+.howToPlaySteps {
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-left: 20px;
+  margin-bottom: 50px;
+}
+
+.howToPlaySteps p {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.howToPlayNote {
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1.5;
+  font-style: italic;
+  text-align: left;
+  margin-left: 20px;
+}
+
+.queueOptionsList {
+  color: #ffffff;
+  font-size: 14px;
+  margin-left: 20px;
+}
+
+.queueOption {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  gap: 12px;
+}
+
+.bullet {
+  color: #ffffff;
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.queueContent {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.queueOptionsList strong {
+  font-weight: bold;
+}
+
+/* Responsive design for How to Play */
+@media (max-width: 1024px) {
+  .howToPlaySection {
+    flex-direction: column;
+    gap: 30px;
+  }
+  
+  .howToPlayLeft,
+  .howToPlayRight {
+    max-width: 100%;
+  }
+  
+  .howToPlayTitle,
+  .queueOptionsTitle {
+    font-size: 24px;
+  }
+  
+  .howToPlaySteps p,
+  .queueOptionsList p {
+    font-size: 16px;
+  }
+}

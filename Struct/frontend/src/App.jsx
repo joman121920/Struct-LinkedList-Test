@@ -22,6 +22,11 @@ import GalistGameNodeCreation from "./pages/GalistGame/ModeSelect/SinglyLinkedLi
 import GalistGameInsertionNode from "./pages/GalistGame/ModeSelect/SinglyLinkedLists/LevelThree/InsertionNode";
 import GalistLinkingNode from "./pages/GalistGame/ModeSelect/SinglyLinkedLists/LevelTwo/LinkingNode";
 import GalistAbstractDataType from "./pages/GalistGame/ModeSelect/SinglyLinkedLists/LevelFive/AbstractDataType";
+import DoublyGalistGameNodeCreation from "./pages/GalistGame/ModeSelect/DoublyLinkedLists/LevelOne/NodeCreation";
+import DoublyGalistLinkingNode from "./pages/GalistGame/ModeSelect/DoublyLinkedLists/LevelTwo/LinkingNode";
+import DoublyGalistGameInsertionNode from "./pages/GalistGame/ModeSelect/DoublyLinkedLists/LevelThree/InsertionNode";
+import DoublyGalistGameDeletion from "./pages/GalistGame/ModeSelect/DoublyLinkedLists/LevelFour/GalistDeletion";
+import DoublyGalistAbstractDataType from "./pages/GalistGame/ModeSelect/DoublyLinkedLists/LevelFive/AbstractDataType";
 
 import CompetitiveMode from "./pages/GalistGame/ModeSelect/CompetitiveMode/Competitive";
 
@@ -44,6 +49,11 @@ const AppLayout = () => {
     "/galist-game-insertion-node",
     "/galist-game-deletion",
     "/galist-game-abstract-data-type",
+    "/galist-game-doubly-node-creation",
+    "/galist-game-doubly-linking-node",
+    "/galist-game-doubly-insertion-node",
+    "/galist-game-doubly-deletion",
+    "/galist-game-doubly-abstract-data-type",
     "/competitive-mode",
   ];
 
@@ -172,6 +182,47 @@ const AppLayout = () => {
                 <TeacherRoute>
                   <TeacherDashboard />
                 </TeacherRoute>
+              }
+            />
+
+            <Route
+              path="/galist-game-doubly-node-creation"
+              element={
+                <ProtectedRoute>
+                  <DoublyGalistGameNodeCreation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/galist-game-doubly-linking-node"
+              element={
+                <ProtectedRoute>
+                  <DoublyGalistLinkingNode />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/galist-game-doubly-insertion-node"
+              element={
+                <ProtectedRoute>
+                  <DoublyGalistGameInsertionNode />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/galist-game-doubly-deletion"
+              element={
+                <ProtectedRoute>
+                  <DoublyGalistGameDeletion />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/galist-game-doubly-abstract-data-type"
+              element={
+                <ProtectedRoute>
+                  <DoublyGalistAbstractDataType />
+                </ProtectedRoute>
               }
             />
           </Routes>

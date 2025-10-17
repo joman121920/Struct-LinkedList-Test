@@ -6,6 +6,7 @@ import PortalComponent from "./PortalComponent";
 import ModeSelect from "./ModeSelect/ModeSelect";
 import GameMenu from "./GameMenu/GameMenu";
 import SinglyLinkedListsSelection from "./ModeSelect/SinglyLinkedLists/SinglyLinkedListsSelection";
+import DoblyLinkedListsSelection from "./ModeSelect/DoublyLinkedLists/DoublyLinkedListsSelection";
 
 function GalistGame() {
   // Game menu state
@@ -56,7 +57,7 @@ function GalistGame() {
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
   const [selectedMode, setSelectedMode] = useState(null); // 'singly' | 'doubly'
   const [selectedSLL, setSelectedSLL] = useState(null); // Track selected singly linked list
-
+  const [selectedDLL, setSelectedDLL] = useState(null);
   // Apply navigation state to UI
   const applyNavigationState = useCallback((st) => {
     const screen = st?.screen || "menu";
@@ -108,6 +109,10 @@ function GalistGame() {
   }, []);
   const handleSelectionSLL = useCallback((sll) => {
     setSelectedSLL(sll);
+    setSelectedMode(false)
+  }, []);
+  const handleSelectionDLL = useCallback((dll) => {
+    setSelectedDLL(dll);
     setSelectedMode(false)
   }, []);
   // Initialize history state and handle browser back/forward
@@ -1239,8 +1244,11 @@ function GalistGame() {
       {!showMenu && selectedMode === "singly" && !selectedSLL && (
         <SinglyLinkedListsSelection onSelect={handleSelectionSLL} />
       )}
-
-      {/* Only show the rest of the game UI if not in SLL selection UI */}
+      {/* Show DLL selection UI if mode is doubly and no DLL is selected */}
+      {!showMenu && selectedMode === "doubly" && !selectedDLL && (
+        <DoblyLinkedListsSelection onSelect={handleSelectionDLL} />
+      )}
+      {/* Only show the rest of the game UI if not in SLL selection UI
       {!showMenu && ((selectedMode === "doubly") || (selectedMode === "singly" && selectedSLL)) && (
         <>
           <button
@@ -1331,7 +1339,7 @@ function GalistGame() {
             </button>
           </div>
         </>
-      )}
+      )} */}
 
       {!showMenu &&
         selectedMode &&
