@@ -37,8 +37,8 @@
 }
 
 .expectedBarCircle {
-  width: 44px;
-  height: 44px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: #ffffff;
   color: #222;
@@ -1297,4 +1297,29 @@
     transform: scale(1);
     box-shadow: 0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5);
   }
+}
+
+
+.circleTextStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+.circlePointer {
+  font-size: 9px;
+  color: #666;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.circleValue {
+  font-size: 18px;
+  font-weight: bold;
+  color: #000;
+  line-height: 1;
 }

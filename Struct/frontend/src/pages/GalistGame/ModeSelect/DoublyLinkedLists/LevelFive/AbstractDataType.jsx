@@ -102,7 +102,7 @@ function GalistAbstractDataType() {
     value: Math.floor(Math.random() * 100).toString(), 
     address: Math.floor(Math.random() * 1000).toString() 
   });
-
+  const NULL_POINTER = "null";
   const [headCircleId, setHeadCircleId] = useState(null);
   const [tailCircleId, setTailCircleId] = useState(null);
 
@@ -136,61 +136,128 @@ function GalistAbstractDataType() {
 
   // Generate bullet options for the modal
   const generateBulletOptions = useCallback(() => {
-    const options = [];
-    const expectedNodes = currentExercise?.expectedStructure || [];
-    const MAX_BULLETS = 15;
-    
-    // Add all expected nodes (correct answers)
-    expectedNodes.forEach(node => {
-      options.push({
-        id: `expected_${node.value}`,
-        value: node.value.toString(),
-        address: node.address,
-        isCorrect: true
+      const options = [];
+      const expectedNodes = currentExercise?.expectedStructure || [];
+      const MAX_BULLETS = 15;
+  
+      const addressPool = [
+        "aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj",
+        "kk", "ll", "mm", "nn", "oo", "pp", "qq", "rr", "ss", "tt"
+      ];
+      const numberPool = ["01", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "60", "70", "80", "90"];
+  
+      const generateUniqueAddress = (used) => {
+        let candidate;
+        let guard = 0;
+        do {
+          const prefix = addressPool[Math.floor(Math.random() * addressPool.length)];
+          const suffix = numberPool[Math.floor(Math.random() * numberPool.length)];
+          candidate = `${prefix}${suffix}`;
+          guard += 1;
+          if (guard > 200) break;
+        } while (used.has(candidate));
+        used.add(candidate);
+        return candidate;
+      };
+  
+      const usedValues = new Set(expectedNodes.map((n) => n.value));
+      const usedAddresses = new Set(expectedNodes.map((n) => n.address));
+  
+      expectedNodes.forEach((node, index) => {
+        const prevNode = index > 0 ? expectedNodes[index - 1] : null;
+        const nextNode = index < expectedNodes.length - 1 ? expectedNodes[index + 1] : null;
+  
+        const prevAddress = node.prevAddress ?? (prevNode ? prevNode.address : NULL_POINTER);
+        const nextAddress = node.nextAddress ?? (nextNode ? nextNode.address : NULL_POINTER);
+  
+        options.push({
+          id: `expected_${node.value}_${node.address}`,
+          value: node.value.toString(),
+          address: node.address,
+          prevAddress,
+          nextAddress,
+          isCorrect: true,
+        });
       });
-    });
+  
+      const numRandomBullets = Math.max(0, MAX_BULLETS - options.length);
+  
+      for (let i = 0; i < numRandomBullets; i++) {
+        let randomValue;
+        do {
+          randomValue = Math.floor(Math.random() * 100) + 1;
+        } while (usedValues.has(randomValue));
+        usedValues.add(randomValue);
+  
+        const nodeAddress = generateUniqueAddress(usedAddresses);
+  
+        const prevAddress =
+          Math.random() < 0.35 ? NULL_POINTER : generateUniqueAddress(usedAddresses);
+        const nextAddress =
+          Math.random() < 0.35 ? NULL_POINTER : generateUniqueAddress(usedAddresses);
+  
+        options.push({
+          id: `random_${i}`,
+          value: randomValue.toString(),
+          address: nodeAddress,
+          prevAddress,
+          nextAddress,
+          isCorrect: false,
+        });
+      }
+  
+      for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [options[i], options[j]] = [options[j], options[i]];
+      }
+  
+      return options;
+    }, [currentExercise]);
+
+  useEffect(() => {
+      setCircles(prevCircles => {
+        if (prevCircles.length === 0) return prevCircles;
     
-    // Add random distractor bullets to reach exactly 15 total bullets
-    const usedValues = new Set(expectedNodes.map(n => n.value));
-    const usedAddresses = new Set(expectedNodes.map(n => n.address));
+        // Create a map of circle IDs to their addresses for quick lookup
+        const idToAddress = new Map(prevCircles.map(circle => [circle.id, circle.address]));
+        
+        // Create maps to track prev and next connections
+        const prevMap = new Map(); // Maps circleId -> previous circleId
+        const nextMap = new Map(); // Maps circleId -> next circleId
     
-    // Calculate how many random bullets we need to reach exactly 15
-    const numRandomBullets = Math.max(0, MAX_BULLETS - expectedNodes.length);
+        // Build the connection maps
+        connections.forEach(connection => {
+          nextMap.set(connection.from, connection.to);
+          prevMap.set(connection.to, connection.from);
+        });
     
-    for (let i = 0; i < numRandomBullets; i++) {
-      let randomValue, randomAddress;
-      
-      // Generate unique random value
-      do {
-        randomValue = Math.floor(Math.random() * 100) + 1;
-      } while (usedValues.has(randomValue));
-      usedValues.add(randomValue);
-      
-      // Generate unique random address
-      do {
-        const addressTypes = ['aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg', 'hh', 'ii', 'jj'];
-        const numbers = ['10', '20', '30', '40', '50', '60', '70', '80', '90'];
-        randomAddress = addressTypes[Math.floor(Math.random() * addressTypes.length)] + 
-                       numbers[Math.floor(Math.random() * numbers.length)];
-      } while (usedAddresses.has(randomAddress));
-      usedAddresses.add(randomAddress);
-      
-      options.push({
-        id: `random_${i}`,
-        value: randomValue.toString(),
-        address: randomAddress,
-        isCorrect: false
+        let hasChanges = false;
+    
+        const updated = prevCircles.map(circle => {
+          // Get the IDs of connected circles
+          const prevCircleId = prevMap.get(circle.id);
+          const nextCircleId = nextMap.get(circle.id);
+          
+          // Convert IDs to addresses, or use NULL_POINTER if no connection
+          const prevAddress = prevCircleId ? (idToAddress.get(prevCircleId) ?? NULL_POINTER) : NULL_POINTER;
+          const nextAddress = nextCircleId ? (idToAddress.get(nextCircleId) ?? NULL_POINTER) : NULL_POINTER;
+    
+          // Only update if addresses have changed
+          if (circle.prevAddress !== prevAddress || circle.nextAddress !== nextAddress) {
+            hasChanges = true;
+            return { 
+              ...circle, 
+              prevAddress, 
+              nextAddress 
+            };
+          }
+    
+          return circle;
+        });
+    
+        return hasChanges ? updated : prevCircles;
       });
-    }
-    
-    // Shuffle the options so correct answers aren't always in the same position
-    for (let i = options.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [options[i], options[j]] = [options[j], options[i]];
-    }
-    
-    return options;
-  }, [currentExercise]);
+    }, [connections, circles.length]);
 
   // Handle cannon circle click to open bullet selection modal
   const handleCannonClick = useCallback(() => {
@@ -1930,7 +1997,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
       document.removeEventListener("contextmenu", handleGlobalRightClick);
     };
   }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick, showInstructionPopup]);
-
+  
   // Helper: Get current linked list structure as array of {value, address}
   const getCurrentLinkedList = useCallback(() => {
     // Find head node (no incoming connection)
@@ -2053,12 +2120,15 @@ const handleTutorialValueShoot = useCallback((mode) => {
                   <React.Fragment key={node.address}>
                     <td className={styles.expectedBarCell}>
                       <div className={styles.expectedBarCircle}>
-                        <div className={styles.expectedBarValue}>
+                        <span className={styles.expectedBarPointer}>
+                          {node.prevAddress ?? NULL_POINTER}
+                        </span>
+                        <span className={styles.expectedBarValue}>
                           {node.value}
-                        </div>
-                        <div className={styles.expectedBarAddress}>
-                          {node.address}
-                        </div>
+                        </span>
+                        <span className={styles.expectedBarPointer}>
+                          {node.nextAddress ?? NULL_POINTER}
+                        </span>
                       </div>
                     </td>
                     {idx < currentExercise.expectedStructure.length - 1 && (
@@ -2128,6 +2198,9 @@ const handleTutorialValueShoot = useCallback((mode) => {
         const isSmallBullet = !!circle.isDequeueBullet;
         const radius = isSmallBullet ? (circle._radius || 18) : 30;
         const sizePx = radius * 2;
+        const textStackClass = styles.circleTextStack ? styles.circleTextStack : undefined;
+        const pointerClass = styles.circlePointer ? styles.circlePointer : undefined;
+
         return (
           <div
             key={circle.id}
@@ -2139,83 +2212,130 @@ const handleTutorialValueShoot = useCallback((mode) => {
               top: `${circle.y - radius}px`,
               width: `${sizePx}px`,
               height: `${sizePx}px`,
-              cursor: circle.isInitial ? 'default' : (circle.isLaunched 
-                ? "default" 
-                : (draggedCircle && circle.id === draggedCircle.id
-                  ? "grabbing"
-                  : "grab")),
+              cursor: circle.isInitial
+                ? "default"
+                : circle.isLaunched
+                ? "default"
+                : draggedCircle && circle.id === draggedCircle.id
+                ? "grabbing"
+                : "grab",
               opacity: circle.isLaunched ? 0.9 : 1,
               boxShadow: isSmallBullet
-                ? (circle.isLaunched ? "0 0 12px rgba(255, 50, 50, 0.9)" : "0 4px 8px rgba(255, 0, 0, 0.4)")
-                : (circle.isLaunched ? "0 0 15px rgba(255, 255, 0, 0.6)" : "0 4px 8px rgba(0, 0, 0, 0.3)"),
-              backgroundColor: isSmallBullet ? '#ff3b3b' : undefined,
-              borderRadius: '50%',
+                ? circle.isLaunched
+                  ? "0 0 12px rgba(255, 50, 50, 0.9)"
+                  : "0 4px 8px rgba(255, 0, 0, 0.4)"
+                : circle.isLaunched
+                ? "0 0 15px rgba(255, 255, 0, 0.6)"
+                : "0 4px 8px rgba(0, 0, 0, 0.3)",
+              backgroundColor: isSmallBullet ? "#ff3b3b" : undefined,
+              borderRadius: "50%",
             }}
             onMouseDown={(e) => handleMouseDown(e, circle)}
             {...(!circle.isInitial ? { onClick: (e) => handleCircleClick(circle.id, e) } : {})}
-            // Double click disabled
           >
             {!isSmallBullet && (
               <>
-                <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
-                <span className={styles.circleAddress} style={{ position: 'relative', zIndex: 2 }}>{circle.address}</span>
-              </>
-            )}
-
-            {/* Click-to-delete background circle fill (SVG) - hide for small dequeue bullets */}
-            {!isSmallBullet && (
-              <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
-                <svg width="60" height="60" viewBox="0 0 60 60">
-                  <defs>
-                    <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#ffcfb8" />
-                      <stop offset="100%" stopColor="#ff6b35" />
-                    </linearGradient>
-                  </defs>
-                  <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
-                  <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
-                  {/* foreground arc representing progress - use stroke-dasharray trick */}
-                  <circle
-                    cx="30"
-                    cy="30"
-                    r="24"
-                    fill="none"
-                    stroke={`url(#grad-${circle.id})`}
-                    strokeWidth="12"
-                    strokeLinecap="round"
-                    transform="rotate(-90 30 30)"
+                <div
+                  className={textStackClass}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "2px",
+                    position: "relative",
+                    zIndex: 2,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  <span
+                    className={pointerClass}
                     style={{
-                      strokeDasharray: 2 * Math.PI * 24,
-                      strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
-                      transition: 'stroke-dashoffset 120ms linear'
+                      fontSize: "10px",
+                      color: "#000000ff",
+                      opacity: 0.85,
                     }}
-                  />
-                </svg>
-              </div>
-            )}
+                  >
+                    {circle.prevAddress ?? NULL_POINTER}
+                  </span>
+                  <span className={styles.circleValue} style={{ position: "relative", zIndex: 2 }}>
+                    {circle.value}
+                  </span>
+                  <span
+                    className={pointerClass}
+                    style={{
+                      fontSize: "10px",
+                      color: "rgba(8, 8, 8, 1)ff",
+                      opacity: 0.85,
+                    }}
+                  >
+                    {circle.nextAddress ?? NULL_POINTER}
+                  </span>
+                </div>
 
-            {label && !isSmallBullet && (
-              <div 
-                className={styles.headTailLabel}
-                style={{
-                  position: 'absolute',
-                  top: '-25px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: '#ff6b35',
-                  color: 'white',
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  whiteSpace: 'nowrap',
-                  zIndex: 1000,
-                  border: '1px solid #fff',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                }}
-              >
-                {label}
-              </div>
+                {!circle.isInitial && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      top: 0,
+                      width: "60px",
+                      height: "60px",
+                      zIndex: 0,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <svg width="60" height="60" viewBox="0 0 60 60">
+                      <defs>
+                        <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#ffcfb8" />
+                          <stop offset="100%" stopColor="#ff6b35" />
+                        </linearGradient>
+                      </defs>
+                      <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
+                      <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+                      <circle
+                        cx="30"
+                        cy="30"
+                        r="24"
+                        fill="none"
+                        stroke={`url(#grad-${circle.id})`}
+                        strokeWidth="12"
+                        strokeLinecap="round"
+                        transform="rotate(-90 30 30)"
+                        style={{
+                          strokeDasharray: 2 * Math.PI * 24,
+                          strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
+                          transition: "stroke-dashoffset 120ms linear",
+                        }}
+                      />
+                    </svg>
+                  </div>
+                )}
+
+                {label && (
+                  <div
+                    className={styles.headTailLabel}
+                    style={{
+                      position: "absolute",
+                      top: "-25px",
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      backgroundColor: "#ff6b35",
+                      color: "white",
+                      padding: "2px 6px",
+                      borderRadius: "10px",
+                      fontSize: "10px",
+                      fontWeight: "bold",
+                      whiteSpace: "nowrap",
+                      zIndex: 1000,
+                      border: "1px solid #000000ff",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                    }}
+                  >
+                    {label}
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -2316,14 +2436,19 @@ const handleTutorialValueShoot = useCallback((mode) => {
                           <React.Fragment
                             key={`expected-${expectedNode.value}`}
                           >
-                            <td className={styles.expectedCell}>
-                              <div className={styles.expectedValue}>
-                                {expectedNode.value}
-                              </div>
-                              <div className={styles.expectedAddress}>
-                                {expectedNode.address}
-                              </div>
-                            </td>
+                              <td className={styles.expectedCell}>
+                                <div className={styles.expectedNode}>
+                                  <span className={styles.expectedPointer}>
+                                    {expectedNode.prevAddress ?? NULL_POINTER}
+                                  </span>
+                                  <span className={styles.expectedValue}>
+                                    {expectedNode.value}
+                                  </span>
+                                  <span className={styles.expectedPointer}>
+                                    {expectedNode.nextAddress ?? NULL_POINTER}
+                                  </span>
+                                </div>
+                              </td>
                             {index <
                               currentExercise.expectedStructure.length - 1 && (
                               <td className={styles.arrowCellEmpty}></td>
@@ -2470,78 +2595,81 @@ const handleTutorialValueShoot = useCallback((mode) => {
 
       {/* Bullet Selection Modal */}
       {showBulletModal && (
-        <div className={styles.popupOverlay} onClick={closeBulletModal}>
-          <div
-            className={styles.bulletModalContent}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: '#1a1a1a',
-              border: '3px solid #fff',
-              borderRadius: '15px',
-              padding: '30px',
-              maxWidth: '600px',
-              maxHeight: '80vh',
-              overflow: 'auto'
-            }}
-          >
-
-            <h2 style={{ 
-              color: '#fff', 
-              textAlign: 'center', 
-              marginBottom: '30px',
-              fontSize: '24px'
-            }}>
-              Choose Bullet
-            </h2>
-            
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
-              gap: '15px',
-              justifyItems: 'center'
-            }}>
-              {bulletOptions.map((bullet) => (
+              <div className={styles.popupOverlay} onClick={closeBulletModal}>
                 <div
-                  key={bullet.id}
-                  onClick={() => handleBulletSelect(bullet)}
+                  className={styles.bulletModalContent}
+                  onClick={(e) => e.stopPropagation()}
                   style={{
-                    width: '80px',
-                    height: '80px',
-                    borderRadius: '50%',
-                    backgroundColor: '#d3d3d3',
-                    border: '2px solid #bbb',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    color: '#000',
-                    fontWeight: 'bold'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'scale(1.1)';
-                    e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                   
-                    e.target.style.transform = 'scale(1)';
-                    e.target.style.boxShadow = 'none';
+                    backgroundColor: '#1a1a1a',
+                    border: '3px solid #fff',
+                    borderRadius: '15px',
+                    padding: '30px',
+                    maxWidth: '600px',
+                    maxHeight: '80vh',
+                    overflow: 'auto'
                   }}
                 >
-                  <span style={{ fontSize: '14px', lineHeight: 1 }}>
-                    {bullet.value}
-                  </span>
-                  <span style={{ fontSize: '10px', lineHeight: 1, color: '#333' }}>
-                    {bullet.address}
-                                   </span>
+      
+                  <h2 style={{ 
+                    color: '#fff', 
+                    textAlign: 'center', 
+                    marginBottom: '30px',
+                    fontSize: '24px'
+                  }}>
+                    Choose Bullet
+                  </h2>
+                  
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(5, 1fr)',
+                    gap: '15px',
+                    justifyItems: 'center'
+                  }}>
+                    {bulletOptions.map((bullet) => (
+                      <div
+                        key={bullet.id}
+                        onClick={() => handleBulletSelect(bullet)}
+                        style={{
+                          width: '80px',
+                          height: '80px',
+                          borderRadius: '50%',
+                          backgroundColor: '#d3d3d3',
+                          border: '2px solid #bbb',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          color: '#000',
+                          fontWeight: 'bold',
+                          padding: '6px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.1)';
+                          e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <span style={{ fontSize: '10px', lineHeight: 1, color: '#333', marginBottom: '4px' }}>
+                          {bullet.prevAddress ?? NULL_POINTER}
+                        </span>
+                        <span style={{ fontSize: '16px', lineHeight: 1 }}>
+                          {bullet.value}
+                        </span>
+                        <span style={{ fontSize: '10px', lineHeight: 1, color: '#333', marginTop: '4px' }}>
+                          {bullet.nextAddress ?? NULL_POINTER}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+      
                 </div>
-              ))}
-            </div>
-
-          </div>
-        </div>
-      )}
+              </div>
+            )}
 
       {/* Level Complete Modal */}
       {showLevelCompleteModal && currentExerciseNumber < totalExercises && (

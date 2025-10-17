@@ -1,5 +1,5 @@
 // LinkedListExercise.js - Exercise validation system for linked list creation
-
+const NULL_POINTER = "null";
 export class LinkedListExercise {
   constructor(exerciseData) {
     this.sequence = exerciseData.sequence;
@@ -427,19 +427,32 @@ export class ExerciseManager {
     
     // Build expectedStructure for UI display
     this.currentExercise.key = templateKey;
-    this.currentExercise.expectedStructure = template.sequence.map(value => ({
-      value: value,
-      address: template.addresses[value],
-      next: null // Will be calculated based on sequence order
-    }));
-    
-    // Set next addresses based on sequence order
+     this.currentExercise.expectedStructure = template.sequence.map((value, index, arr) => {
+      const prevValue = index > 0 ? arr[index - 1] : null;
+      const nextValue = index < arr.length - 1 ? arr[index + 1] : null;
+
+      return {
+        value,
+        address: template.addresses[value],
+        prevAddress: prevValue ? template.addresses[prevValue] : NULL_POINTER,
+        nextAddress: nextValue ? template.addresses[nextValue] : NULL_POINTER,
+        next: nextValue ? template.addresses[nextValue] : NULL_POINTER,
+      };
+    });
+
     for (let i = 0; i < this.currentExercise.expectedStructure.length - 1; i++) {
-      this.currentExercise.expectedStructure[i].next = this.currentExercise.expectedStructure[i + 1].address;
+      const current = this.currentExercise.expectedStructure[i];
+      const next = this.currentExercise.expectedStructure[i + 1];
+      current.next = next.address;
+      current.nextAddress = next.address;
+      next.prevAddress = current.address;
     }
-    // Last node points to null
+
     if (this.currentExercise.expectedStructure.length > 0) {
-      this.currentExercise.expectedStructure[this.currentExercise.expectedStructure.length - 1].next = 'null';
+      this.currentExercise.expectedStructure[0].prevAddress = 'null';
+      const lastIndex = this.currentExercise.expectedStructure.length - 1;
+      this.currentExercise.expectedStructure[lastIndex].next = 'null';
+      this.currentExercise.expectedStructure[lastIndex].nextAddress = 'null';
     }
     
     return this.currentExercise;

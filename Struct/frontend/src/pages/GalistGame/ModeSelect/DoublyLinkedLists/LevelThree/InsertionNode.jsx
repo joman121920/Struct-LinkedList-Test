@@ -135,56 +135,78 @@ function GalistGameInsertionNode() {
     const options = [];
     const expectedNodes = currentExercise?.expectedStructure || [];
     const MAX_BULLETS = 15;
-    
-    // Add all expected nodes (correct answers)
-    expectedNodes.forEach(node => {
+
+    const addressPool = [
+      "aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj",
+      "kk", "ll", "mm", "nn", "oo", "pp", "qq", "rr", "ss", "tt"
+    ];
+    const numberPool = ["01", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "60", "70", "80", "90"];
+
+    const generateUniqueAddress = (used) => {
+      let candidate;
+      let guard = 0;
+      do {
+        const prefix = addressPool[Math.floor(Math.random() * addressPool.length)];
+        const suffix = numberPool[Math.floor(Math.random() * numberPool.length)];
+        candidate = `${prefix}${suffix}`;
+        guard += 1;
+        if (guard > 200) break;
+      } while (used.has(candidate));
+      used.add(candidate);
+      return candidate;
+    };
+
+    const usedValues = new Set(expectedNodes.map((n) => n.value));
+    const usedAddresses = new Set(expectedNodes.map((n) => n.address));
+
+    expectedNodes.forEach((node, index) => {
+      const prevNode = index > 0 ? expectedNodes[index - 1] : null;
+      const nextNode = index < expectedNodes.length - 1 ? expectedNodes[index + 1] : null;
+
+      const prevAddress = node.prevAddress ?? (prevNode ? prevNode.address : NULL_POINTER);
+      const nextAddress = node.nextAddress ?? (nextNode ? nextNode.address : NULL_POINTER);
+
       options.push({
-        id: `expected_${node.value}`,
+        id: `expected_${node.value}_${node.address}`,
         value: node.value.toString(),
         address: node.address,
-        isCorrect: true
+        prevAddress,
+        nextAddress,
+        isCorrect: true,
       });
     });
-    
-    // Add random distractor bullets to reach exactly 15 total bullets
-    const usedValues = new Set(expectedNodes.map(n => n.value));
-    const usedAddresses = new Set(expectedNodes.map(n => n.address));
-    
-    // Calculate how many random bullets we need to reach exactly 15
-    const numRandomBullets = Math.max(0, MAX_BULLETS - expectedNodes.length);
-    
+
+    const numRandomBullets = Math.max(0, MAX_BULLETS - options.length);
+
     for (let i = 0; i < numRandomBullets; i++) {
-      let randomValue, randomAddress;
-      
-      // Generate unique random value
+      let randomValue;
       do {
         randomValue = Math.floor(Math.random() * 100) + 1;
       } while (usedValues.has(randomValue));
       usedValues.add(randomValue);
-      
-      // Generate unique random address
-      do {
-        const addressTypes = ['aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg', 'hh', 'ii', 'jj'];
-        const numbers = ['10', '20', '30', '40', '50', '60', '70', '80', '90'];
-        randomAddress = addressTypes[Math.floor(Math.random() * addressTypes.length)] + 
-                       numbers[Math.floor(Math.random() * numbers.length)];
-      } while (usedAddresses.has(randomAddress));
-      usedAddresses.add(randomAddress);
-      
+
+      const nodeAddress = generateUniqueAddress(usedAddresses);
+
+      const prevAddress =
+        Math.random() < 0.35 ? NULL_POINTER : generateUniqueAddress(usedAddresses);
+      const nextAddress =
+        Math.random() < 0.35 ? NULL_POINTER : generateUniqueAddress(usedAddresses);
+
       options.push({
         id: `random_${i}`,
         value: randomValue.toString(),
-        address: randomAddress,
-        isCorrect: false
+        address: nodeAddress,
+        prevAddress,
+        nextAddress,
+        isCorrect: false,
       });
     }
-    
-    // Shuffle the options so correct answers aren't always in the same position
+
     for (let i = options.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [options[i], options[j]] = [options[j], options[i]];
     }
-    
+
     return options;
   }, [currentExercise]);
 
@@ -1855,17 +1877,25 @@ function GalistGameInsertionNode() {
                   <React.Fragment key={node.address}>
                     <td className={styles.expectedBarCell}>
                       <div className={styles.expectedBarCircle}>
-                        <div className={styles.expectedBarValue}>
-                          {node.value}
-                        </div>
-                        <div className={styles.expectedBarAddress}>
-                          {node.address}
+                        <div className={styles.circleTextStack}>
+                          <span className={styles.circlePointer}>
+                            {node.prevAddress ?? NULL_POINTER}
+                          </span>
+                          <span className={styles.expectedBarValue}>
+                            {node.value}
+                          </span>
+                          <span className={styles.circlePointer}>
+                            {node.nextAddress ?? NULL_POINTER}
+                          </span>
                         </div>
                       </div>
+                      <div className={styles.expectedBarAddress}>
+                        {node.address}
+                      </div>
                     </td>
-                    {idx < currentExercise.expectedStructure.length - 1 && (
+                     {idx < currentExercise.expectedStructure.length - 1 && (
                       <td className={styles.expectedBarArrowCell}>
-                        <span className={styles.expectedBarArrow}>→</span>
+                        <span className={styles.expectedBarArrow}>⇆</span>
                       </td>
                     )}
                   </React.Fragment>
@@ -1921,91 +1951,91 @@ function GalistGameInsertionNode() {
         </div>
       </div>
 
-      {circles.map((circle) => {
-        const label = getCircleLabel(circle.id);
-        const clickProgress = circle.isInitial ? 0 : Math.max(0, Math.min(1, (circle.clickCount || 0) / 5));
-        return (
-          <div
-            key={circle.id}
-            className={`${styles.animatedCircle} ${
-              suckingCircles.includes(circle.id) ? styles.beingSucked : ""
-            }`}
-            style={{
-              left: `${circle.x - 30}px`,
-              top: `${circle.y - 30}px`,
-              cursor: circle.isInitial ? 'default' : (circle.isLaunched 
-                ? "default" 
-                : (draggedCircle && circle.id === draggedCircle.id
-                  ? "grabbing"
-                  : "grab")),
-              opacity: circle.isLaunched ? 0.9 : 1, // Slightly transparent for launched circles
-              boxShadow: circle.isLaunched 
-                ? "0 0 15px rgba(255, 255, 0, 0.6)" 
-                : "0 4px 8px rgba(0, 0, 0, 0.3)", // Yellow glow for launched circles
-            }}
-            onMouseDown={(e) => handleMouseDown(e, circle)}
-            {...(!circle.isInitial ? { onClick: (e) => handleCircleClick(circle.id, e) } : {})}
-            // Double click disabled
-          >
-            <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
-            <span className={styles.circleAddress} style={{ position: 'relative', zIndex: 2 }}>{circle.address}</span>
-
-            {/* Click-to-delete background circle fill (SVG) */}
-            <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
-              <svg width="60" height="60" viewBox="0 0 60 60">
-                <defs>
-                  <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ffcfb8" />
-                    <stop offset="100%" stopColor="#ff6b35" />
-                  </linearGradient>
-                </defs>
-                <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
-                <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
-                {/* foreground arc representing progress - use stroke-dasharray trick */}
-                <circle
-                  cx="30"
-                  cy="30"
-                  r="24"
-                  fill="none"
-                  stroke={`url(#grad-${circle.id})`}
-                  strokeWidth="12"
-                  strokeLinecap="round"
-                  transform="rotate(-90 30 30)"
-                  style={{
-                    strokeDasharray: 2 * Math.PI * 24,
-                    strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
-                    transition: 'stroke-dashoffset 120ms linear'
-                  }}
-                />
-              </svg>
-            </div>
-
-            {label && (
-              <div 
-                className={styles.headTailLabel}
-                style={{
-                  position: 'absolute',
-                  top: '-25px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: '#ff6b35',
-                  color: 'white',
-                  padding: '2px 6px',
-                  borderRadius: '10px',
-                  fontSize: '10px',
-                  fontWeight: 'bold',
-                  whiteSpace: 'nowrap',
-                  zIndex: 1000,
-                  border: '1px solid #fff',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                }}
-              >
-                {label}
-              </div>
-            )}
-          </div>
-        );
-      })}
+              {circles.map((circle) => {
+                const label = getCircleLabel(circle.id);
+                const clickProgress = Math.max(0, Math.min(1, (circle.clickCount || 0) / 5));
+                return (
+                  <div
+                    key={circle.id}
+                    className={`${styles.animatedCircle} ${suckingCircles.includes(circle.id) ? styles.beingSucked : ""}`}
+                    style={{
+                      left: `${circle.x - 30}px`,
+                      top: `${circle.y - 30}px`,
+                      cursor: circle.isInitial 
+                        ? "default" 
+                        : (draggedCircle && circle.id === draggedCircle.id) ? "grabbing" : "grab",
+                      opacity: circle.isLaunched ? 0.9 : 1,
+                      boxShadow: circle.isLaunched 
+                        ? "0 0 15px rgba(255, 255, 0, 0.6)" 
+                        : "0 4px 8px rgba(0, 0, 0, 0.3)",
+                    }}
+                    onMouseDown={(e) => circle.isInitial ? e.preventDefault() : handleMouseDown(e, circle)}
+                    onClick={(e) => handleCircleClick(circle.id, e)}
+                  >
+                    <div className={styles.circleTextStack}>
+                      <span className={styles.circlePointer}>{circle.prevAddress ?? NULL_POINTER}</span>
+                      <span className={styles.circleValue} style={{ position: 'relative', zIndex: 2 }}>{circle.value}</span>
+                      <span className={styles.circlePointer}>{circle.nextAddress ?? NULL_POINTER}</span>
+                    </div>
+      
+                    {/* Click-to-delete background circle fill (SVG) - Only show for non-initial circles */}
+                    {!circle.isInitial && (
+                      <div style={{ position: 'absolute', left: 0, top: 0, width: '60px', height: '60px', zIndex: 0, pointerEvents: 'none' }}>
+                        <svg width="60" height="60" viewBox="0 0 60 60">
+                          <defs>
+                            <linearGradient id={`grad-${circle.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="#ffcfb8" />
+                              <stop offset="100%" stopColor="#ff6b35" />
+                            </linearGradient>
+                          </defs>
+                          <circle cx="30" cy="30" r="28" fill="rgba(255,255,255,0.04)" />
+                          <circle cx="30" cy="30" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
+                          <circle
+                            cx="30"
+                            cy="30"
+                            r="24"
+                            fill="none"
+                            stroke={`url(#grad-${circle.id})`}
+                            strokeWidth="12"
+                            strokeLinecap="round"
+                            transform="rotate(-90 30 30)"
+                            style={{
+                              strokeDasharray: 2 * Math.PI * 24,
+                              strokeDashoffset: `${(1 - clickProgress) * 2 * Math.PI * 24}`,
+                              transition: 'stroke-dashoffset 120ms linear'
+                            }}
+                          />
+                        </svg>
+                      </div>
+                    )}
+      
+                    {/* Head/Tail label for all circles */}
+                    {label && (
+                      <div 
+                        className={styles.headTailLabel}
+                        style={{
+                          position: 'absolute',
+                          top: '-25px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          backgroundColor: '#ff6b35',
+                          color: 'white',
+                          padding: '2px 6px',
+                          borderRadius: '10px',
+                          fontSize: '10px',
+                          fontWeight: 'bold',
+                          whiteSpace: 'nowrap',
+                          zIndex: 1000,
+                          border: '1px solid #fff',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                        }}
+                      >
+                        {label}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
       <svg className={styles.connectionLines}>
         {(() => {
@@ -2111,8 +2141,16 @@ function GalistGameInsertionNode() {
                             key={`expected-${expectedNode.value}`}
                           >
                             <td className={styles.expectedCell}>
-                              <div className={styles.expectedValue}>
-                                {expectedNode.value}
+                              <div className={styles.circleTextStack}>
+                                <span className={styles.circlePointer}>
+                                  {expectedNode.prevAddress ?? NULL_POINTER}
+                                </span>
+                                <span className={styles.expectedValue}>
+                                  {expectedNode.value}
+                                </span>
+                                <span className={styles.circlePointer}>
+                                  {expectedNode.nextAddress ?? NULL_POINTER}
+                                </span>
                               </div>
                               <div className={styles.expectedAddress}>
                                 {expectedNode.address}
@@ -2120,7 +2158,7 @@ function GalistGameInsertionNode() {
                             </td>
                             {index <
                               currentExercise.expectedStructure.length - 1 && (
-                              <td className={styles.arrowCellEmpty}></td>
+                               <td className={styles.arrowCell}>⇆</td>
                             )}
                           </React.Fragment>
                         )
@@ -2311,24 +2349,27 @@ function GalistGameInsertionNode() {
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     color: '#000',
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
+                    padding: '6px'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.transform = 'scale(1.1)';
-                    e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                    e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
                   }}
                   onMouseLeave={(e) => {
-                   
-                    e.target.style.transform = 'scale(1)';
-                    e.target.style.boxShadow = 'none';
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  <span style={{ fontSize: '14px', lineHeight: 1 }}>
+                  <span style={{ fontSize: '10px', lineHeight: 1, color: '#333', marginBottom: '4px' }}>
+                    {bullet.prevAddress ?? NULL_POINTER}
+                  </span>
+                  <span style={{ fontSize: '16px', lineHeight: 1 }}>
                     {bullet.value}
                   </span>
-                  <span style={{ fontSize: '10px', lineHeight: 1, color: '#333' }}>
-                    {bullet.address}
-                                   </span>
+                  <span style={{ fontSize: '10px', lineHeight: 1, color: '#333', marginTop: '4px' }}>
+                    {bullet.nextAddress ?? NULL_POINTER}
+                  </span>
                 </div>
               ))}
             </div>

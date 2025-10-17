@@ -120,7 +120,7 @@ function GalistGameLinkingNode() {
  // Generate bullet options for the modal
 const generateBulletOptions = useCallback(() => {
   const options = [];
-  const expectedNodes = currentExercise?.expectedStructure || [];
+  const expectedNode = currentExercise?.expectedStructure || [];
   const MAX_BULLETS = 15;
 
   const addressPool = [
@@ -143,13 +143,13 @@ const generateBulletOptions = useCallback(() => {
     return candidate;
   };
 
-  const usedValues = new Set(expectedNodes.map((n) => n.value));
-  const usedAddresses = new Set(expectedNodes.map((n) => n.address));
+  const usedValues = new Set(expectedNode.map((n) => n.value));
+  const usedAddresses = new Set(expectedNode.map((n) => n.address));
 
   // Add all expected nodes (correct answers) with proper prev/next pointers
-  expectedNodes.forEach((node, index) => {
-    const prevNode = index > 0 ? expectedNodes[index - 1] : null;
-    const nextNode = index < expectedNodes.length - 1 ? expectedNodes[index + 1] : null;
+  expectedNode.forEach((node, index) => {
+    const prevNode = index > 0 ? expectedNode[index - 1] : null;
+    const nextNode = index < expectedNode.length - 1 ? expectedNode[index + 1] : null;
 
     const prevAddress = node.prevAddress ?? (prevNode ? prevNode.address : NULL_POINTER);
     const nextAddress = node.nextAddress ?? (nextNode ? nextNode.address : NULL_POINTER);
@@ -1763,11 +1763,11 @@ useEffect(() => {
                         </span>
                       </div>
                      </td>
-                    {idx < currentExercise.expectedStructure.length - 1 && (
-                      <td className={styles.expectedBarArrowCell}>
-                        <span className={styles.expectedBarArrow}>↔</span>
-                      </td>
-                    )}
+                   {idx < currentExercise.expectedStructure.length - 1 && (
+                                         <td className={styles.expectedBarArrowCell}>
+                                           <span className={styles.expectedBarArrow}>⇆</span>
+                                         </td>
+                                       )}
                   </React.Fragment>
                 ))}
               </tr>

@@ -1,5 +1,5 @@
 // LinkedListExercise.js - Exercise validation system for linked list creation
-
+const NULL_POINTER = "null";
 export class LinkedListExercise {
   constructor(exerciseData) {
     this.sequence = exerciseData.sequence;
@@ -404,35 +404,37 @@ export class ExerciseManager {
   }
 
   // Load an exercise
-  loadExercise(templateKey) {
-    const template = EXERCISE_TEMPLATES[templateKey];
-    if (!template) {
-      throw new Error(`Exercise template "${templateKey}" not found`);
+   loadExercise(templateKey) {
+      const template = EXERCISE_TEMPLATES[templateKey];
+      if (!template) {
+        throw new Error(`Exercise template "${templateKey}" not found`);
+      }
+      
+      this.currentExercise = new LinkedListExercise(template);
+      this.submissionData = null;
+      this.isWaitingForValidation = false;
+      
+      // Build expectedStructure for UI display
+      this.currentExercise.key = templateKey;
+      this.currentExercise.expectedStructure = template.sequence.map((value, index) => {
+        const address = template.addresses[value];
+        const prevValue = index > 0 ? template.sequence[index - 1] : null;
+        const nextValue = index < template.sequence.length - 1 ? template.sequence[index + 1] : null;
+  
+        const prevAddress = prevValue !== null ? String(template.addresses[prevValue]) : NULL_POINTER;
+        const nextAddress = nextValue !== null ? String(template.addresses[nextValue]) : NULL_POINTER;
+  
+        return {
+          value,
+          address: String(address),
+          prevAddress,
+          nextAddress,
+          next: nextAddress, // Keep for backward compatibility
+        };
+      });
+      
+      return this.currentExercise;
     }
-    
-    this.currentExercise = new LinkedListExercise(template);
-    this.submissionData = null;
-    this.isWaitingForValidation = false;
-    
-    // Build expectedStructure for UI display
-    this.currentExercise.key = templateKey;
-    this.currentExercise.expectedStructure = template.sequence.map(value => ({
-      value: value,
-      address: template.addresses[value],
-      next: null // Will be calculated based on sequence order
-    }));
-    
-    // Set next addresses based on sequence order
-    for (let i = 0; i < this.currentExercise.expectedStructure.length - 1; i++) {
-      this.currentExercise.expectedStructure[i].next = this.currentExercise.expectedStructure[i + 1].address;
-    }
-    // Last node points to null
-    if (this.currentExercise.expectedStructure.length > 0) {
-      this.currentExercise.expectedStructure[this.currentExercise.expectedStructure.length - 1].next = 'null';
-    }
-    
-    return this.currentExercise;
-  }
 
   // Submit answer for validation (called when user opens suction)
   submitAnswer(circles, connections) {
