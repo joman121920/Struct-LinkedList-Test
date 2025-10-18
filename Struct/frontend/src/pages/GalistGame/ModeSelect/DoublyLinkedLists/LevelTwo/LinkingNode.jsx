@@ -1981,7 +1981,8 @@ useEffect(() => {
                   x2={toX}
                   y2={toY}
                   className={styles.animatedLine}
-                  markerEnd="url(#arrowhead)"
+                  markerStart="url(#arrowheadStart)"
+                  markerEnd="url(#arrowheadEnd)"
                 />
               </g>
             );
@@ -1989,17 +1990,30 @@ useEffect(() => {
         })()}
         <defs>
           <marker
-            id="arrowhead"
-            markerWidth="8"
-            markerHeight="8"
-            refX="16"
+            id="arrowheadStart"
+            markerWidth="10"
+            markerHeight="10"
+            refX="-8"
             refY="4"
             orient="auto"
             fill="#fff"
             stroke="#fff"
             strokeWidth="0.5"
           >
-            <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
+            <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
+          </marker>
+          <marker
+            id="arrowheadEnd"
+            markerWidth="10"
+            markerHeight="10"
+            refX="15"
+            refY="4"
+            orient="auto"
+            fill="#fff"
+            stroke="#fff"
+            strokeWidth="0.5"
+          >
+            <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
           </marker>
         </defs>
       </svg>

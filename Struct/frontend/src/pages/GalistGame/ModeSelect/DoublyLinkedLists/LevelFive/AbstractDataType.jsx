@@ -2357,34 +2357,48 @@ const handleTutorialValueShoot = useCallback((mode) => {
             if (!fromCircle || !toCircle) return null;
 
             return (
-              <g key={connection.id}>
-                <line
-                  x1={fromCircle.x}
-                  y1={fromCircle.y}
-                  x2={toCircle.x}
-                  y2={toCircle.y}
-                  className={styles.animatedLine}
-                  markerEnd="url(#arrowhead)"
-                />
-              </g>
-            );
-          });
-        })()}
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="8"
-            markerHeight="8"
-            refX="16"
-            refY="4"
-            orient="auto"
-            fill="#fff"
-            stroke="#fff"
-            strokeWidth="0.5"
-          >
-            <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
-          </marker>
-        </defs>
+                          <g key={connection.id}>
+                            <line
+                              x1={fromX}
+                              y1={fromY}
+                              x2={toX}
+                              y2={toY}
+                              className={styles.animatedLine}
+                              markerStart="url(#arrowheadStart)"
+                              markerEnd="url(#arrowheadEnd)"
+                            />
+                          </g>
+                        );
+                      });
+                    })()}
+                    <defs>
+                      <marker
+                        id="arrowheadStart"
+                        markerWidth="10"
+                        markerHeight="10"
+                        refX="-8"
+                        refY="4"
+                        orient="auto"
+                        fill="#fff"
+                        stroke="#fff"
+                        strokeWidth="0.5"
+                      >
+                        <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
+                      </marker>
+                      <marker
+                        id="arrowheadEnd"
+                        markerWidth="10"
+                        markerHeight="10"
+                        refX="15"
+                        refY="4"
+                        orient="auto"
+                        fill="#fff"
+                        stroke="#fff"
+                        strokeWidth="0.5"
+                      >
+                        <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
+                      </marker>
+                    </defs>
       </svg>
       {/* Validation Result Overlay */}
       {showValidationResult && validationResult && (
