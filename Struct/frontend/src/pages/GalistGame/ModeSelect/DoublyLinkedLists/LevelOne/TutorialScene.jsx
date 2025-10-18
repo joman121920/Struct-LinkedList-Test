@@ -8,7 +8,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   // State for tutorial floating circles (4 random values)
   const [tutorialCircles, setTutorialCircles] = useState([]);
   const [cannonAngle, setCannonAngle] = useState(0);
-  const [squareNode, setSquareNode] = useState({ value: "", address: "" });
+  const [squareNode, setSquareNode] = useState({ prevAddress: "", value: "", nextAddress: "" });
   const [tutorialBullets, setTutorialBullets] = useState([]);
   // const [fadeIn, setFadeIn] = useState(false);
   const tutorialCirclesRef = useRef([]);
@@ -29,6 +29,58 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   //   }
   // }, [scene]);
 
+   useEffect(() => {
+    if (scene === 'scene2' || scene === 'scene4') {
+      const addressLetters = ['a', 'b', 'c', 'd', 'e', 'f'];
+      const randomAddresses = [];
+      while (randomAddresses.length < 4) {
+        const letter = addressLetters[Math.floor(Math.random() * addressLetters.length)];
+        const number = Math.floor(Math.random() * 9) + 1;
+        const address = `${letter}b${number}`;
+        if (!randomAddresses.includes(address)) {
+          randomAddresses.push(address);
+        }
+      }
+
+      const circles = randomAddresses.map((address, index) => ({
+        id: Date.now() + index,
+        content: address,
+        type: scene === 'scene2' ? 'prevAddress' : 'nextAddress',
+        x: Math.random() * (window.innerWidth - 200) + 100,
+        y: Math.random() * (window.innerHeight - 300) + 150,
+        vx: (Math.random() - 0.5) * 1.0,
+        vy: (Math.random() - 0.5) * 1.0,
+      }));
+
+      setTutorialCircles(circles);
+      setTutorialBullets([]);
+    } else if (scene === 'scene3') {
+      const randomValues = [];
+      while (randomValues.length < 4) {
+        const val = Math.floor(Math.random() * 100) + 1;
+        if (!randomValues.includes(val)) {
+          randomValues.push(val);
+        }
+      }
+
+      const circles = randomValues.map((value, index) => ({
+        id: Date.now() + index,
+        content: value.toString(),
+        type: 'value',
+        x: Math.random() * (window.innerWidth - 200) + 100,
+        y: Math.random() * (window.innerHeight - 300) + 150,
+        vx: (Math.random() - 0.5) * 1.0,
+        vy: (Math.random() - 0.5) * 1.0,
+      }));
+
+      setTutorialCircles(circles);
+      setTutorialBullets([]);
+    } else {
+      setTutorialCircles([]);
+      setTutorialBullets([]);
+    }
+  }, [scene]);
+  
   // Generate 4 random tutorial circles
   useEffect(() => {
     if (scene === 'scene2') {

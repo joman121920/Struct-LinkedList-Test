@@ -119,89 +119,83 @@ function GalistGameLinkingNode() {
 
  // Generate bullet options for the modal
 const generateBulletOptions = useCallback(() => {
-  const options = [];
-  const expectedNode = currentExercise?.expectedStructure || [];
-  const MAX_BULLETS = 15;
+    const options = [];
+    const expectedNodes = currentExercise?.expectedStructure || [];
+    const MAX_BULLETS = 15;
 
-  const addressPool = [
-    'aa', 'bb', 'cc', 'dd', 'ee', 'ff', 'gg', 'hh', 'ii', 'jj',
-    'kk', 'll', 'mm', 'nn', 'oo', 'pp', 'qq', 'rr', 'ss', 'tt'
-  ];
-  const numberPool = ['01', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '60', '70', '80', '90'];
+    const addressPool = [
+      "aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj",
+      "kk", "ll", "mm", "nn", "oo", "pp", "qq", "rr", "ss", "tt"
+    ];
+    const numberPool = ["01", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "60", "70", "80", "90"];
 
-  const generateUniqueAddress = (used) => {
-    let candidate;
-    let safety = 0;
-    do {
-      const prefix = addressPool[Math.floor(Math.random() * addressPool.length)];
-      const suffix = numberPool[Math.floor(Math.random() * numberPool.length)];
-      candidate = `${prefix}${suffix}`;
-      safety += 1;
-      if (safety > 200) break;
-    } while (used.has(candidate));
-    used.add(candidate);
-    return candidate;
-  };
+    const generateUniqueAddress = (used) => {
+      let candidate;
+      let guard = 0;
+      do {
+        const prefix = addressPool[Math.floor(Math.random() * addressPool.length)];
+        const suffix = numberPool[Math.floor(Math.random() * numberPool.length)];
+        candidate = `${prefix}${suffix}`;
+        guard += 1;
+        if (guard > 200) break;
+      } while (used.has(candidate));
+      used.add(candidate);
+      return candidate;
+    };
 
-  const usedValues = new Set(expectedNode.map((n) => n.value));
-  const usedAddresses = new Set(expectedNode.map((n) => n.address));
+    const usedValues = new Set(expectedNodes.map((n) => n.value));
+    const usedAddresses = new Set(expectedNodes.map((n) => n.address));
 
-  // Add all expected nodes (correct answers) with proper prev/next pointers
-  expectedNode.forEach((node, index) => {
-    const prevNode = index > 0 ? expectedNode[index - 1] : null;
-    const nextNode = index < expectedNode.length - 1 ? expectedNode[index + 1] : null;
+    expectedNodes.forEach((node, index) => {
+      const prevNode = index > 0 ? expectedNodes[index - 1] : null;
+      const nextNode = index < expectedNodes.length - 1 ? expectedNodes[index + 1] : null;
 
-    const prevAddress = node.prevAddress ?? (prevNode ? prevNode.address : NULL_POINTER);
-    const nextAddress = node.nextAddress ?? (nextNode ? nextNode.address : NULL_POINTER);
+      const prevAddress = node.prevAddress ?? (prevNode ? prevNode.address : NULL_POINTER);
+      const nextAddress = node.nextAddress ?? (nextNode ? nextNode.address : NULL_POINTER);
 
-    options.push({
-      id: `expected_${node.value}`,
-      value: node.value.toString(),
-      address: node.address,
-      prevAddress,
-      nextAddress,
-      isCorrect: true,
+      options.push({
+        id: `expected_${node.value}_${node.address}`,
+        value: node.value.toString(),
+        address: node.address,
+        prevAddress,
+        nextAddress,
+        isCorrect: true,
+      });
     });
-  });
 
-  // Calculate how many random bullets we need to reach exactly 15
-  const numRandomBullets = Math.max(0, MAX_BULLETS - expectedNodes.length);
+    const numRandomBullets = Math.max(0, MAX_BULLETS - options.length);
 
-  for (let i = 0; i < numRandomBullets; i++) {
-    let randomValue;
-    do {
-      randomValue = Math.floor(Math.random() * 100) + 1;
-    } while (usedValues.has(randomValue));
-    usedValues.add(randomValue);
+    for (let i = 0; i < numRandomBullets; i++) {
+      let randomValue;
+      do {
+        randomValue = Math.floor(Math.random() * 100) + 1;
+      } while (usedValues.has(randomValue));
+      usedValues.add(randomValue);
 
-    const nodeAddress = generateUniqueAddress(usedAddresses);
+      const nodeAddress = generateUniqueAddress(usedAddresses);
 
-    const prevAddress =
-      Math.random() < 0.35
-        ? NULL_POINTER
-        : generateUniqueAddress(usedAddresses);
-    const nextAddress =
-      Math.random() < 0.35
-        ? NULL_POINTER
-        : generateUniqueAddress(usedAddresses);
+      const prevAddress =
+        Math.random() < 0.35 ? NULL_POINTER : generateUniqueAddress(usedAddresses);
+      const nextAddress =
+        Math.random() < 0.35 ? NULL_POINTER : generateUniqueAddress(usedAddresses);
 
-    options.push({
-      id: `random_${i}`,
-      value: randomValue.toString(),
-      address: nodeAddress,
-      prevAddress,
-      nextAddress,
-      isCorrect: false,
-    });
-  }
+      options.push({
+        id: `random_${i}`,
+        value: randomValue.toString(),
+        address: nodeAddress,
+        prevAddress,
+        nextAddress,
+        isCorrect: false,
+      });
+    }
 
-  for (let i = options.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [options[i], options[j]] = [options[j], options[i]];
-  }
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
 
-  return options;
-}, [currentExercise]);
+    return options;
+  }, [currentExercise]);
 
 
   const performDelete = useCallback((circleId) => {

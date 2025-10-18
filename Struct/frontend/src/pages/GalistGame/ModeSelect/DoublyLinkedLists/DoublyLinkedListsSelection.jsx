@@ -4,15 +4,18 @@ import { useNavigate } from "react-router-dom";
 import styles from "./DoublyLinkedListsSelection.module.css";
 
 const levelsPage1 = [
-  { level: 1, title: "Creating Node" },
-  { level: 2, title: "Linking Nodes" },
-  { level: 3, title: "Insertion of Nodes" },
+  // { level: 1, title: "Creating Node" },
+  // { level: 2, title: "Linking Nodes" },
+  // { level: 3, title: "Insertion of Nodes" },
+  { level: 1, title: "Linking Nodes" },
+  { level: 2, title: "Insertion of Nodes" },
+  { level: 3, title: "Abtract Data Types" },
 ];
 
-const levelsPage2 = [
-  { level: 4, title: "Deletion of Node" },
-  { level: 5, title: "Abtract Data Types" },
-];
+// const levelsPage2 = [
+//   { level: 4, title: "Deletion of Node" },
+//   { level: 5, title: "Abtract Data Types" },
+// ];
 
 function DoublyLinkedListsSelection({ onSelect }) {
   const [page, setPage] = useState(1);
@@ -51,7 +54,7 @@ function DoublyLinkedListsSelection({ onSelect }) {
       <div className={styles.modeContent}>
         <h2 className={styles.title}>Doubly Linked Lists</h2>
         <div className={styles.levelsRow}>
-          {(page === 1 ? levelsPage1 : levelsPage2).map((lvl) => (
+          {levelsPage1.map((lvl) => (
             <button
               key={lvl.level}
               className={styles.levelCard}
@@ -63,26 +66,6 @@ function DoublyLinkedListsSelection({ onSelect }) {
               <div className={styles.levelTitle}>{lvl.title}</div>
             </button>
           ))}
-        </div>
-        <div className={styles.arrowRow}>
-          {page === 2 && (
-            <button
-              className={styles.arrowBtn}
-              onClick={() => setPage(1)}
-              aria-label="Previous"
-            >
-              &#8592;
-            </button>
-          )}
-          {page === 1 && (
-            <button
-              className={styles.arrowBtn}
-              onClick={() => setPage(2)}
-              aria-label="Next"
-            >
-              &#8594;
-            </button>
-          )}
         </div>
       </div>
     </div>
