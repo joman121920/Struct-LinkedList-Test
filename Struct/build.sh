@@ -9,6 +9,7 @@ cd Struct
 
 
 # # Django setup2
+python manage.py makemigrations
 python manage.py migrate
 
 #232
