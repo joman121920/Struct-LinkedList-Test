@@ -152,8 +152,8 @@ const SPAWN_CONFIG = {
   SPAWN_INTERVAL: Math.floor(Math.random() * 5000) + 5000,        // Check for spawning every 5-10 seconds
   
   // Spawn probabilities (0.0 to 1.0)
-  TIMER_SPAWN_CHANCE: 0.3,      // 30% chance to spawn timer
-  BOMB_SPAWN_CHANCE: 0.7,       // 70% chance to spawn bomb
+  TIMER_SPAWN_CHANCE: 0.4,      // 40% chance to spawn timer
+  BOMB_SPAWN_CHANCE: 0.6,       // 60% chance to spawn bomb
 
   // Lifespan (how long they stay on screen)
   TIMER_LIFESPAN: 17000,        // 17 seconds

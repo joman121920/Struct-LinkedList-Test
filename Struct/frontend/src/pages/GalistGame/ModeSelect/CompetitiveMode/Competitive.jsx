@@ -8,6 +8,7 @@ import Collectibles from './Collectibles.jsx';
 import CompetitiveInstruction from './CompetitiveInstruction.jsx';
 import LoadingScreen from '../../LoadingScreen/LoadingScreen.jsx';
 import { collisionDetection } from "../../CollisionDetection.js";
+import { playLinkSound, playBombCollectibleSound, playClockCollectibleSound, playAlarmSound, stopAlarmSound, playFirstClickSound, playSwapSound, activateAudioContext } from './Sounds.jsx';
 // Portal visual components removed
 // Tutorial removed: import kept out intentionally
 
@@ -50,10 +51,12 @@ function CompetitiveMode() {
   const [connections, setConnections] = useState([]);
   const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
+  const previousConnectionsLengthRef = useRef(0);
   const [suckingCircles, setSuckingCircles] = useState([]);
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
   const [originalSubmission, setOriginalSubmission] = useState(null);
+  const [isInitialSetup, setIsInitialSetup] = useState(false);
 
   // Exercise progress indicator logic
   const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
@@ -206,6 +209,9 @@ function CompetitiveMode() {
       
       console.log(`Bomb spawned on node ${randomNode.id} with value ${randomNode.value}`);
       
+      // Play alarm sound when bomb is spawned
+      playAlarmSound();
+      
       // Start countdown timer for this specific bomb
       newBomb.timerId = setInterval(() => {
         setActiveBombs(prevBombs => {
@@ -215,6 +221,7 @@ function CompetitiveMode() {
               if (newCountdown <= 0) {
                 // Bomb explodes - delete the node
                 clearInterval(bomb.timerId);
+                stopAlarmSound(); // Stop alarm when bomb explodes
                 performDeleteRef.current?.(bomb.id);
                 return null; // Mark for removal
               }
@@ -332,11 +339,20 @@ function CompetitiveMode() {
     setDefuseProgressCountdown(0);
     setIsBombDefused(false);
     
+    // Stop alarm sound when bomb is successfully defused
+    stopAlarmSound();
+    
     console.log('Bomb defused successfully! Node saved from deletion.');
   }, [currentDefusingBombId, bombNode]);
 
   // Start 3-second countdown when solution is correct
   const startDefuseCountdown = useCallback(() => {
+    // Clear any existing timer to prevent multiple timers running
+    if (defuseProgressTimerRef.current) {
+      clearInterval(defuseProgressTimerRef.current);
+      defuseProgressTimerRef.current = null;
+    }
+    
     setIsBombDefused(true);
     setDefuseProgressCountdown(3); // 3 seconds
     
@@ -362,12 +378,13 @@ function CompetitiveMode() {
         return prev.filter(n => n.id !== node.id);
       } else if (prev.length === 0) {
         // Select first node
+        setTimeout(() => playFirstClickSound(), 0); // Delay to prevent double playing
         return [node];
       } else if (prev.length === 1) {
         // Second node clicked - immediately swap and clear selection
         const [firstNode] = prev;
         
-        // Swap the values and addresses
+        // Perform the swap first
         setDefuseNodes(current => 
           current.map(n => {
             if (n.id === firstNode.id) {
@@ -378,6 +395,9 @@ function CompetitiveMode() {
             return n;
           })
         );
+        
+        // Play swap sound after the swap operation
+        setTimeout(() => playSwapSound(), 50);
         
         // Check if solution is correct after swap
         setTimeout(() => {
@@ -401,6 +421,23 @@ function CompetitiveMode() {
     }
   }, [showDefuseModal, defuseNodes, checkDefuseSolution, startDefuseCountdown, isBombDefused, defuseProgressCountdown]);
 
+  // Monitor bomb expiration and close defuse modal if current bomb explodes
+  useEffect(() => {
+    if (showDefuseModal && currentDefusingBombId) {
+      // Check if the bomb being defused still exists
+      const bombStillExists = activeBombs.some(bomb => bomb.id === currentDefusingBombId) ||
+                               (bombNode && bombNode.id === currentDefusingBombId);
+      
+      // If the bomb no longer exists (exploded), close the defuse modal
+      if (!bombStillExists) {
+        console.log('Bomb exploded while defuse modal was open, closing modal');
+        setShowDefuseModal(false);
+        setSelectedDefuseNodes([]);
+        setCurrentDefusingBombId(null);
+      }
+    }
+  }, [showDefuseModal, currentDefusingBombId, activeBombs, bombNode]);
+
   // Convert a regular node into a bomb node (for wrong quiz answers)
   const createBombFromNode = useCallback((targetNode) => {
     if (!targetNode) {
@@ -416,6 +453,9 @@ function CompetitiveMode() {
     
     console.log(`Converting node ${targetNode.id} with value ${targetNode.value} into a bomb`);
     
+    // Play alarm sound when bomb is created
+    playAlarmSound();
+    
     // Set this node as the bomb node
     setBombNode(targetNode);
     setBombCountdown(30); // 5 seconds to defuse
@@ -427,6 +467,7 @@ function CompetitiveMode() {
         if (prev <= 1) {
           // Bomb explodes - delete the node
           clearInterval(bombTimerRef.current);
+          stopAlarmSound(); // Stop alarm when legacy bomb explodes
           setBombNode(null);
           setBombCountdown(0);
           // Delete the bomb node instead of game over
@@ -586,6 +627,9 @@ function CompetitiveMode() {
     setShowInstructionPopup(false);
     setIsGameStarted(true);
     
+    // Activate audio context for better sound performance
+    activateAudioContext();
+    
     // Reset game state
     setTimerSeconds(120); // Reset to 2 minutes
     setTimerRunning(true); // Start the timer
@@ -685,6 +729,21 @@ function CompetitiveMode() {
   useEffect(() => {
     updateHeadTailIds();
   }, [connections, circles, updateHeadTailIds]);
+
+  // Play sound effect when new connections are made
+  useEffect(() => {
+    const currentLength = connections.length;
+    const previousLength = previousConnectionsLengthRef.current;
+    
+    // Only play sound if connections increased (new connection made) and game has started
+    // AND we're not in initial setup phase
+    if (currentLength > previousLength && isGameStarted && !showLoadingScreen && !isInitialSetup) {
+      playLinkSound();
+    }
+    
+    // Update the previous length for next comparison
+    previousConnectionsLengthRef.current = currentLength;
+  }, [connections.length, isGameStarted, showLoadingScreen, isInitialSetup]);
 
   // Bomb spawning system - multiple bombs with different intervals based on connection status
   useEffect(() => {
@@ -955,6 +1014,12 @@ function CompetitiveMode() {
   // No head/tail logic needed for node creation level
 
   const loadExercise = useCallback((key = "exercise_one", launchInitial = false) => {
+    // Set initial setup flag to prevent sound effects during initial connections
+    setIsInitialSetup(true);
+    
+    // Stop any ongoing alarm sounds when loading new exercise
+    stopAlarmSound();
+    
     // Always clear circles/connections and reset launch state before loading new exercise
     setCircles([]);
     setConnections([]);
@@ -1038,6 +1103,11 @@ function CompetitiveMode() {
         setHeadCircleId(uiCircles[0].id);
         setTailCircleId(uiCircles[uiCircles.length - 1].id);
       }
+      
+      // Reset initial setup flag after connections are established
+      setTimeout(() => {
+        setIsInitialSetup(false);
+      }, 100); // Small delay to ensure connections are processed
     }
   }, []);
 
@@ -1868,6 +1938,13 @@ function CompetitiveMode() {
               
               console.log(`Collision detected! Circle ${circle.id} hit ${collectible.type} collectible ${collectible.id}`);
               
+              // Play appropriate sound effect based on collectible type
+              if (collectible.type === 'bomb') {
+                playBombCollectibleSound();
+              } else if (collectible.type === 'timer') {
+                playClockCollectibleSound();
+              }
+              
               collectibleCollisionsThisFrame.push({
                 circleId: circle.id,
                 collectibleId: collectible.id,
@@ -2082,6 +2159,9 @@ function CompetitiveMode() {
     // Check if this is a bomb node - single click to open defuse modal
     const hasBomb = (bombNode && bombNode.id === circleId) || activeBombs.some(bomb => bomb.id === circleId);
     if (hasBomb) {
+      // Stop alarm sound when defuse modal opens
+      stopAlarmSound();
+      
       // Set which bomb is being defused
       setCurrentDefusingBombId(circleId);
       // Open defuse modal
