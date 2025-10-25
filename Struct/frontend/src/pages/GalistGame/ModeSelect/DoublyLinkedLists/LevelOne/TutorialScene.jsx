@@ -5,12 +5,11 @@ import tutorialStyles from "./TutorialScene.module.css";
 
 // Tutorial Scene Component
 function TutorialScene({ scene, onContinue, onValueShoot }) {
-  // State for tutorial floating circles (4 random values)
+  // State for tutorial floating circles
   const [tutorialCircles, setTutorialCircles] = useState([]);
   const [cannonAngle, setCannonAngle] = useState(0);
-  const [squareNode, setSquareNode] = useState({ prevAddress: "", value: "", nextAddress: "" });
+  const [squareNode, setSquareNode] = useState({ prevAddress: "", value: "", address: "" });
   const [tutorialBullets, setTutorialBullets] = useState([]);
-  // const [fadeIn, setFadeIn] = useState(false);
   const tutorialCirclesRef = useRef([]);
   
   // Update ref whenever tutorial circles change
@@ -18,19 +17,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     tutorialCirclesRef.current = tutorialCircles;
   }, [tutorialCircles]);
 
-  // Handle fade-in animation for scene4
-  // useEffect(() => {
-  //   if (scene === 'scene4') {
-  //     setFadeIn(false);
-  //     const timer = setTimeout(() => {
-  //       setFadeIn(true);
-  //     }, 5000);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [scene]);
-
-   useEffect(() => {
-    if (scene === 'scene2' || scene === 'scene4') {
+  // Generate tutorial circles based on scene
+  useEffect(() => {
+    if (scene === 'scene2') {
+      // Scene 2: Generate prev address circles (green)
       const addressLetters = ['a', 'b', 'c', 'd', 'e', 'f'];
       const randomAddresses = [];
       while (randomAddresses.length < 4) {
@@ -45,7 +35,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       const circles = randomAddresses.map((address, index) => ({
         id: Date.now() + index,
         content: address,
-        type: scene === 'scene2' ? 'prevAddress' : 'nextAddress',
+        type: 'prevAddress',
         x: Math.random() * (window.innerWidth - 200) + 100,
         y: Math.random() * (window.innerHeight - 300) + 150,
         vx: (Math.random() - 0.5) * 1.0,
@@ -55,6 +45,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       setTutorialCircles(circles);
       setTutorialBullets([]);
     } else if (scene === 'scene3') {
+      // Scene 3: Generate value circles (red)
       const randomValues = [];
       while (randomValues.length < 4) {
         const val = Math.floor(Math.random() * 100) + 1;
@@ -67,6 +58,31 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         id: Date.now() + index,
         content: value.toString(),
         type: 'value',
+        x: Math.random() * (window.innerWidth - 200) + 100,
+        y: Math.random() * (window.innerHeight - 300) + 150,
+        vx: (Math.random() - 0.5) * 1.0,
+        vy: (Math.random() - 0.5) * 1.0,
+      }));
+
+      setTutorialCircles(circles);
+      setTutorialBullets([]);
+    } else if (scene === 'scene4') {
+      // Scene 4: Generate next address circles (purple)
+      const addressLetters = ['a', 'b', 'c', 'd', 'e', 'f'];
+      const randomAddresses = [];
+      while (randomAddresses.length < 4) {
+        const letter = addressLetters[Math.floor(Math.random() * addressLetters.length)];
+        const number = Math.floor(Math.random() * 9) + 1;
+        const address = `${letter}b${number}`;
+        if (!randomAddresses.includes(address)) {
+          randomAddresses.push(address);
+        }
+      }
+
+      const circles = randomAddresses.map((address, index) => ({
+        id: Date.now() + index,
+        content: address,
+        type: 'address',
         x: Math.random() * (window.innerWidth - 200) + 100,
         y: Math.random() * (window.innerHeight - 300) + 150,
         vx: (Math.random() - 0.5) * 1.0,
@@ -80,61 +96,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       setTutorialBullets([]);
     }
   }, [scene]);
-  
-  // Generate 4 random tutorial circles
-  useEffect(() => {
-    if (scene === 'scene2') {
-      const randomValues = [];
-      while (randomValues.length < 4) {
-        const val = Math.floor(Math.random() * 100) + 1;
-        if (!randomValues.includes(val)) {
-          randomValues.push(val);
-        }
-      }
-      
-      const circles = randomValues.map((value, index) => ({
-        id: Date.now() + index,
-        content: value.toString(),
-        type: 'value',
-        x: Math.random() * (window.innerWidth - 200) + 100,
-        y: Math.random() * (window.innerHeight - 300) + 150,
-        vx: (Math.random() - 0.5) * 1.0,
-        vy: (Math.random() - 0.5) * 1.0,
-      }));
-      
-      setTutorialCircles(circles);
-    } else if (scene === 'scene3') {
-      // Generate 4 random address circles for scene 3
-      const addressLetters = ['a', 'b', 'c', 'd', 'e', 'f'];
-      const randomAddresses = [];
-      while (randomAddresses.length < 4) {
-        const letter = addressLetters[Math.floor(Math.random() * addressLetters.length)];
-        const number = Math.floor(Math.random() * 9) + 1;
-        const address = `${letter}b${number}`;
-        if (!randomAddresses.includes(address)) {
-          randomAddresses.push(address);
-        }
-      }
-      
-      const circles = randomAddresses.map((address, index) => ({
-        id: Date.now() + index,
-        content: address,
-        type: 'address',
-        x: Math.random() * (window.innerWidth - 200) + 100,
-        y: Math.random() * (window.innerHeight - 300) + 150,
-        vx: (Math.random() - 0.5) * 1.0,
-        vy: (Math.random() - 0.5) * 1.0,
-      }));
-      
-      setTutorialCircles(circles);
-      // Reset bullets for new scene
-      setTutorialBullets([]);
-    }
-  }, [scene]);
 
   // Animate tutorial circles
   useEffect(() => {
-    if (scene !== 'scene2' && scene !== 'scene3') return;
+    if (scene !== 'scene2' && scene !== 'scene3' && scene !== 'scene4') return;
     
     const animateInterval = setInterval(() => {
       setTutorialCircles(prev => prev.map(circle => {
@@ -162,26 +127,22 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   // Handle right-click shooting in tutorial
   const handleTutorialRightClick = useCallback((e) => {
-    if (scene !== 'scene2' && scene !== 'scene3') return;
+    if (scene !== 'scene2' && scene !== 'scene3' && scene !== 'scene4') return;
     
     e.preventDefault();
     
-    // Calculate launch position from cannon tip
     const cannonTipX = window.innerWidth + 40 - 35;
     const cannonTipY = window.innerHeight - 1;
     
-    // Calculate tip position based on cannon angle
     const tipDistance = 55;
     const angleRad = (cannonAngle) * (Math.PI / 180);
     const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
     const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
     
-    // Calculate launch velocity based on cannon direction
     const launchSpeed = 8;
     const velocityX = Math.sin(angleRad) * launchSpeed;
     const velocityY = -Math.cos(angleRad) * launchSpeed;
     
-    // Create new bullet
     const newBullet = {
       id: Date.now(),
       x: tipX - 15,
@@ -197,30 +158,26 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   // Bullet animation and collision detection for tutorial
   useEffect(() => {
-    if (scene !== 'scene2' && scene !== 'scene3') return;
+    if (scene !== 'scene2' && scene !== 'scene3' && scene !== 'scene4') return;
     
     const animateFrame = () => {
       setTutorialBullets(prevBullets => {
         const updatedBullets = [];
         
         prevBullets.forEach(bullet => {
-          // Update bullet position
           const newX = bullet.x + bullet.velocityX;
           const newY = bullet.y + bullet.velocityY;
           
-          // Screen boundary collision detection - bullets bounce off edges
           let bounceVelocityX = bullet.velocityX;
           let bounceVelocityY = bullet.velocityY;
           let finalX = newX;
           let finalY = newY;
           
-          // Check horizontal boundaries
           if (newX <= 15 || newX >= window.innerWidth - 15) {
             bounceVelocityX = -bounceVelocityX;
             finalX = newX <= 15 ? 15 : window.innerWidth - 15;
           }
           
-          // Check vertical boundaries
           if (newY <= 15 || newY >= window.innerHeight - 15) {
             bounceVelocityY = -bounceVelocityY;
             finalY = newY <= 15 ? 15 : window.innerHeight - 15;
@@ -234,7 +191,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             velocityY: bounceVelocityY
           };
 
-          // Check for collisions with tutorial circles
           let bulletHitSomething = false;
           
           const currentTutorialCircles = tutorialCirclesRef.current;
@@ -254,25 +210,24 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             if (centerDistance < collisionThreshold) {
               bulletHitSomething = true;
 
-              // Add value or address to square node based on scene
-              if (scene === 'scene2' && circle.type === 'value') {
+              // Add to appropriate field based on scene and type
+              if (scene === 'scene2' && circle.type === 'prevAddress') {
+                setSquareNode(prev => ({ ...prev, prevAddress: circle.content }));
+              } else if (scene === 'scene3' && circle.type === 'value') {
                 setSquareNode(prev => ({ ...prev, value: circle.content }));
-              } else if (scene === 'scene3' && circle.type === 'address') {
+              } else if (scene === 'scene4' && circle.type === 'address') {
                 setSquareNode(prev => ({ ...prev, address: circle.content }));
               }
               
-              // Remove hit circle
               setTutorialCircles(prevCircles =>
                 prevCircles.filter(c => c.id !== circle.id)
               );
 
-              // Notify parent component
               onValueShoot?.(circle.content);
               break;
             }
           }
 
-          // Only keep bullet if it didn't hit anything
           if (!bulletHitSomething) {
             updatedBullets.push(updatedBullet);
           }
@@ -288,7 +243,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   // Mouse movement for cannon rotation
   useEffect(() => {
-    if (scene !== 'scene2' && scene !== 'scene3') return;
+    if (scene !== 'scene2' && scene !== 'scene3' && scene !== 'scene4') return;
     
     const handleMouseMove = (e) => {
       const cannonBaseX = window.innerWidth + 40 - 35;
@@ -314,23 +269,27 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     return (
       <div className={styles.app}>
         <video
-          className={styles.videoBackground2}
+          className={styles.videoBackground}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
         >
-          <source src="./video/insertion_bg.mp4" type="video/mp4" />
+          <source src="./video/earth.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
-        {/* Tutorial Popup for Scene 1 */}
         <div className={tutorialStyles.tutorialOverlay}>
           <div className={tutorialStyles.tutorialPopup}>
             <div className={tutorialStyles.tutorialContent}>
-              <h2>Welcome to Node Creation!</h2>
-              <p>In a linked list, a node is like a container and each node has two parts which is the value and the address of the node</p>
+              <h2>Welcome to Doubly Linked List Node Creation!</h2>
+              <p>In a doubly linked list, each node has THREE parts:</p>
+              <ul style={{ textAlign: 'left', marginLeft: '20px' }}>
+                <li><strong>Previous Address:</strong> Points to the previous node</li>
+                <li><strong>Value:</strong> The data stored in the node</li>
+                <li><strong>Next Address:</strong> Points to the next node</li>
+              </ul>
               <p><strong>Let&apos;s build one!</strong></p>
               <button 
                 onClick={onContinue}
@@ -342,9 +301,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </div>
         </div>
 
-        {/* Interactive Square Node (bottom-center) */}
         <div className={styles.interactiveSquareWrapper}>
           <div className={styles.squareNode}>
+            <div className={styles.squareSection}>
+              <div className={styles.sectionLabel}>Prev</div>
+              <div className={`${styles.squareNodeField} ${styles.empty}`}>
+                -
+              </div>
+            </div>
             <div className={styles.squareSection}>
               <div className={styles.sectionLabel}>Value</div>
               <div className={`${styles.squareNodeField} ${styles.empty}`}>
@@ -352,7 +316,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               </div>
             </div>
             <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Address</div>
+              <div className={styles.sectionLabel}>Next</div>
               <div className={`${styles.squareNodeField} ${styles.empty}`}>
                 -
               </div>
@@ -367,23 +331,21 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     return (
       <div className={styles.app}>
         <video
-          className={styles.videoBackground2}
+          className={styles.videoBackground}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
         >
-          <source src="./video/insertion_bg.mp4" type="video/mp4" />
+          <source src="./video/earth.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
-        {/* Tutorial instruction bar */}
         <div className={tutorialStyles.tutorialInstructionBar}>
-          <h3>Shoot any value to add in your node</h3>
+          <h3>Shoot any previous address to add to your node</h3>
         </div>
 
-        {/* Cannon */}
         <div 
           className={styles.rightSquare} 
           style={{ 
@@ -399,11 +361,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </div>
         </div>
 
-        {/* Tutorial Floating Circles */}
         {tutorialCircles.map(circle => (
           <div
             key={circle.id}
-            className={`${styles.floatingCircle} ${styles.valueCircle}`}
+            className={`${styles.floatingCircle} ${styles.prevAddressCircle}`}
             style={{
               left: `${circle.x}px`,
               top: `${circle.y}px`,
@@ -413,7 +374,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </div>
         ))}
 
-        {/* Tutorial Bullets */}
         {tutorialBullets.map(bullet => (
           <div
             key={bullet.id}
@@ -431,17 +391,22 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           />
         ))}
 
-        {/* Interactive Square Node (bottom-center) */}
         <div className={styles.interactiveSquareWrapper}>
           <div className={styles.squareNode}>
             <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Value</div>
-              <div className={`${styles.squareNodeField} ${!squareNode.value ? styles.empty : ''}`}>
-                {squareNode.value || "-"}
+              <div className={styles.sectionLabel}>Prev</div>
+              <div className={`${styles.squareNodeField} ${!squareNode.prevAddress ? styles.empty : ''}`}>
+                {squareNode.prevAddress || "-"}
               </div>
             </div>
             <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Address</div>
+              <div className={styles.sectionLabel}>Value</div>
+              <div className={`${styles.squareNodeField} ${styles.empty}`}>
+                -
+              </div>
+            </div>
+            <div className={styles.squareSection}>
+              <div className={styles.sectionLabel}>Next</div>
               <div className={`${styles.squareNodeField} ${styles.empty}`}>
                 -
               </div>
@@ -449,27 +414,32 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </div>
         </div>
 
-        {/* Continue button appears after shooting a value */}
-        {squareNode.value && (
+        {squareNode.prevAddress && (
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <h2>Good job!</h2>
+                <h2>Great start!</h2>
                 <div className={styles.expectedOutputSquare} style={{ marginBottom: '20px' }}>
                   <div className={styles.squareSection}>
-                    <div className={styles.sectionLabel}>Value</div>
+                    <div className={styles.sectionLabel}>Prev</div>
                     <div className={styles.squareNodeField}>
-                      {squareNode.value}
+                      {squareNode.prevAddress}
                     </div>
                   </div>
                   <div className={styles.squareSection}>
-                    <div className={styles.sectionLabel}>Address</div>
+                    <div className={styles.sectionLabel}>Value</div>
+                    <div className={`${styles.squareNodeField} ${styles.empty}`}>
+                      -
+                    </div>
+                  </div>
+                  <div className={styles.squareSection}>
+                    <div className={styles.sectionLabel}>Next</div>
                     <div className={`${styles.squareNodeField} ${styles.empty}`}>
                       -
                     </div>
                   </div>
                 </div>
-                <p>You&apos;ve added a value to your node. Now let&apos;s add an address to your node.</p>
+                <p>You&apos;ve added a previous address. Now let&apos;s add a value to your node.</p>
                 <button 
                   onClick={onContinue}
                   className={tutorialStyles.tutorialButton}
@@ -488,23 +458,21 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     return (
       <div className={styles.app}>
         <video
-          className={styles.videoBackground2}
+          className={styles.videoBackground}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
         >
-          <source src="./video/insertion_bg.mp4" type="video/mp4" />
+          <source src="./video/earth.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
-        {/* Tutorial instruction bar */}
         <div className={tutorialStyles.tutorialInstructionBar}>
-          <h3>Shoot any address to add in your node</h3>
+          <h3>Shoot any value to add to your node</h3>
         </div>
 
-        {/* Cannon */}
         <div 
           className={styles.rightSquare} 
           style={{ 
@@ -520,11 +488,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </div>
         </div>
 
-        {/* Tutorial Floating Circles (Addresses) */}
         {tutorialCircles.map(circle => (
           <div
             key={circle.id}
-            className={`${styles.floatingCircle} ${styles.addressCircle}`}
+            className={`${styles.floatingCircle} ${styles.valueCircle}`}
             style={{
               left: `${circle.x}px`,
               top: `${circle.y}px`,
@@ -534,7 +501,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           </div>
         ))}
 
-        {/* Tutorial Bullets */}
         {tutorialBullets.map(bullet => (
           <div
             key={bullet.id}
@@ -552,31 +518,41 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           />
         ))}
 
-        {/* Interactive Square Node (bottom-center) */}
         <div className={styles.interactiveSquareWrapper}>
           <div className={styles.squareNode}>
             <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Value</div>
+              <div className={styles.sectionLabel}>Prev</div>
               <div className={styles.squareNodeField}>
+                {squareNode.prevAddress || "-"}
+              </div>
+            </div>
+            <div className={styles.squareSection}>
+              <div className={styles.sectionLabel}>Value</div>
+              <div className={`${styles.squareNodeField} ${!squareNode.value ? styles.empty : ''}`}>
                 {squareNode.value || "-"}
               </div>
             </div>
             <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Address</div>
-              <div className={`${styles.squareNodeField} ${!squareNode.address ? styles.empty : ''}`}>
-                {squareNode.address || "-"}
+              <div className={styles.sectionLabel}>Next</div>
+              <div className={`${styles.squareNodeField} ${styles.empty}`}>
+                -
               </div>
             </div>
           </div>
         </div>
 
-        {/* Continue button appears after shooting an address */}
-        {squareNode.address && (
+        {squareNode.value && (
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <h2>Perfect!</h2>
-                <div className={styles.expectedOutputSquare} style={{ marginBottom: '30px' }}>
+                <h2>Excellent!</h2>
+                <div className={styles.expectedOutputSquare} style={{ marginBottom: '20px' }}>
+                  <div className={styles.squareSection}>
+                    <div className={styles.sectionLabel}>Prev</div>
+                    <div className={styles.squareNodeField}>
+                      {squareNode.prevAddress}
+                    </div>
+                  </div>
                   <div className={styles.squareSection}>
                     <div className={styles.sectionLabel}>Value</div>
                     <div className={styles.squareNodeField}>
@@ -584,14 +560,13 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     </div>
                   </div>
                   <div className={styles.squareSection}>
-                    <div className={styles.sectionLabel}>Address</div>
-                    <div className={styles.squareNodeField}>
-                      {squareNode.address}
+                    <div className={styles.sectionLabel}>Next</div>
+                    <div className={`${styles.squareNodeField} ${styles.empty}`}>
+                      -
                     </div>
                   </div>
                 </div>
-                <p>You created your first node with both data and address. Remember a node always needs both data and address.</p>
-                <p><strong>Let&apos;s head to the game.</strong></p>
+                <p>You&apos;ve added a value. Now let&apos;s complete the node with a next address.</p>
                 <button 
                   onClick={onContinue}
                   className={tutorialStyles.tutorialButton}
@@ -608,74 +583,128 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   if (scene === 'scene4') {
     return (
-      <div 
-        className={styles.app} 
-        // style={{
-        //   opacity: fadeIn ? 1 : 0,
-        //   transition: 'opacity 1.2s ease-in-out',
-        //   transform: fadeIn ? 'scale(1)' : 'scale(0.95)',
-        // }}
-            >
+      <div className={styles.app}>
         <video
-          className={styles.videoBackground2}
+          className={styles.videoBackground}
           autoPlay
           loop
           muted
           playsInline
           preload="auto"
         >
-          <source src="./video/insertion_bg.mp4" type="video/mp4" />
+          <source src="./video/earth.mp4" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
 
-        {/* Game Instructions Popup */}
-        <div className={tutorialStyles.gameInstructionsOverlay}>
-          <div className={tutorialStyles.gameInstructionsPopup}>
-            <div className={tutorialStyles.gameInstructionsContent}>
-              <div className={tutorialStyles.gameInstructionsHeader}>
-                <h2>Game Instruction</h2>
+        <div className={tutorialStyles.tutorialInstructionBar}>
+          <h3>Shoot any next address to complete your node</h3>
+        </div>
+
+        <div 
+          className={styles.rightSquare} 
+          style={{ 
+            outlineOffset: "5px",
+            transform: `rotate(${cannonAngle}deg)`,
+            transformOrigin: "bottom center"
+          }} 
+        >
+          <div className={styles.cannonCircle}>
+            <span style={{ fontSize: '12px', color: '#fff' }}>
+              •
+            </span>
+          </div>
+        </div>
+
+        {tutorialCircles.map(circle => (
+          <div
+            key={circle.id}
+            className={`${styles.floatingCircle} ${styles.addressCircle}`}
+            style={{
+              left: `${circle.x}px`,
+              top: `${circle.y}px`,
+            }}
+          >
+            {circle.content}
+          </div>
+        ))}
+
+        {tutorialBullets.map(bullet => (
+          <div
+            key={bullet.id}
+            className={styles.animatedCircle}
+            style={{
+              left: `${bullet.x}px`,
+              top: `${bullet.y}px`,
+              width: '30px',
+              height: '30px',
+              backgroundColor: '#ff6b6b',
+              cursor: 'default',
+              opacity: 0.9,
+              boxShadow: '0 0 15px rgba(255, 255, 0, 0.6)',
+            }}
+          />
+        ))}
+
+        <div className={styles.interactiveSquareWrapper}>
+          <div className={styles.squareNode}>
+            <div className={styles.squareSection}>
+              <div className={styles.sectionLabel}>Prev</div>
+              <div className={styles.squareNodeField}>
+                {squareNode.prevAddress || "-"}
               </div>
-              
-              <div className={tutorialStyles.gameInstructionsBody}>
-                <ul>
-                  <li><strong>Objective:</strong> Create nodes by shooting values and addresses into the square node</li>
-                  <li><strong>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets</li>
-                  <li><strong>Levels:</strong> Complete 3 challenging levels</li>
-                  <li><strong>Scoring:</strong> Earn points for each successful node creation</li>
-                  <li><strong>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
-                </ul>
+            </div>
+            <div className={styles.squareSection}>
+              <div className={styles.sectionLabel}>Value</div>
+              <div className={styles.squareNodeField}>
+                {squareNode.value || "-"}
               </div>
-              
-              <div className={tutorialStyles.gameInstructionsFooter}>
+            </div>
+            <div className={styles.squareSection}>
+              <div className={styles.sectionLabel}>Next</div>
+              <div className={`${styles.squareNodeField} ${!squareNode.address ? styles.empty : ''}`}>
+                {squareNode.address || "-"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {squareNode.address && (
+          <div className={tutorialStyles.tutorialOverlay}>
+            <div className={tutorialStyles.tutorialPopup}>
+              <div className={tutorialStyles.tutorialContent}>
+                <h2>Perfect! Node Complete!</h2>
+                <div className={styles.expectedOutputSquare} style={{ marginBottom: '30px' }}>
+                  <div className={styles.squareSection}>
+                    <div className={styles.sectionLabel}>Prev</div>
+                    <div className={styles.squareNodeField}>
+                      {squareNode.prevAddress}
+                    </div>
+                  </div>
+                  <div className={styles.squareSection}>
+                    <div className={styles.sectionLabel}>Value</div>
+                    <div className={styles.squareNodeField}>
+                      {squareNode.value}
+                    </div>
+                  </div>
+                  <div className={styles.squareSection}>
+                    <div className={styles.sectionLabel}>Next</div>
+                    <div className={styles.squareNodeField}>
+                      {squareNode.address}
+                    </div>
+                  </div>
+                </div>
+                <p>You&apos;ve created your first doubly linked list node with previous address, value, and next address!</p>
+                <p><strong>Remember: A doubly linked node always needs all three components.</strong></p>
                 <button 
                   onClick={onContinue}
                   className={tutorialStyles.tutorialButton}
-                  
                 >
-                  Continue
+                  Start Game
                 </button>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Interactive Square Node (bottom-center) - Show completed node from tutorial */}
-        <div className={styles.interactiveSquareWrapper}>
-          <div className={styles.squareNode}>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Value</div>
-              <div className={styles.squareNodeField}>
-                {squareNode.value || "42"}
-              </div>
-            </div>
-            <div className={styles.squareSection}>
-              <div className={styles.sectionLabel}>Address</div>
-              <div className={styles.squareNodeField}>
-                {squareNode.address || "ab3"}
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     );
   }

@@ -1,7 +1,7 @@
 // --- Add refs to reliably track entry order and sucked circles ---
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-
+import { useNavigate } from 'react-router-dom';
 import styles from "./Competitive.module.css";
 import { ExerciseManager, getRandomInitialNodes } from "./CompetitiveExercise.js";
 import Collectibles from './Collectibles.jsx';
@@ -12,6 +12,10 @@ import { collisionDetection } from "../../CollisionDetection.js";
 // Tutorial removed: import kept out intentionally
 
 function CompetitiveMode() {
+  const navigate = useNavigate();
+  const handleLeaderboard = () => {
+    navigate("/galist-game-leaderboard");
+  };
   // Loading screen state - show first when component mounts
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
   
@@ -85,25 +89,31 @@ function CompetitiveMode() {
 
   // Countdown effect
   useEffect(() => {
-    if (!timerRunning) return undefined;
-    const id = setInterval(() => {
-      setTimerSeconds((s) => {
-        if (s <= 1) {
-          clearInterval(id);
-          setTimerRunning(false);
-          // Capture final survival time when game ends
-          if (gameStartTime) {
-            const survivalTimeMs = Date.now() - gameStartTime;
-            setFinalSurvivalTime(Math.floor(survivalTimeMs / 1000));
-          }
-          setShowMissionFailed(true);
-          return 0;
+  if (!timerRunning) return undefined;
+  const id = setInterval(() => {
+    setTimerSeconds((s) => {
+      if (s <= 1) {
+        clearInterval(id);
+        setTimerRunning(false);
+        // Capture final survival time when game ends
+        if (gameStartTime) {
+          const survivalTimeMs = Date.now() - gameStartTime;
+          setFinalSurvivalTime(Math.floor(survivalTimeMs / 1000));
         }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [timerRunning, gameStartTime]);
+        
+        // SUBMIT TO LEADERBOARD HERE
+        exerciseManagerRef.current.submitFinalScore().catch(err => {
+          console.error('Failed to submit score on game over:', err);
+        });
+        
+        setShowMissionFailed(true);
+        return 0;
+      }
+      return s - 1;
+    });
+  }, 1000);
+  return () => clearInterval(id);
+}, [timerRunning, gameStartTime]);
 
   // Cannon angle state for dynamic cannon rotation
   const [cannonAngle, setCannonAngle] = useState(0);
@@ -572,7 +582,7 @@ function CompetitiveMode() {
   }, [circles, connections, createBombFromNode]);
 
   // Instruction handlers
-  const startExercise = useCallback(() => {
+ const startExercise = useCallback(() => {
     setShowInstructionPopup(false);
     setIsGameStarted(true);
     
@@ -587,8 +597,11 @@ function CompetitiveMode() {
     const startTime = Date.now();
     setGameStartTime(startTime);
     setRoundStartTime(startTime);
-    
 
+    // START ExerciseManager timer so submitFinalScore uses proper elapsed time
+    if (exerciseManagerRef && exerciseManagerRef.current && typeof exerciseManagerRef.current.startGame === 'function') {
+      exerciseManagerRef.current.startGame();
+    }
     
     // Disable collectibles initially, then enable after delay
     setCollectiblesEnabled(false);
@@ -1050,6 +1063,16 @@ function CompetitiveMode() {
     // Reset points to zero
     setTotalPoints(0);
     
+    // Reset ExerciseManager state
+    if (exerciseManagerRef && exerciseManagerRef.current) {
+      if (typeof exerciseManagerRef.current.reset === 'function') {
+        exerciseManagerRef.current.reset();
+      }
+      if (typeof exerciseManagerRef.current.startGame === 'function') {
+        exerciseManagerRef.current.startGame();
+      }
+    }
+    
     // Restart exercise and timer
     setTimerSeconds(120);
     setTimerRunning(true);
@@ -1058,8 +1081,6 @@ function CompetitiveMode() {
     // Reset game start time and survival time for accurate time tracking
     setGameStartTime(Date.now());
     setFinalSurvivalTime(0);
-    
-
     
     // Reset and delay collectibles
     setCollectiblesEnabled(false);
@@ -1870,10 +1891,10 @@ function CompetitiveMode() {
           if (!circle || !circle.isLaunched) return true; // Keep non-launched circles
           
           // ALWAYS keep initial circles - they are immune to all removal mechanisms
-          if (circle.isInitial) {
-            console.log(`Protecting initial circle ${circle.id} from all removal mechanisms`);
-            return true;
-          }
+          // if (circle.isInitial) {
+          //   console.log(`Protecting initial circle ${circle.id} from all removal mechanisms`);
+          //   return true;
+          // }
           
           // Remove circles that collided with bombs
           if (circlesToRemove.has(circle.id)) {
@@ -2427,6 +2448,11 @@ function CompetitiveMode() {
   const handleClaimPoints = () => {
     // Add earned points to total
     setTotalPoints(prev => prev + earnedPoints);
+    
+    // Also record points in ExerciseManager so final submission is accurate
+    if (exerciseManagerRef && exerciseManagerRef.current && typeof exerciseManagerRef.current.markExerciseCompleted === 'function') {
+      exerciseManagerRef.current.markExerciseCompleted(earnedPoints);
+    }
     
     // Close points modal
     setShowPointsModal(false);
@@ -3008,7 +3034,7 @@ function CompetitiveMode() {
               </button>
               
               <button
-                onClick={() => {/* TODO: Add leaderboard functionality */}}
+                onClick={() => handleLeaderboard()}
                 className={styles.gameOverButton}
               >
                 Leaderboard

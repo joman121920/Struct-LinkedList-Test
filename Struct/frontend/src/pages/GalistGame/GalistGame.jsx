@@ -100,13 +100,23 @@ function GalistGame() {
     setSelectedMode(null);
   }, []);
 
-  const handleSelectMode = useCallback((mode) => {
+   const handleSelectMode = useCallback((mode) => {
     const sll = { screen: "singly", mode: "singly" };
     const dll = { screen: "doubly", mode: "doubly" };
     window.history.pushState(mode === "singly" ? sll : dll, "");
     setSelectedMode(mode);
     setShowMenu(false);
   }, []);
+
+  const handleBackToMenu = useCallback(() => {
+    const menuState = { screen: "menu", mode: null };
+    window.history.pushState(menuState, "");
+    setShowMenu(true);
+    setSelectedMode(null);
+    setSelectedSLL(null);
+    setSelectedDLL(null);
+  }, []);
+  
   const handleSelectionSLL = useCallback((sll) => {
     setSelectedSLL(sll);
     setSelectedMode(false)
@@ -1247,6 +1257,9 @@ function GalistGame() {
       {/* Show DLL selection UI if mode is doubly and no DLL is selected */}
       {!showMenu && selectedMode === "doubly" && !selectedDLL && (
         <DoblyLinkedListsSelection onSelect={handleSelectionDLL} />
+      )}
+      {!showMenu && !selectedMode && (
+        <ModeSelect onSelect={handleSelectMode} onBack={handleBackToMenu} />
       )}
       {/* Only show the rest of the game UI if not in SLL selection UI
       {!showMenu && ((selectedMode === "doubly") || (selectedMode === "singly" && selectedSLL)) && (

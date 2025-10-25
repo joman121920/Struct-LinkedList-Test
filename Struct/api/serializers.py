@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import Class
+from .models import Class, GalistLeaderboard
 
 User = get_user_model()
 
@@ -97,3 +97,31 @@ class ClassCreateSerializer(serializers.ModelSerializer):
         validated_data['teacher'] = user
         return super().create(validated_data)
 
+class GalistLeaderboardSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    profile_photo_url = serializers.SerializerMethodField()
+    formatted_time = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = GalistLeaderboard
+        fields = ['id', 'username', 'score', 'time_elapsed', 'formatted_time', 'created_at', 'profile_photo_url']
+        read_only_fields = ['id', 'created_at']
+    
+    def get_profile_photo_url(self, obj):
+        if obj.user.profile_photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.user.profile_photo.url)
+        return None
+    
+    def get_formatted_time(self, obj):
+        return obj.get_formatted_time()
+
+class GalistLeaderboardCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GalistLeaderboard
+        fields = ['score', 'time_elapsed']
+    
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)

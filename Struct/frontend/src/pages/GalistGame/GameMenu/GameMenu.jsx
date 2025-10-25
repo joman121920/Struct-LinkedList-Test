@@ -8,7 +8,16 @@ function GameMenu({ onStart }) {
   const handleCompetitiveMode = () => {
     navigate("/competitive-mode");
   }
-  return (
+
+  const handleLeaderboard = () => {
+    navigate("/galist-game-leaderboard");
+  }
+
+  const handleBackToGames = () => {
+    navigate("/games");
+  }
+
+   return (
     <div className={styles.gameMenuOverlay} role="dialog" aria-modal="true">
       {/* Background video */}
       <video
@@ -21,6 +30,15 @@ function GameMenu({ onStart }) {
       >
         <source src="./video/space.mp4" type="video/mp4" />
       </video>
+
+      {/* Back Button */}
+      <button 
+        className={styles.backButton}
+        onClick={handleBackToGames}
+        aria-label="Back to games"
+      >
+        ← Back
+      </button>
 
       {/* Content */}
       <div className={styles.menuContent}>
@@ -38,9 +56,14 @@ function GameMenu({ onStart }) {
             className={`${styles.menuBtn} ${styles.primary}`}
             onClick={handleCompetitiveMode}
           >
-            Competitve Mode
+            Competitive Mode
           </button>
-          <button className={styles.menuBtn}>Leaderboards</button>
+          <button
+            className={`${styles.menuBtn} ${styles.primary}`}
+            onClick={handleLeaderboard}
+          >
+            Leaderboards
+          </button>
         </div>
       </div>
     </div>

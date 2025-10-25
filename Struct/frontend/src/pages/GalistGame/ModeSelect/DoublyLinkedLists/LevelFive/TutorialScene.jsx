@@ -12,23 +12,52 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [cannonAngle, setCannonAngle] = useState(0);
   const [cannonCircle, setCannonCircle] = useState({ value: "42", address: "aa10" });
   const [currentMode, setCurrentMode] = useState("enqueue");
+  const NULL_POINTER = "null";
+
+  const addBidirectionalConnections = useCallback((currentConnections, fromId, toId) => {
+    let updated = currentConnections;
+
+    if (!currentConnections.some(conn => conn.from === fromId && conn.to === toId)) {
+      updated = [
+        ...updated,
+        {
+          id: `conn_${fromId}_${toId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          from: fromId,
+          to: toId
+        }
+      ];
+    }
+
+    if (!updated.some(conn => conn.from === toId && conn.to === fromId)) {
+      updated = [
+        ...updated,
+        {
+          id: `conn_${toId}_${fromId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          from: toId,
+          to: fromId
+        }
+      ];
+    }
+
+    return updated;
+  }, []);
 
   const enqueueTexts = useMemo(
     () => [
-      "In enqueue mode, every shot attaches a new node to the tail of the list.",
-      "Shoot the tail. Watch the new node link in at the end.",
-      "Great shot! The old tail now points to the new node, and the tail label moves.",
-      "Keep adding nodes to see the list grow."
+      "In enqueue mode, every shot attaches a node to the tail of the doubly linked list.",
+      "Aim for the tail. Watch the new node lock on with matching addresses.",
+      "Nice shot! The old tail’s next pointer and the new node’s prev pointer both update.",
+      "Keep adding nodes to feel how the doubly linked queue grows."
     ],
     []
   );
 
   const dequeueTexts = useMemo(
     () => [
-      "Dequeue mode removes the node at the head of the list.",
-      "Shoot the head. Watch how it remove head from the list.",
-      "Nice! The next node becomes the new head, keeping the list consistent.",
-      "Keep removing nodes to see the list shrink."
+      "Dequeue mode always removes the node at the head.",
+      "Target the head. Its prev pointer clears and the next node slides forward.",
+      "Great! The promoted head now reports null as its prev pointer while its next stays intact.",
+      "Keep removing nodes to shrink the doubly linked queue."
     ],
     []
   );
@@ -44,21 +73,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     if (scene === "scene2") {
       setCurrentMode("enqueue");
       onValueShoot?.("enqueue");
-      // Only build initial enqueue nodes when entering the enqueue scene.
-      // Avoid re-building when tutorialCircles updates to prevent randomization.
       if (!tutorialCirclesRef.current || tutorialCirclesRef.current.length === 0) {
         buildInitialEnqueueScene();
       }
     } else if (scene === "scene3") {
-      // Switch to dequeue mode but reuse whatever nodes were created during enqueue.
       setCurrentMode("dequeue");
       onValueShoot?.("dequeue");
-      // If there are no existing nodes (e.g. user opened dequeue directly),
-      // create the default enqueue nodes so there's something to dequeue.
       if (!tutorialCirclesRef.current || tutorialCirclesRef.current.length === 0) {
         buildInitialEnqueueScene();
       }
-      // Make the cannon empty/neutral for dequeue visuals
       setCannonCircle({ value: "", address: "" });
     } else {
       setTutorialCircles([]);
@@ -75,33 +98,43 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     const baseX = 240;
     const spacing = 140;
 
-    // create 3 initial nodes for enqueue scene (head -> ... -> tail)
     const nodes = Array.from({ length: nodeCount }).map((_, idx) => {
       const randomValue = Math.floor(Math.random() * 100) + 1;
       const randomAddress =
         addressTypes[Math.floor(Math.random() * addressTypes.length)] +
         numbers[Math.floor(Math.random() * numbers.length)];
+
+      const prevAddress = idx === 0 ? NULL_POINTER : null;
+      const nextAddress = idx === nodeCount - 1 ? NULL_POINTER : null;
+
       return {
         id: `enqueue_${idx}`,
         x: baseX + idx * spacing,
         y: 220,
         value: randomValue.toString(),
         address: randomAddress,
+        prevAddress,
+        nextAddress,
         velocityX: 0,
         velocityY: 0,
         isLaunched: false
       };
     });
 
-    const conns = nodes.slice(0, -1).map((node, idx) => ({
-      id: `enqueue_conn_${idx}`,
-      from: node.id,
-      to: nodes[idx + 1].id
-    }));
+    nodes.forEach((node, idx) => {
+      if (idx > 0) {
+        node.prevAddress = nodes[idx - 1].address;
+      }
+      if (idx < nodes.length - 1) {
+        node.nextAddress = nodes[idx + 1].address;
+      }
+    });
 
-    // Only initialize if there isn't already a built list. Use functional
-    // updates so accidental calls won't overwrite an existing list and
-    // re-randomize node values/addresses.
+    let conns = [];
+    for (let i = 0; i < nodes.length - 1; i += 1) {
+      conns = addBidirectionalConnections(conns, nodes[i].id, nodes[i + 1].id);
+    }
+
     setTutorialCircles(prev => (prev && prev.length > 0 ? prev : nodes));
     setTutorialConnections(prev => (prev && prev.length > 0 ? prev : conns));
 
@@ -111,9 +144,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       numbers[Math.floor(Math.random() * numbers.length)];
     setCannonCircle({ value: cannonValue.toString(), address: cannonAddress });
   }
-
-  // Dequeue reuses nodes created by enqueue. We no longer create separate
-  // initial random nodes for the dequeue scene.
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") return;
@@ -188,7 +218,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") return;
-    // animation effect will be attached after callbacks are declared
   }, [scene]);
 
   const runEnqueueAnimation = useCallback(() => {
@@ -239,6 +268,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               y: placedY,
               value: bullet.value,
               address: bullet.address,
+              prevAddress: tailNode.address,
+              nextAddress: NULL_POINTER,
               velocityX: updatedBullet.velocityX * 0.6 + nx * 2,
               velocityY: updatedBullet.velocityY * 0.6 + ny * 2,
               isLaunched: true,
@@ -249,20 +280,21 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             setTutorialCircles(prevCircles => {
               const updatedTail = {
                 ...prevCircles[prevCircles.length - 1],
+                nextAddress: newCircle.address,
                 velocityX: updatedBullet.velocityX * 0.4,
                 velocityY: updatedBullet.velocityY * 0.4
               };
               const arr = [...prevCircles.slice(0, -1), updatedTail, newCircle];
 
               const minDist = 60;
-              for (let i = 0; i < arr.length - 1; i++) {
+              for (let i = 0; i < arr.length - 1; i += 1) {
                 const a = arr[i];
                 const b = arr[i + 1];
                 let ddx = b.x - a.x;
                 let ddy = b.y - a.y;
                 const dist = Math.sqrt(ddx * ddx + ddy * ddy) || 0.0001;
                 if (dist < minDist) {
-                  const overlap = (minDist - dist) + 4;
+                  const overlap = minDist - dist + 4;
                   const nnx = ddx / dist;
                   const nny = ddy / dist;
                   a.x -= nnx * (overlap / 2);
@@ -283,14 +315,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               }
             });
 
-            setTutorialConnections(prevConns => [
-              ...prevConns,
-              {
-                id: `enqueue_conn_${Date.now()}`,
-                from: tailNode.id,
-                to: newCircle.id
-              }
-            ]);
+            setTutorialConnections(prevConns =>
+              addBidirectionalConnections(prevConns, tailNode.id, newCircle.id)
+            );
 
             setInstructionStep(prev => (prev < 2 ? 2 : prev));
           }
@@ -301,7 +328,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         }
       });
       return updatedBullets;
-  });
+    });
 
     setTutorialCircles(prevCircles => {
       const now = Date.now();
@@ -324,7 +351,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       }
       return filtered;
     });
-  }, [tutorialConnections]);
+  }, [tutorialConnections, addBidirectionalConnections]);
 
   const runDequeueAnimation = useCallback(() => {
     setTutorialBullets(prevBullets => {
@@ -363,23 +390,18 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           if (distance < 65 && !headRemoved) {
             headRemoved = true;
             const nextNode = circles[1];
-            setTutorialCircles(prevCircles => prevCircles.slice(1));
 
-            setTutorialConnections(prevConns => {
-              const filtered = prevConns.filter(conn => conn.from !== headNode.id && conn.to !== headNode.id);
-                if (nextNode && circles.length > 2) {
-                const following = circles[2];
-                return [
-                  {
-                    id: `dequeue_conn_${Date.now()}`,
-                    from: nextNode.id,
-                    to: following.id
-                  },
-                  ...filtered.filter(conn => conn.from !== nextNode.id)
-                ];
+            setTutorialCircles(prevCircles => {
+              const newCircles = prevCircles.slice(1);
+              if (newCircles.length > 0) {
+                newCircles[0] = { ...newCircles[0], prevAddress: NULL_POINTER };
               }
-              return filtered;
+              return newCircles;
             });
+
+            setTutorialConnections(prevConns =>
+              prevConns.filter(conn => conn.from !== headNode.id && conn.to !== headNode.id)
+            );
 
             setInstructionStep(prev => (prev < 2 ? 2 : prev));
           } else {
@@ -403,7 +425,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       }
       return prev;
     });
-  }, []);
+  }, [NULL_POINTER]);
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") return;
@@ -437,11 +459,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       const duration = 2200;
       const delay = Math.max(30, duration / Math.max(text.length, 1));
 
-      // If this is the first instruction in enqueue (index 0), run a faster
-      // typewriter effect (so it still types, but quicker), then pause ~3s
-      // before auto-advancing to step 1.
       if (scene === "scene2" && instructionStep === 0) {
-        const fastDuration = 2000; // faster overall typing duration for index 0
+        const fastDuration = 2000;
         const fastDelay = Math.max(12, fastDuration / Math.max(text.length, 1));
         interval = setInterval(() => {
           idx += 1;
@@ -456,8 +475,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         return;
       }
 
-      // Dequeue: fast-type the first instruction (index 0) then pause ~2s
-      // before advancing to index 1.
       if (scene === "scene3" && instructionStep === 0) {
         const fastDurationDequeue = 800;
         const fastDelay = Math.max(10, fastDurationDequeue / Math.max(text.length, 1));
@@ -474,9 +491,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         return;
       }
 
-      // Dequeue: if the user has just removed the head and instructionStep is 2,
-      // show the third instruction immediately and auto-advance to the fourth
-      // after ~2s.
       if (scene === "scene3" && instructionStep === 2) {
         setTypedInstruction(text);
         postTimeout = setTimeout(() => {
@@ -485,14 +499,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         return;
       }
 
-      // Otherwise run the usual typewriter animation.
       interval = setInterval(() => {
         idx += 1;
         setTypedInstruction(text.slice(0, idx));
         if (idx >= text.length) {
           clearInterval(interval);
-          // After the third instruction (index 2) finishes typing in enqueue,
-          // wait ~3s then advance to the fourth instruction (index 3).
           if (scene === "scene2" && instructionStep === 2) {
             postTimeout = setTimeout(() => {
               setInstructionStep(prev => (prev === 2 ? 3 : prev));
@@ -549,6 +560,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           y: tipY - 30,
           value: randomValue.toString(),
           address: randomAddress,
+          prevAddress: NULL_POINTER,
+          nextAddress: NULL_POINTER,
           velocityX,
           velocityY,
           isBullet: true,
@@ -603,7 +616,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             <div className={tutorialStyles.tutorialContent}>
               <h2>Abstract Data Type: Queue Mechanics</h2>
               <p>In this mission you will practice enqueueing new nodes at the tail and dequeueing nodes from the head.</p>
-              <p>Let&apos;s explore how each operation affects the linked structure before you dive into the challenge.</p>
+              <p>Let&apos;s explore how each operation affects the doubly linked structure before you dive into the challenge.</p>
               <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
                 Continue
               </button>
@@ -642,8 +655,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               className={styles.animatedCircle}
               style={{ left: `${circle.x - 30}px`, top: `${circle.y - 30}px`, cursor: "default" }}
             >
-              <span className={styles.circleValue}>{circle.value}</span>
-              <span className={styles.circleAddress}>{circle.address}</span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
+                  {circle.prevAddress ?? NULL_POINTER}
+                </span>
+                <span className={styles.circleValue}>{circle.value}</span>
+                <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
+                  {circle.nextAddress ?? NULL_POINTER}
+                </span>
+              </div>
               {label && (
                 <div
                   className={styles.headTailLabel}
@@ -683,7 +703,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               boxShadow: "0 0 15px rgba(255, 255, 0, 0.6)"
             }}
           >
-            <span className={styles.circleValue}>{bullet.value}</span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+              <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
+                {bullet.prevAddress ?? NULL_POINTER}
+              </span>
+              <span className={styles.circleValue}>{bullet.value}</span>
+              <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
+                {bullet.nextAddress ?? NULL_POINTER}
+              </span>
+            </div>
           </div>
         ))}
 
@@ -700,14 +728,18 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   x2={toCircle.x}
                   y2={toCircle.y}
                   className={styles.animatedLine}
-                  markerEnd="url(#arrowhead)"
+                  markerStart="url(#arrowheadStart)"
+                  markerEnd="url(#arrowheadEnd)"
                 />
               </g>
             );
           })}
           <defs>
-            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="16" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
-              <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
+            <marker id="arrowheadStart" markerWidth="10" markerHeight="10" refX="-8" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
+              <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
+            </marker>
+            <marker id="arrowheadEnd" markerWidth="10" markerHeight="10" refX="15" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
+              <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
             </marker>
           </defs>
         </svg>
@@ -716,8 +748,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           <div className={tutorialStyles.tutorialOverlay}>
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
-                <h2>Awsome Work!</h2>
-                <p>You just attached multiple nodes to the tail. The head never moves, but the tail keeps updating to the newest node.</p>
+                <h2>Awesome Work!</h2>
+                <p>You just attached multiple nodes to the tail. The head never moves, but the tail keeps updating to the newest node. Notice how each node maintains both previous and next pointers for the doubly linked structure.</p>
                 <button className={tutorialStyles.tutorialButton} onClick={onContinue}>
                   Continue
                 </button>
@@ -757,7 +789,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               className={styles.animatedCircle}
               style={{ left: `${circle.x - 30}px`, top: `${circle.y - 30}px`, cursor: "default" }}
             >
-              <span className={styles.circleValue}>{circle.value}</span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
+                  {circle.prevAddress ?? NULL_POINTER}
+                </span>
+                <span className={styles.circleValue}>{circle.value}</span>
+                <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
+                  {circle.nextAddress ?? NULL_POINTER}
+                </span>
+              </div>
               {label && (
                 <div
                   className={styles.headTailLabel}
@@ -814,14 +854,18 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   x2={toCircle.x}
                   y2={toCircle.y}
                   className={styles.animatedLine}
-                  markerEnd="url(#arrowhead)"
+                  markerStart="url(#arrowheadStart)"
+                  markerEnd="url(#arrowheadEnd)"
                 />
               </g>
             );
           })}
           <defs>
-            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="16" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
-              <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
+            <marker id="arrowheadStart" markerWidth="10" markerHeight="10" refX="-8" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
+              <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
+            </marker>
+            <marker id="arrowheadEnd" markerWidth="10" markerHeight="10" refX="15" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
+              <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
             </marker>
           </defs>
         </svg>
@@ -831,7 +875,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
                 <h2>Perfect</h2>
-                <p>You now understand how a queue works: new elements are added at the rear (enqueue) and removed from the front (dequeue). This “first in, first out” principle is what makes queues so useful in real-world scenarios like task scheduling and waiting lines.</p>
+                <p>You now understand how a queue works with doubly linked lists: new elements are added at the rear (enqueue) with proper prev/next pointers, and removed from the front (dequeue) while maintaining bidirectional links. This &quot;first in, first out&quot; principle with dual pointers is what makes doubly linked queues powerful in real-world scenarios.</p>
                 <p><strong>Time to put your knowledge to the test in the mission!</strong></p>
                 <button className={tutorialStyles.tutorialButton} onClick={() => setShowScene4(true)}>
                   Continue
@@ -840,7 +884,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             </div>
           </div>
         )}
-        {/* Scene 4: Game Instruction modal shown after clicking Start Mission */}
         {showScene4 && (
           <div className={tutorialStyles.instructionOverlay}>
             <div className={tutorialStyles.instructionPopup}>
@@ -851,12 +894,12 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
                 <div className={tutorialStyles.gameInstructionsBody}>
                   <ul>
-                    <li><strong style={{color:'#f609e2'}}>Objective:</strong> Meet the expected linked list</li>
-                    <li><strong style={{color:'#f609e2'}}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 time&quot;.</li>
-                    <li><strong style={{color:'#f609e2'}}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
-                    <li><strong style={{color:'#f609e2'}}>Scoring:</strong> Earn points for each successful node creation</li>
-                    <li><strong style={{color:'#f609e2'}}>Obstacles:</strong> Watch out for the black hole, freshly created node that collides with it will be destroyed!</li>
-                    <li><strong style={{color:'#f609e2'}}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
+                    <li><strong style={{ color: "#f609e2" }}>Objective:</strong> Meet the expected doubly linked list with correct prev/next pointers</li>
+                    <li><strong style={{ color: "#f609e2" }}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 times&quot;.</li>
+                    <li><strong style={{ color: "#f609e2" }}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
+                    <li><strong style={{ color: "#f609e2" }}>Scoring:</strong> Earn points for each successful node creation with proper bidirectional links</li>
+                    <li><strong style={{ color: "#f609e2" }}>Obstacles:</strong> Watch out for the black hole, freshly created nodes that collide with it will be destroyed!</li>
+                    <li><strong style={{ color: "#f609e2" }}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
                   </ul>
                 </div>
 

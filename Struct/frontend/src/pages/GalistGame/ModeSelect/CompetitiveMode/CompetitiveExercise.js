@@ -1,4 +1,5 @@
 // LinkedListExercise.js - Exercise validation system for linked list creation
+import { api } from "../../../../data/api";
 
 export class LinkedListExercise {
   constructor(exerciseData) {
@@ -9,7 +10,7 @@ export class LinkedListExercise {
   }
 
   // Validate the user's linked list against the exercise requirements
-  validateSubmission(circles, connections, entryOrder = null) {
+   validateSubmission(circles, connections, entryOrder = null) {
     const result = {
       isCorrect: false,
       message: '',
@@ -71,10 +72,11 @@ export class LinkedListExercise {
       }
       result.score += 20;
 
-      // Check 5: Portal entry order validation (20 bonus points if portal was used)
+      // Check 6: Portal entry order validation (20 bonus points if portal was used)
       if (entryOrder && entryOrder.length > 0) {
         const orderCheck = this.validatePortalEntryOrder(circles, connections, entryOrder);
         if (orderCheck.isValid) {
+          result.score += 20; // Bonus points for correct portal order
           result.message = '🌟 PERFECT! Your linked list is correct AND entered the portal in proper order!';
           result.details = `✅ Correct values: [${this.sequence.join(' → ')}]\n✅ Correct addresses\n✅ Perfect structure\n✅ All connections valid\n🌀 Perfect portal entry order!`;
         } else {
@@ -456,6 +458,7 @@ export class RandomExerciseGenerator {
     return this.currentIndex;
   }
 }
+
 // Exercise manager class
 export class ExerciseManager {
   constructor() {
@@ -464,6 +467,8 @@ export class ExerciseManager {
     this.isWaitingForValidation = false;
     this.randomGenerator = new RandomExerciseGenerator();
     this.completedExercises = 0;
+    this.gameStartTime = null;
+    this.totalScore = 0;
   }
 
   // Load a random exercise
@@ -501,9 +506,23 @@ export class ExerciseManager {
     return this.loadRandomExercise();
   }
 
+  // Start game timer
+  startGame() {
+    this.gameStartTime = Date.now();
+    this.totalScore = 0;
+    this.completedExercises = 0;
+  }
+
+  // Get elapsed time in seconds
+  getElapsedTime() {
+    if (!this.gameStartTime) return 0;
+    return Math.floor((Date.now() - this.gameStartTime) / 1000);
+  }
+
   // Mark exercise as completed and increment counter
-  markExerciseCompleted() {
+  markExerciseCompleted(score) {
     this.completedExercises++;
+    this.totalScore += score;
   }
 
   // Get completed exercises count
@@ -511,9 +530,16 @@ export class ExerciseManager {
     return this.completedExercises;
   }
 
+  // Get total score
+  getTotalScore() {
+    return this.totalScore;
+  }
+
   // Reset completed count (for new game sessions)
   resetCompletedCount() {
     this.completedExercises = 0;
+    this.totalScore = 0;
+    this.gameStartTime = null;
   }
 
   // Submit answer for validation (called when user opens suction)
@@ -533,8 +559,10 @@ export class ExerciseManager {
   }
 
   // Validate submission (called after all circles are sucked)
-  validateSubmission(circles = null, connections = null, entryOrder = null) {
+  async validateSubmission(circles = null, connections = null, entryOrder = null) {
     console.log('validateSubmission called with:', { circles, connections, entryOrder });
+    
+    let validationResult;
     
     // If parameters are provided (even if empty arrays), use them directly (for portal validation)
     if (circles !== null && connections !== null) {
@@ -546,7 +574,6 @@ export class ExerciseManager {
           this.loadRandomExercise();
         } catch (loadError) {
           console.error('Failed to load random exercise:', loadError);
-          // Return a gentle error instead of throwing
           return {
             isCorrect: false,
             message: 'System not ready',
@@ -557,48 +584,84 @@ export class ExerciseManager {
         }
       }
 
-      const result = this.currentExercise.validateSubmission(
+      validationResult = this.currentExercise.validateSubmission(
         circles,
         connections,
         entryOrder
       );
+    } else {
+      // Otherwise, use stored submission data (for manual validation)
+      console.log('Using stored submission data for validation');
+      
+      if (!this.currentExercise) {
+        console.error('No exercise loaded for manual validation');
+        return {
+          isCorrect: false,
+          message: 'System not ready',
+          details: 'Please refresh and try again.',
+          score: 0,
+          totalPoints: 100
+        };
+      }
+      
+      if (!this.submissionData) {
+        console.warn('No stored submission data for manual validation');
+        return {
+          isCorrect: false,
+          message: 'No submission found',
+          details: 'Please create your linked list first.',
+          score: 0,
+          totalPoints: 100
+        };
+      }
 
-      return result;
+      validationResult = this.currentExercise.validateSubmission(
+        this.submissionData.circles,
+        this.submissionData.connections,
+        entryOrder
+      );
     }
-
-    // Otherwise, use stored submission data (for manual validation)
-    console.log('Using stored submission data for validation');
-    
-    if (!this.currentExercise) {
-      console.error('No exercise loaded for manual validation');
-      return {
-        isCorrect: false,
-        message: 'System not ready',
-        details: 'Please refresh and try again.',
-        score: 0,
-        totalPoints: 100
-      };
-    }
-    
-    if (!this.submissionData) {
-      console.warn('No stored submission data for manual validation');
-      return {
-        isCorrect: false,
-        message: 'No submission found',
-        details: 'Please create your linked list first.',
-        score: 0,
-        totalPoints: 100
-      };
-    }
-
-    const result = this.currentExercise.validateSubmission(
-      this.submissionData.circles,
-      this.submissionData.connections,
-      entryOrder
-    );
 
     this.isWaitingForValidation = false;
-    return result;
+
+    // If validation is correct, accumulate score (but DON'T submit to leaderboard yet)
+    if (validationResult.isCorrect) {
+      this.markExerciseCompleted(validationResult.score);
+    }
+    
+    return validationResult;
+  }
+
+  async submitFinalScore() {
+    try {
+      const timeElapsed = this.getElapsedTime();
+      const response = await api.post('/galist/leaderboard/submit/', {
+        score: this.totalScore,
+        time_elapsed: timeElapsed
+      });
+      
+      console.log('Final score submitted to leaderboard successfully:', response);
+      return { success: true, response };
+    } catch (error) {
+      console.error('Failed to submit final score to leaderboard:', error);
+      return { success: false, error };
+    }
+  }
+
+  // Submit score to leaderboard (called by submitFinalScore)
+  async submitToLeaderboard(score, timeElapsed) {
+    try {
+      const response = await api.post('/galist/leaderboard/submit/', {
+        score: score,
+        time_elapsed: timeElapsed
+      });
+      
+      console.log('Leaderboard submission response:', response);
+      return response;
+    } catch (error) {
+      console.error('Error submitting to leaderboard:', error);
+      throw error;
+    }
   }
 
   // Get current exercise info
@@ -616,6 +679,8 @@ export class ExerciseManager {
     this.submissionData = null;
     this.isWaitingForValidation = false;
     this.completedExercises = 0;
+    this.totalScore = 0;
+    this.gameStartTime = null;
     this.randomGenerator.resetUsedCombinations();
   }
 }

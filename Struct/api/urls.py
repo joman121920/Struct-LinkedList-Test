@@ -1,6 +1,6 @@
 # api/urls.py
 from django.urls import path
-from .views import UserRegistrationView, LoginView, ClassCreateView, JoinClassView, UserClassesView, DeleteClassView, LeaveClassView, UserHeartsView, PointsUpdateView
+from .views import UserRegistrationView, LoginView, ClassCreateView, JoinClassView, UserClassesView, DeleteClassView, LeaveClassView, UserHeartsView, PointsUpdateView, GalistLeaderboardView, GalistLeaderboardSubmitView, UserGalistScoresView
 from . import views
 
 # These URLs will be included under the /api/ prefix
@@ -30,4 +30,9 @@ urlpatterns = [
 
     # points update for pfp
     path('update-points/', PointsUpdateView.as_view(), name='update_points'),
+    
+    # Galist Leaderboard
+    path('galist/leaderboard/', GalistLeaderboardView.as_view(), name='galist_leaderboard'),
+    path('galist/leaderboard/submit/', GalistLeaderboardSubmitView.as_view(), name='galist_leaderboard_submit'),
+    path('galist/user-scores/', UserGalistScoresView.as_view(), name='user_galist_scores'),
 ]

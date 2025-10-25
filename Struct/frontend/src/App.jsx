@@ -27,7 +27,7 @@ import DoublyGalistLinkingNode from "./pages/GalistGame/ModeSelect/DoublyLinkedL
 import DoublyGalistGameInsertionNode from "./pages/GalistGame/ModeSelect/DoublyLinkedLists/LevelThree/InsertionNode";
 import DoublyGalistGameDeletion from "./pages/GalistGame/ModeSelect/DoublyLinkedLists/LevelFour/GalistDeletion";
 import DoublyGalistAbstractDataType from "./pages/GalistGame/ModeSelect/DoublyLinkedLists/LevelFive/AbstractDataType";
-
+import GalistLeaderboard from "./pages/GalistGame/Leaderboard/GalistLeaderboard";
 import CompetitiveMode from "./pages/GalistGame/ModeSelect/CompetitiveMode/Competitive";
 
 import TeacherDashboard from "./pages/TeacherDashboard";
@@ -121,6 +121,14 @@ const AppLayout = () => {
               element={
                 <ProtectedRoute>
                   <GalistGame />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/galist-game-leaderboard"
+              element={
+                <ProtectedRoute>
+                  <GalistLeaderboard />
                 </ProtectedRoute>
               }
             />

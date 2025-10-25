@@ -209,3 +209,25 @@ class Class(models.Model):
     def __str__(self):
         return f"{self.name} ({self.code})"
 
+class GalistLeaderboard(models.Model):
+    """Model to store Galist game leaderboard entries"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='galist_scores')
+    score = models.IntegerField(default=0)
+    time_elapsed = models.IntegerField(help_text="Time in seconds")  # Store time in seconds
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-score', 'time_elapsed']  # Order by highest score, then fastest time
+        verbose_name = 'Galist Leaderboard Entry'
+        verbose_name_plural = 'Galist Leaderboard Entries'
+    
+    def __str__(self):
+        minutes = self.time_elapsed // 60
+        seconds = self.time_elapsed % 60
+        return f"{self.user.username} - {self.score} points ({minutes}:{seconds:02d})"
+    
+    def get_formatted_time(self):
+        """Return time in MM:SS format"""
+        minutes = self.time_elapsed // 60
+        seconds = self.time_elapsed % 60
+        return f"{minutes}:{seconds:02d}"

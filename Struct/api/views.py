@@ -8,8 +8,8 @@ from django.contrib.auth import authenticate
 from django.db.models import Max, F, Avg
 from django.utils import timezone
 
-from .serializers import UserRegistrationSerializer, UserProfileSerializer, ClassSerializer, ClassCreateSerializer, UserHeartSerializer
-from .models import Class, User
+from .serializers import UserRegistrationSerializer, UserProfileSerializer, ClassSerializer, ClassCreateSerializer, UserHeartSerializer, GalistLeaderboardCreateSerializer, GalistLeaderboardSerializer
+from .models import Class, User, GalistLeaderboard
 from .serializers import ClassSerializer, ClassCreateSerializer
 
 from django.core.files.storage import default_storage
@@ -440,3 +440,55 @@ class RemoveStudentFromClassView(APIView):
                 {"error": "Class not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
+            
+class GalistLeaderboardView(APIView):
+    """Get top leaderboard entries"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # Get top 10 entries (or specify limit via query param)
+        limit = int(request.query_params.get('limit', 10))
+        
+        # Get leaderboard entries ordered by score (desc) then time (asc)
+        leaderboard = GalistLeaderboard.objects.select_related('user').order_by('-score', 'time_elapsed')[:limit]
+        
+        serializer = GalistLeaderboardSerializer(leaderboard, many=True, context={'request': request})
+        return Response(serializer.data)
+
+class GalistLeaderboardSubmitView(APIView):
+    """Submit a new leaderboard score"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        serializer = GalistLeaderboardCreateSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            entry = serializer.save()
+            
+            # Return the created entry with full details
+            response_serializer = GalistLeaderboardSerializer(entry, context={'request': request})
+            
+            return Response({
+                'success': True,
+                'message': 'Score submitted successfully',
+                'entry': response_serializer.data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserGalistScoresView(APIView):
+    """Get current user's leaderboard entries"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        scores = GalistLeaderboard.objects.filter(user=request.user).order_by('-score', 'time_elapsed')
+        serializer = GalistLeaderboardSerializer(scores, many=True, context={'request': request})
+        
+        # Get user's best score
+        best_score = scores.first() if scores.exists() else None
+        
+        return Response({
+            'scores': serializer.data,
+            'best_score': GalistLeaderboardSerializer(best_score, context={'request': request}).data if best_score else None,
+            'total_attempts': scores.count()
+        })

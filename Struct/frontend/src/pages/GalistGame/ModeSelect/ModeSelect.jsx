@@ -1,7 +1,12 @@
 import PropTypes from "prop-types";
 import styles from "./ModeSelect.module.css";
-
+import { useNavigate } from "react-router-dom";
 function ModeSelect({ onSelect }) {
+  const navigate = useNavigate();
+  
+  // const handleBackToGames = () => {
+  //   navigate("/galist-game");
+  // }
   return (
     <div className={styles.modeOverlay} role="dialog" aria-modal="true">
       <video
@@ -14,6 +19,13 @@ function ModeSelect({ onSelect }) {
       >
         <source src="./video/space.mp4" type="video/mp4" />
       </video>
+      {/* <button 
+              className={styles.backButton}
+              onClick={handleBackToGames}
+              aria-label="Back to games"
+            >
+              ← Back
+      </button> */}
 
       <div className={styles.modeContent}>
         <h2 className={styles.modeTitle}>Choose Mode</h2>
