@@ -647,6 +647,7 @@ function CompetitiveMode() {
     
     // Activate audio context for better sound performance
     activateAudioContext();
+    playSelectSound();
     
     // Reset game state
     setTimerSeconds(120); // Reset to 2 minutes

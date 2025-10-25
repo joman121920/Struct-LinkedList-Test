@@ -1,5 +1,7 @@
 import PropTypes from 'prop-types';
 import styles from './Instruction.module.css';
+import {  playHoverSound } from './Sounds.jsx';
+
 
 const CompetitiveInstruction = ({ 
   showInstructionPopup, 
@@ -75,6 +77,7 @@ const CompetitiveInstruction = ({
           <button 
             className={styles.startButton} 
             onClick={() => startExercise(isGameActive)}
+            onMouseEnter={() => playHoverSound()}
           >
             {isGameActive ? 'RESTART' : 'Start Game'}
           </button>
