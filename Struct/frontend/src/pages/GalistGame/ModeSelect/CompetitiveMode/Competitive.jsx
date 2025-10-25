@@ -8,7 +8,7 @@ import Collectibles from './Collectibles.jsx';
 import CompetitiveInstruction from './CompetitiveInstruction.jsx';
 import LoadingScreen from '../../LoadingScreen/LoadingScreen.jsx';
 import { collisionDetection } from "../../CollisionDetection.js";
-import { playLinkSound, playBombCollectibleSound, playClockCollectibleSound, playAlarmSound, stopAlarmSound, playFirstClickSound, playSwapSound, activateAudioContext } from './Sounds.jsx';
+import { playLinkSound, playBombCollectibleSound, playClockCollectibleSound, playAlarmSound, stopAlarmSound, playFirstClickSound, playSwapSound, playClaimSound, playHoverSound, playSelectSound, activateAudioContext } from './Sounds.jsx';
 // Portal visual components removed
 // Tutorial removed: import kept out intentionally
 
@@ -561,6 +561,9 @@ function CompetitiveMode() {
 
   // Handle cannon circle click to open bullet selection modal
   const handleCannonClick = useCallback(() => {
+    // Play select sound when clicking cannon
+    playSelectSound();
+    
     const bullets = generateBulletOptions();
     setBulletOptions(bullets);
     setShowBulletModal(true);
@@ -568,6 +571,9 @@ function CompetitiveMode() {
 
   // Handle bullet selection
   const handleBulletSelect = useCallback((selectedBullet) => {
+    // Play select sound when choosing a bullet
+    playSelectSound();
+    
     setCannonCircle({
       value: selectedBullet.value,
       address: selectedBullet.address
@@ -2526,6 +2532,9 @@ function CompetitiveMode() {
 
   // Handler for claiming points and generating a new exercise
   const handleClaimPoints = () => {
+    // Play claim sound when user clicks claim button
+    playClaimSound();
+    
     // Add earned points to total
     setTotalPoints(prev => prev + earnedPoints);
     
@@ -3184,6 +3193,9 @@ function CompetitiveMode() {
                     fontWeight: 'bold'
                   }}
                   onMouseEnter={(e) => {
+                    // Play hover sound when hovering over bullet options
+                    playHoverSound();
+                    
                     e.target.style.transform = 'scale(1.1)';
                     e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
                   }}

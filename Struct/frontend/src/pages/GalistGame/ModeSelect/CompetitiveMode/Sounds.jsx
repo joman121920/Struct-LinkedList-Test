@@ -7,7 +7,10 @@ const audioInstances = {
   clockCollectible: null,
   alarmSound: null,
   firstClick: null,
-  swapSound: null
+  swapSound: null,
+  claimSound: null,
+  hoverSound: null,
+  selectSound: null
 };
 
 // Initialize and preload all audio
@@ -43,6 +46,21 @@ const initializeAudio = () => {
     audioInstances.swapSound = new Audio('/sounds/swap_sound.mp3');
     audioInstances.swapSound.preload = 'auto';
     audioInstances.swapSound.volume = 0.6;
+    
+    // Preload claim sound
+    audioInstances.claimSound = new Audio('/sounds/claim_sound.wav');
+    audioInstances.claimSound.preload = 'auto';
+    audioInstances.claimSound.volume = 0.7;
+    
+    // Preload hover sound
+    audioInstances.hoverSound = new Audio('/sounds/hover_sound.mp3');
+    audioInstances.hoverSound.preload = 'auto';
+    audioInstances.hoverSound.volume = 0.3;
+    
+    // Preload select sound
+    audioInstances.selectSound = new Audio('/sounds/select_sound.wav');
+    audioInstances.selectSound.preload = 'auto';
+    audioInstances.selectSound.volume = 0.5;
     
     // Force load the audio files
     Object.values(audioInstances).forEach(audio => {
@@ -211,6 +229,69 @@ export const playSwapSound = () => {
   }
 };
 
+// Create and play claim sound when user claims points
+export const playClaimSound = () => {
+  try {
+    if (!audioInstances.claimSound) {
+      audioInstances.claimSound = new Audio('/sounds/claim_sound.wav');
+      audioInstances.claimSound.volume = 0.7;
+    }
+    
+    const audio = audioInstances.claimSound.cloneNode();
+    audio.volume = 0.7;
+    
+    console.log('Playing claim sound...');
+    audio.play().then(() => {
+      console.log('Claim sound played successfully');
+    }).catch(error => {
+      console.warn('Could not play claim sound:', error);
+    });
+  } catch (error) {
+    console.warn('Error creating claim sound:', error);
+  }
+};
+
+// Create and play hover sound for UI interactions
+export const playHoverSound = () => {
+  try {
+    if (!audioInstances.hoverSound) {
+      audioInstances.hoverSound = new Audio('/sounds/hover_sound.mp3');
+      audioInstances.hoverSound.volume = 0.3;
+    }
+    
+    const audio = audioInstances.hoverSound.cloneNode();
+    audio.volume = 0.3;
+    
+    audio.play().catch(error => {
+      console.warn('Could not play hover sound:', error);
+    });
+  } catch (error) {
+    console.warn('Error creating hover sound:', error);
+  }
+};
+
+// Create and play select sound for selections and clicks
+export const playSelectSound = () => {
+  try {
+    if (!audioInstances.selectSound) {
+      audioInstances.selectSound = new Audio('/sounds/select_sound.wav');
+      audioInstances.selectSound.volume = 0.5;
+    }
+    
+    const audio = audioInstances.selectSound.cloneNode();
+    audio.volume = 0.5;
+    
+    console.log('Playing select sound...');
+    audio.play().then(() => {
+      console.log('Select sound played successfully');
+    }).catch(error => {
+      console.warn('Could not play select sound:', error);
+    });
+  } catch (error) {
+    console.warn('Error creating select sound:', error);
+  }
+};
+
 // Activate audio context with user interaction
 export const activateAudioContext = () => {
   try {
@@ -270,6 +351,9 @@ export class SoundManager {
     this.preloadSound('alarm', '/sounds/alarm.mp3');
     this.preloadSound('firstClick', '/sounds/first_click.mp3');
     this.preloadSound('swapSound', '/sounds/swap.mp3');
+    this.preloadSound('claimSound', '/sounds/claim_sound.wav');
+    this.preloadSound('hoverSound', '/sounds/hover_sound.mp3');
+    this.preloadSound('selectSound', '/sounds/select_sound.wav');
   }
 
   preloadSound(name, path) {
@@ -315,6 +399,9 @@ export default {
   stopAlarmSound,
   playFirstClickSound,
   playSwapSound,
+  playClaimSound,
+  playHoverSound,
+  playSelectSound,
   activateAudioContext,
   preloadLinkSound, 
   SoundManager 
