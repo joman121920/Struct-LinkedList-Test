@@ -31,6 +31,18 @@ function CompetitiveMode() {
 
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
+    // Reset all modal states before navigating back
+    setShowMissionFailed(false);
+    setShowDefuseModal(false);
+    setShowBulletModal(false);
+    setShowPointsModal(false);
+    setShowLevelCompleteModal(false);
+    setShowAllCompletedModal(false);
+    setShowValidationResult(false);
+    setShowWrongAnswerNotification(false);
+    setShowBombBlockingNotification(false);
+    setShowQuizModal(false);
+    
     window.history.back();
   }, []);
   
@@ -3120,6 +3132,9 @@ function CompetitiveMode() {
               <button
                 onClick={() => handleGoBack()}
                 className={styles.gameOverButton}
+                onMouseEnter={() => {
+                    playHoverSound();
+                }}
               >
                 Menu
               </button>
@@ -3127,6 +3142,9 @@ function CompetitiveMode() {
               <button
                 onClick={() => handleLeaderboard()}
                 className={styles.gameOverButton}
+                onMouseEnter={() => {
+                    playHoverSound();
+                  }}
               >
                 Leaderboard
               </button>
@@ -3134,6 +3152,9 @@ function CompetitiveMode() {
               <button
                 onClick={() => handleRetry()}
                 className={styles.gameOverButton}
+                onMouseEnter={() => {
+                    playHoverSound();
+                }}
               >
                 Retry
               </button>
