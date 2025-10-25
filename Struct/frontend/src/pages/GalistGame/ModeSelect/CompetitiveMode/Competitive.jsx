@@ -1160,6 +1160,8 @@ function CompetitiveMode() {
     
     // Reset and delay collectibles
     setCollectiblesEnabled(false);
+    setCollectibles([]); // Clear existing collectibles from previous game
+    setCollectibleCollisions([]); // Clear existing collectible collisions from previous game
     setTimeout(() => {
       setCollectiblesEnabled(true);
     }, 5000); // 5 second delay for collectibles
