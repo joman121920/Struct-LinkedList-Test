@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from './galistLeaderboard.module.css';
+import styles from './GalistLeaderboard.module.css';
 import { api } from "../../../data/api";
 
 function GalistLeaderboard() {
