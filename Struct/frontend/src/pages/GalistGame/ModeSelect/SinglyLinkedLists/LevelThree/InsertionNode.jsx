@@ -9,7 +9,7 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
-import { playInsertionBgMusic, stopInsertionBgMusic, playHitSound, playHoverSound, playSelectSound } from "../../../Sounds";
+import { playInsertionBgMusic, stopInsertionBgMusic, playHitSound, playHoverSound, playSelectSound, playClaimSound , playFirstClickSound} from "../../../Sounds";
 
 function GalistGameInsertionNode() {
   const [isLoading, setIsLoading] = useState(true);
@@ -1883,7 +1883,7 @@ function GalistGameInsertionNode() {
           onClick={() => { handleCannonClick(); playSelectSound(); }}
           style={{ cursor: 'pointer' }}
         >
-          <div style={{ position: 'absolute', top: -34, color: '#000000ff', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+          <div style={{ position: 'absolute', top: -34, color: '#004cff', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                   {insertionMode === 'left' ? 'Before' : 'After'}
           </div>
           <span style={{ fontSize: '14px' }}>
@@ -2210,14 +2210,25 @@ function GalistGameInsertionNode() {
       {/* Mission Failed Overlay */}
       {showMissionFailed && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
-            <h2 style={{ color: '#ff6bff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #004cff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
+            <h2 style={{ color: '#004cff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
             <p style={{ color: '#ddd', marginBottom: '20px' }}>You missed your chance to insert the node in the right spot. Reset and try again to master node insertion!</p>
             <button
-              onClick={() => handleRetry()}
+               onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#02236fff';
+                e.target.style.color = '#000';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
+              }}
+              onClick={() => { handleRetry(); playFirstClickSound(); }}
               style={{
                 background: 'none',
-                border: '2px solid #ff00ff',
+                border: '2px solid #004cff',
                 borderRadius: '10px',
                 color: '#fff',
                 fontWeight: 'bold',
@@ -2312,14 +2323,14 @@ function GalistGameInsertionNode() {
       {/* Level Complete Modal */}
       {showLevelCompleteModal && currentExerciseNumber < totalExercises && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#1a1a1a', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '400px', textAlign: 'center' }}>
-            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '20px' }}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #004cffff', borderRadius: '15px', padding: '30px', maxWidth: '400px', textAlign: 'center' }}>
+            <h2 style={{ color: '#004cffff', fontSize: '2rem', marginBottom: '20px' }}>
               Level Complete: {currentExerciseNumber}/{totalExercises}
             </h2>
             <button
               style={{
                 background: 'none',
-                border: '2px solid #ff00ff',
+                border: '2px solid #004cffff',
                 borderRadius: '10px',
                 color: '#fff',
                 fontWeight: 'bold',
@@ -2328,7 +2339,18 @@ function GalistGameInsertionNode() {
                 cursor: 'pointer',
                 marginTop: '20px',
               }}
-              onClick={handleLevelContinue}
+               onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#02236fff';
+                e.target.style.color = '#000';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
+              }}
+              onClick={() => { handleLevelContinue(); playClaimSound(); }}
             >
               Continue
             </button>
@@ -2338,14 +2360,14 @@ function GalistGameInsertionNode() {
       {/* All Exercises Completed Modal */}
       {showAllCompletedModal && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #fff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
-            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '30px' }}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #004cff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
+            <h2 style={{ color: '#004cff', fontSize: '2rem', marginBottom: '30px' }}>
               Insertion Nodes Completed
             </h2>
             <button
               style={{
                 background: 'none',
-                border: '2px solid #fff',
+                border: '2px solid #004cff',
                 borderRadius: '8px',
                 color: '#fff',
                 fontWeight: 'bold',
@@ -2353,6 +2375,17 @@ function GalistGameInsertionNode() {
                 padding: '10px 30px',
                 cursor: 'pointer',
                 marginTop: '20px',
+              }}
+               onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#02236fff';
+                e.target.style.color = '#000';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
               }}
               onClick={handleGoBack}
             >

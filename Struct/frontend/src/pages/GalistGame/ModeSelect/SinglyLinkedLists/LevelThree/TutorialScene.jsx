@@ -931,7 +931,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 </ul>
               </div>
 
-              <button onClick={() => { onContinue(); playFirstClickSound(); }} className={tutorialStyles.tutorialButton}>
+              <button onClick={() => { onContinue(); playFirstClickSound(); }} className={tutorialStyles.instructionButton}>
                 Continue
               </button>
             </div>

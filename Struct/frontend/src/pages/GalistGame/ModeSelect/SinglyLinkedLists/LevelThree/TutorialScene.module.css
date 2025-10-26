@@ -120,7 +120,7 @@
 
 .gameInstructionsPopup {
   background: rgba(0,0,0,0.6);
-  border: 3px solid #f609e2;
+  border: 3px solid #004cff!important;
   border-radius: 12px;
   padding: 26px 28px;
   width: 95vw;
@@ -152,7 +152,7 @@
 }
 
 .gameInstructionsHeader h2 {
-  color: #f609e2;
+  color: #004cff;
   font-size: 32px;
   font-weight: 700;
   text-shadow: 0 0 10px rgba(246, 9, 226, 0.5);
@@ -185,7 +185,7 @@
 }
 
 .gameInstructionsBody li strong {
-  color: #f609e2;
+  color: #004cff;
   margin-right: 8px;
   font-weight: 700;
 }
@@ -215,7 +215,7 @@
 
 .instructionPopup {
   background: rgba(0,0,0,0.65);
-  border: 3px solid #f609e2;
+  border: 3px solid #004cff;
   border-radius: 12px;
   padding: 36px 44px;
   max-width: 1000px;
@@ -227,12 +227,12 @@
 }
 
 .instructionContent h2 {
-  color: #f609e2;
+  color: #004cff;
   font-size: 24px;
   margin: 0 0 18px 0;
   font-weight: 800;
   text-align: center;
-  text-shadow: 0 0 8px rgba(246,9,226,0.25);
+  text-shadow: 0 0 8px rgba(0, 76, 255, 0.25);
 }
 
 .instruction p {
@@ -247,7 +247,7 @@
 .instructionButton {
   background: transparent;
   color: white;
-  border: 2px solid #f609e2;
+  border: 2px solid #004cff!important;
   padding: 12px 30px;
   border-radius: 8px;
   font-size: 16px;
@@ -258,7 +258,7 @@
 }
 
 .instructionButton:hover {
-  background: #f609e2;
+  background: #002988!important;
   transform: translateY(-2px);
 }
 
