@@ -102,6 +102,7 @@ function CompetitiveMode() {
   const entryOrderRef = useRef([]);
   const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
   const handleRetryRef = useRef(null); // Reference to handleRetry function
+  const defuseSoundsPlayedRef = useRef(new Set()); // Track defuse sounds to prevent duplicates
   // Track which exercise is active
   const [exerciseKey, setExerciseKey] = useState("exercise_one");
   const [circles, setCircles] = useState([]);
@@ -442,6 +443,9 @@ function CompetitiveMode() {
     setDefuseProgressCountdown(0);
     setIsBombDefused(false);
     
+    // Clear defuse sound tracking
+    defuseSoundsPlayedRef.current.clear();
+    
     // Stop alarm sound when bomb is successfully defused
     stopAlarmSound();
     
@@ -480,14 +484,31 @@ function CompetitiveMode() {
         // Deselect if already selected
         return prev.filter(n => n.id !== node.id);
       } else if (prev.length === 0) {
-        // Select first node
-        setTimeout(() => playFirstClickSound(), 0); // Delay to prevent double playing
+        // Select first node - play first click sound only once per selection
+        if (!defuseSoundsPlayedRef.current.has('firstClickPlaying')) {
+          defuseSoundsPlayedRef.current.add('firstClickPlaying');
+          playFirstClickSound();
+          // Clear the flag after a short delay
+          setTimeout(() => {
+            defuseSoundsPlayedRef.current.delete('firstClickPlaying');
+          }, 300);
+        }
         return [node];
       } else if (prev.length === 1) {
         // Second node clicked - immediately swap and clear selection
         const [firstNode] = prev;
         
-        // Perform the swap first
+        // Play swap sound only once per swap operation
+        if (!defuseSoundsPlayedRef.current.has('swapSoundPlaying')) {
+          defuseSoundsPlayedRef.current.add('swapSoundPlaying');
+          playSwapSound();
+          // Clear the flag after a delay
+          setTimeout(() => {
+            defuseSoundsPlayedRef.current.delete('swapSoundPlaying');
+          }, 500);
+        }
+        
+        // Perform the swap
         setDefuseNodes(current => 
           current.map(n => {
             if (n.id === firstNode.id) {
@@ -498,9 +519,6 @@ function CompetitiveMode() {
             return n;
           })
         );
-        
-        // Play swap sound after the swap operation
-        setTimeout(() => playSwapSound(), 50);
         
         // Check if solution is correct after swap
         setTimeout(() => {
@@ -537,6 +555,8 @@ function CompetitiveMode() {
         setShowDefuseModal(false);
         setSelectedDefuseNodes([]);
         setCurrentDefusingBombId(null);
+        // Clear defuse sound tracking when modal closes due to bomb explosion
+        defuseSoundsPlayedRef.current.clear();
       }
     }
   }, [showDefuseModal, currentDefusingBombId, activeBombs, bombNode]);
