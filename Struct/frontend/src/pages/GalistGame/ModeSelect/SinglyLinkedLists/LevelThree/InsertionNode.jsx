@@ -9,6 +9,7 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
+import { playInsertionBgMusic, stopInsertionBgMusic, playHitSound, playHoverSound, playSelectSound } from "../../../Sounds";
 
 function GalistGameInsertionNode() {
   const [isLoading, setIsLoading] = useState(true);
@@ -119,6 +120,8 @@ function GalistGameInsertionNode() {
       to: toId
     };
     setConnections(prev => [...prev, newConnection]);
+    // Play hit sound for successful connection
+    playHitSound();
     return newConnection;
   }, []);
 
@@ -435,6 +438,8 @@ function GalistGameInsertionNode() {
         // Reset head/tail state
         setHeadCircleId(null);
         setTailCircleId(null);
+        // Stop insertion background music when leaving
+        stopInsertionBgMusic();
       }
       // applyNavigationState(st);
     };
@@ -577,6 +582,8 @@ function GalistGameInsertionNode() {
     setTimerSeconds(300);
     setTimerRunning(true);
     setShowMissionFailed(false);
+    // Start insertion background music
+    playInsertionBgMusic();
   }, [loadExercise, exerciseKey]);
 
   const handleTutorialContinue = useCallback(() => {
@@ -1055,6 +1062,8 @@ function GalistGameInsertionNode() {
                         return updated;
                       });
 
+                      // Play hit sound for successful connection
+                      playHitSound();
                       setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
                       if (!oldNextId) setTailCircleId(newNode.id);
                       setHeadCircleId(prev => prev || existingNode.id);
@@ -1074,6 +1083,8 @@ function GalistGameInsertionNode() {
                         return updated;
                       });
 
+                      // Play hit sound for successful connection
+                      playHitSound();
                       setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
                       if (!incomingConn) setHeadCircleId(newNode.id);
                       shouldDeleteCircle = null;
@@ -1103,6 +1114,8 @@ function GalistGameInsertionNode() {
                         return updated;
                       });
 
+                      // Play hit sound for successful connection
+                      playHitSound();
                       setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
                       if (!oldNextId) setTailCircleId(newNode.id);
                       setHeadCircleId(prev => prev || existingNode.id);
@@ -1121,6 +1134,8 @@ function GalistGameInsertionNode() {
                         return updated;
                       });
 
+                      // Play hit sound for successful connection
+                      playHitSound();
                       setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
                       if (!incomingConn) setHeadCircleId(newNode.id);
                       shouldDeleteCircle = null;
@@ -1180,6 +1195,8 @@ function GalistGameInsertionNode() {
                         return updated;
                       });
 
+                      // Play hit sound for successful connection
+                      playHitSound();
                       // Ensure the new node exists in circles state
                       setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
 
@@ -1205,6 +1222,8 @@ function GalistGameInsertionNode() {
                         return updated;
                       });
 
+                      // Play hit sound for successful connection
+                      playHitSound();
                       setCircles(prev => (prev.some(c => c.id === newNode.id) ? prev : [...prev, newNode]));
 
                       // If there was no incoming, the newNode becomes new head
@@ -1438,7 +1457,7 @@ function GalistGameInsertionNode() {
   const handleCircleClick = useCallback((circleId, e) => {
     e.stopPropagation();
 
-
+      
     setCircles(prev => {
       const updated = prev.map(c => {
         if (c.id === circleId) {
@@ -1456,6 +1475,8 @@ function GalistGameInsertionNode() {
         return updated;
       }
 
+      // play sound on click
+      playHoverSound();
       // If deletionReady just became true, schedule the actual deletion after a short delay
       if (clicked && clicked.deletionReady) {
         setTimeout(() => {
@@ -1779,18 +1800,11 @@ function GalistGameInsertionNode() {
 
   return (
     <div className={styles.app}>
-      <video
+      <img
         className={styles.videoBackground}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        // onError={(e) => console.error("Video error:", e)}
-      >
-        <source src="./video/mars.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+        src="./images/insertion_bg.gif"
+        alt="Background"
+      />
 
       
 
@@ -1866,7 +1880,7 @@ function GalistGameInsertionNode() {
         {/* Cannon Circle */}
         <div 
           className={styles.cannonCircle}
-          onClick={handleCannonClick}
+          onClick={() => { handleCannonClick(); playSelectSound(); }}
           style={{ cursor: 'pointer' }}
         >
           <div style={{ position: 'absolute', top: -34, color: '#000000ff', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
@@ -2254,7 +2268,7 @@ function GalistGameInsertionNode() {
               {bulletOptions.map((bullet) => (
                 <div
                   key={bullet.id}
-                  onClick={() => handleBulletSelect(bullet)}
+                  onClick={() => { handleBulletSelect(bullet); playSelectSound(); }}
                   style={{
                     width: '80px',
                     height: '80px',
@@ -2271,6 +2285,7 @@ function GalistGameInsertionNode() {
                     fontWeight: 'bold'
                   }}
                   onMouseEnter={(e) => {
+                    playHoverSound();
                     e.target.style.transform = 'scale(1.1)';
                     e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
                   }}

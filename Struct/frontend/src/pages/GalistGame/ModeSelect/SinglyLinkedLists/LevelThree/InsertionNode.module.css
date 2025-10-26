@@ -104,6 +104,7 @@
   width: 100vw;
   height: 100vh;
   object-fit: cover;
+  object-position: top;
   z-index: 0;
   opacity: 0.4;
   pointer-events: none;

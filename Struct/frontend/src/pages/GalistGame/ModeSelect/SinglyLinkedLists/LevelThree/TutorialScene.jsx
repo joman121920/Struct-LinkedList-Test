@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { collisionDetection } from "../../../CollisionDetection";
 import styles from "./InsertionNode.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
+import { playTutorialBgMusic, stopTutorialBgMusic, playHitSound, playErrorSound, playKeyboardSound, playFirstClickSound } from "../../../Sounds.jsx";
 
 function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [typedInstruction, setTypedInstruction] = useState("");
@@ -39,6 +40,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx++;
         setTypedInstruction(text.slice(0, idx));
+        // Play keyboard sound for each character typed
+        playKeyboardSound();
         if (idx >= text.length) {
           clearInterval(interval);
           isTypingRef.current = false;
@@ -124,6 +127,26 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   useEffect(() => {
     tutorialCirclesRef.current = tutorialCircles;
   }, [tutorialCircles]);
+
+  // Cleanup tutorial background music when component unmounts or browser navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      stopTutorialBgMusic();
+    };
+
+    const handlePopState = () => {
+      stopTutorialBgMusic();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+      stopTutorialBgMusic();
+    };
+  }, []);
 
   const randAddress = () => {
     const letters = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj"];
@@ -322,6 +345,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
                     }, 120);
 
+                    playErrorSound(); // Play error sound for invalid head target
                     onValueShoot?.("invalid_head");
                     break;
                   }
@@ -360,6 +384,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
                     }, 120);
 
+                    playErrorSound(); // Play error sound for wrong insertion mode
                     onValueShoot?.("must_use_before_for_head");
                     break;
                   }
@@ -407,6 +432,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
                     }, 120);
 
+                    playErrorSound(); // Play error sound for invalid tail phase
                     onValueShoot?.("invalid_tail_phase");
                     break;
                   }
@@ -463,6 +489,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
                     }, 120);
 
+                    playErrorSound(); // Play error sound for invalid index 2 phase
                     onValueShoot?.("invalid_index2_phase");
                     break;
                   }
@@ -589,11 +616,21 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 // If this was the first successful shot and it inserted, mark it done
                 if (!firstShotDone) setFirstShotDone(true);
 
-                // If this insertion happened during the index-2 specification
-                // phase (instructionStep 6) and the target matched the index-2
-                // node, show the 'Insertion Mastered' overlay so the player
-                // can proceed to the mission.
-                if (instructionStep === 6) {
+                // Handle instruction step progression based on which phase we're in
+                
+                // If this insertion occurred in the tail-phase and the target
+                // was the tail (inserting 'after' the tail), advance to the
+                // second-collision step so the tail-confirmation text shows,
+                // then the specification text will follow via the existing
+                // instruction effect.
+                const isTargetTailNow = tutorialConnections.some(c => c.to === target.id) && !tutorialConnections.some(c => c.from === target.id);
+                if (instructionStep === 4 && isTargetTailNow && effectiveMode === "after") {
+                  setInstructionStep(5);
+                } else if (instructionStep === 6) {
+                  // If this insertion happened during the index-2 specification
+                  // phase (instructionStep 6) and the target matched the index-2
+                  // node, show the 'Insertion Mastered' overlay so the player
+                  // can proceed to the mission.
                   // Build ordered list from head to find index 2
                   const ordered = [];
                   const head = tutorialCirclesRef.current.find(c => tutorialConnections.some(conn => conn.from === c.id) && !tutorialConnections.some(conn => conn.to === c.id));
@@ -610,25 +647,16 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     }
                   }
                   const indexTwo = ordered[2];
-                    if (indexTwo && indexTwo.id === target.id) {
-                      setShowInsertionMastered(true);
-                      // Remove any on-screen instruction text while the overlay is visible
-                      setTypedInstruction("");
-                    }
-                }
-
-                // If this insertion occurred in the tail-phase and the target
-                // was the tail (inserting 'after' the tail), advance to the
-                // second-collision step so the tail-confirmation text shows,
-                // then the specification text will follow via the existing
-                // instruction effect. Otherwise show the first-collision
-                // feedback (step 2).
-                const isTargetTailNow = tutorialConnections.some(c => c.to === target.id) && !tutorialConnections.some(c => c.from === target.id);
-                if (instructionStep === 4 && isTargetTailNow && effectiveMode === "after") {
-                  setInstructionStep(5);
+                  if (indexTwo && indexTwo.id === target.id) {
+                    setShowInsertionMastered(true);
+                    // Remove any on-screen instruction text while the overlay is visible
+                    setTypedInstruction("");
+                  }
                 } else {
+                  // Default case: show first-collision feedback (step 2)
                   setInstructionStep(2);
                 }
+                playHitSound(); // Play hit sound for successful node linking
                 onValueShoot?.("collision");
                 break;
               }
@@ -723,8 +751,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 In a linked list, you can insert a new node between existing nodes by updating the addresses. This allows the list to grow not only at the end, but also in specific positions.
               </p>
               <p>Let’s insert a node and see how the chain adjusts!</p>
-              <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
-                Continue
+              <button 
+                onClick={() => {
+                  playTutorialBgMusic();
+                  playFirstClickSound();
+                  onContinue();
+                }} 
+                className={tutorialStyles.tutorialButton}
+              >
+                Let&apos;s Go!
               </button>
             </div>
           </div>
@@ -859,6 +894,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   onClick={() => {
                     setShowInsertionMastered(false);
                     onContinue();
+                    playFirstClickSound();
                   }}
                 >
                   Continue
@@ -895,7 +931,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 </ul>
               </div>
 
-              <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
+              <button onClick={() => { onContinue(); playFirstClickSound(); }} className={tutorialStyles.tutorialButton}>
                 Continue
               </button>
             </div>

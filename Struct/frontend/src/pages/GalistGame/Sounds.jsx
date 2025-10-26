@@ -28,6 +28,7 @@ const audioInstances = {
   tutorialBg: null,
   linkingBg: null,
   nodeCreationBg: null,
+  insertionBg: null,
   keyboardSound: null
 };
 
@@ -124,6 +125,12 @@ const initializeAudio = () => {
     audioInstances.nodeCreationBg.preload = 'auto';
     audioInstances.nodeCreationBg.volume = 0.14; // Lower volume for node creation music
     audioInstances.nodeCreationBg.loop = true; // Loop the node creation music
+    
+    // Preload insertion background music
+    audioInstances.insertionBg = new Audio('/sounds/insertion_bgm.mp3');
+    audioInstances.insertionBg.preload = 'auto';
+    audioInstances.insertionBg.volume = 0.14; // Lower volume for insertion music
+    audioInstances.insertionBg.loop = true; // Loop the insertion music
     
     // Preload keyboard sound for typewriter effects
     audioInstances.keyboardSound = new Audio('/sounds/keyboard.mp3');
@@ -695,6 +702,52 @@ export const stopLinkingBgMusic = () => {
   }
 };
 
+// Start playing insertion background music (looped)
+export const playInsertionBgMusic = () => {
+  if (!musicEnabled) return;
+  
+  try {
+    if (!audioInstances.insertionBg) {
+      audioInstances.insertionBg = new Audio('/sounds/insertion_bgm.mp3');
+      audioInstances.insertionBg.volume = 0.14;
+      audioInstances.insertionBg.loop = true;
+    }
+    
+    // Check if music is already playing to prevent double playback
+    if (!audioInstances.insertionBg.paused) {
+      console.log('Insertion background music is already playing, skipping...');
+      return;
+    }
+    
+    // Ensure volume is set correctly and reset to start
+    audioInstances.insertionBg.volume = 0.14;
+    audioInstances.insertionBg.currentTime = 0;
+    audioInstances.insertionBg.loop = true;
+
+    console.log('Starting insertion background music at volume 0.14...');
+    audioInstances.insertionBg.play().then(() => {
+      console.log('Insertion background music started successfully');
+    }).catch(error => {
+      console.warn('Could not play insertion background music:', error);
+    });
+  } catch (error) {
+    console.warn('Error starting insertion background music:', error);
+  }
+};
+
+// Stop insertion background music
+export const stopInsertionBgMusic = () => {
+  try {
+    if (audioInstances.insertionBg) {
+      audioInstances.insertionBg.pause();
+      audioInstances.insertionBg.currentTime = 0;
+      console.log('Insertion background music stopped');
+    }
+  } catch (error) {
+    console.warn('Error stopping insertion background music:', error);
+  }
+};
+
 // Activate audio context with user interaction
 export const activateAudioContext = () => {
   try {
@@ -827,6 +880,8 @@ export default {
   stopNodeCreationBgMusic,
   playLinkingBgMusic,
   stopLinkingBgMusic,
+  playInsertionBgMusic,
+  stopInsertionBgMusic,
   preloadLinkSound,
   SoundManager 
 };
