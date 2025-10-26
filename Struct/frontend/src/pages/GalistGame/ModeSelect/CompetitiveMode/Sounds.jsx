@@ -1,5 +1,14 @@
 // Sound utility functions for game effects
 
+// Global settings
+let soundEffectsEnabled = true;
+let musicEnabled = true;
+
+export const setSoundSettings = (soundFx, music) => {
+  soundEffectsEnabled = soundFx;
+  musicEnabled = music;
+};
+
 // Preloaded audio instances to avoid delays
 const audioInstances = {
   linkSound: null,
@@ -10,7 +19,8 @@ const audioInstances = {
   swapSound: null,
   claimSound: null,
   hoverSound: null,
-  selectSound: null
+  selectSound: null,
+  compeBgSong: null
 };
 
 // Initialize and preload all audio
@@ -62,6 +72,12 @@ const initializeAudio = () => {
     audioInstances.selectSound.preload = 'auto';
     audioInstances.selectSound.volume = 0.5;
     
+    // Preload competitive background music
+    audioInstances.compeBgSong = new Audio('/sounds/compe_bgSong.mp3');
+    audioInstances.compeBgSong.preload = 'auto';
+    audioInstances.compeBgSong.volume = 0.1; // Very low volume for background music
+    audioInstances.compeBgSong.loop = true; // Loop the background music
+    
     // Force load the audio files
     Object.values(audioInstances).forEach(audio => {
       if (audio) {
@@ -80,6 +96,8 @@ initializeAudio();
 
 // Create and play link sound effect
 export const playLinkSound = () => {
+  if (!soundEffectsEnabled) return;
+  
   try {
     if (!audioInstances.linkSound) {
       audioInstances.linkSound = new Audio('/sounds/link_sound.wav');
@@ -253,6 +271,8 @@ export const playClaimSound = () => {
 
 // Create and play hover sound for UI interactions
 export const playHoverSound = () => {
+  if (!soundEffectsEnabled) return;
+  
   try {
     if (!audioInstances.hoverSound) {
       audioInstances.hoverSound = new Audio('/sounds/hover_sound.mp3');
@@ -289,6 +309,66 @@ export const playSelectSound = () => {
     });
   } catch (error) {
     console.warn('Error creating select sound:', error);
+  }
+};
+
+// Start playing competitive background music (looped)
+export const playCompeBgSong = () => {
+  if (!musicEnabled) return;
+  
+  try {
+    if (!audioInstances.compeBgSong) {
+      audioInstances.compeBgSong = new Audio('/sounds/compe_bgSong.mp3');
+      audioInstances.compeBgSong.volume = 0.1;
+      audioInstances.compeBgSong.loop = true;
+    }
+    
+    // Check if music is already playing to prevent double playback
+    if (!audioInstances.compeBgSong.paused) {
+      console.log('Competitive background music is already playing, skipping...');
+      return;
+    }
+    
+    // Ensure volume is set correctly and reset to start
+    audioInstances.compeBgSong.volume = 0.1; // Explicitly set low volume
+    audioInstances.compeBgSong.currentTime = 0;
+    audioInstances.compeBgSong.loop = true;
+    
+    console.log('Starting competitive background music at volume 0.1...');
+    audioInstances.compeBgSong.play().then(() => {
+      console.log('Competitive background music started successfully');
+    }).catch(error => {
+      console.warn('Could not play competitive background music:', error);
+    });
+  } catch (error) {
+    console.warn('Error starting competitive background music:', error);
+  }
+};
+
+// Stop competitive background music
+export const stopCompeBgSong = () => {
+  try {
+    if (audioInstances.compeBgSong) {
+      audioInstances.compeBgSong.pause();
+      audioInstances.compeBgSong.currentTime = 0;
+      console.log('Competitive background music stopped');
+    }
+  } catch (error) {
+    console.warn('Error stopping competitive background music:', error);
+  }
+};
+
+// Restart competitive background music (for retry functionality)
+export const restartCompeBgSong = () => {
+  if (!musicEnabled) return;
+  
+  try {
+    stopCompeBgSong(); // Stop current music
+    setTimeout(() => {
+      playCompeBgSong(); // Restart after brief pause
+    }, 100);
+  } catch (error) {
+    console.warn('Error restarting competitive background music:', error);
   }
 };
 
@@ -354,6 +434,7 @@ export class SoundManager {
     this.preloadSound('claimSound', '/sounds/claim_sound.wav');
     this.preloadSound('hoverSound', '/sounds/hover_sound.mp3');
     this.preloadSound('selectSound', '/sounds/select_sound.wav');
+    this.preloadSound('compeBgSong', '/sounds/compe_bgSong.mp3');
   }
 
   preloadSound(name, path) {
@@ -402,7 +483,11 @@ export default {
   playClaimSound,
   playHoverSound,
   playSelectSound,
+  playCompeBgSong,
+  stopCompeBgSong,
+  restartCompeBgSong,
   activateAudioContext,
+  setSoundSettings,
   preloadLinkSound, 
   SoundManager 
 };

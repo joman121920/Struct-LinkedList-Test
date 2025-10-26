@@ -7,8 +7,9 @@ import { ExerciseManager, getRandomInitialNodes } from "./CompetitiveExercise.js
 import Collectibles from './Collectibles.jsx';
 import CompetitiveInstruction from './CompetitiveInstruction.jsx';
 import LoadingScreen from '../../LoadingScreen/LoadingScreen.jsx';
+import SettingsModal from './SettingsModal.jsx';
 import { collisionDetection } from "../../CollisionDetection.js";
-import { playLinkSound, playBombCollectibleSound, playClockCollectibleSound, playAlarmSound, stopAlarmSound, playFirstClickSound, playSwapSound, playClaimSound, playHoverSound, playSelectSound, activateAudioContext } from './Sounds.jsx';
+import { playLinkSound, playBombCollectibleSound, playClockCollectibleSound, playAlarmSound, stopAlarmSound, playFirstClickSound, playSwapSound, playClaimSound, playHoverSound, playSelectSound, playCompeBgSong, stopCompeBgSong, restartCompeBgSong, activateAudioContext, setSoundSettings } from './Sounds.jsx';
 // Portal visual components removed
 // Tutorial removed: import kept out intentionally
 
@@ -28,9 +29,17 @@ function CompetitiveMode() {
   // Tutorial removed
   // Completion modal state for all exercises done
   const [showAllCompletedModal, setShowAllCompletedModal] = useState(false);
+  
+  // Settings modal state
+  const [showSettings, setShowSettings] = useState(false);
+  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(true);
 
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
+    // Stop background music when leaving the game
+    stopCompeBgSong();
+    
     // Reset all modal states before navigating back
     setShowMissionFailed(false);
     setShowDefuseModal(false);
@@ -52,9 +61,46 @@ function CompetitiveMode() {
     setShowLoadingScreen(false);
     setShowInstructionPopup(true);
   }, []);
+
+  // Settings handlers
+  const handleToggleMusic = useCallback(() => {
+    setMusicEnabled(prev => {
+      const newValue = !prev;
+      setSoundSettings(soundEffectsEnabled, newValue);
+      if (!newValue) {
+        stopCompeBgSong();
+      } else {
+        playCompeBgSong();
+      }
+      return newValue;
+    });
+  }, [soundEffectsEnabled]);
+
+  const handleToggleSoundEffects = useCallback(() => {
+    setSoundEffectsEnabled(prev => {
+      const newValue = !prev;
+      setSoundSettings(newValue, musicEnabled);
+      return newValue;
+    });
+  }, [musicEnabled]);
+
+  const handleSettingsRestart = useCallback(() => {
+    setShowSettings(false);
+    // Call handleRetry using the ref after the modal closes
+    setTimeout(() => {
+      if (handleRetryRef.current) {
+        handleRetryRef.current();
+      }
+    }, 100);
+  }, []);
+
+  const handleSettingsContinue = useCallback(() => {
+    setShowSettings(false);
+  }, []);
   // --- Add refs to reliably track entry order and sucked circles ---
   const entryOrderRef = useRef([]);
   const suckedCirclesRef = useRef([]); // Will store the actual circle objects in order
+  const handleRetryRef = useRef(null); // Reference to handleRetry function
   // Track which exercise is active
   const [exerciseKey, setExerciseKey] = useState("exercise_one");
   const [circles, setCircles] = useState([]);
@@ -181,6 +227,30 @@ function CompetitiveMode() {
   
   // Quiz modal state from collectibles
   const [showQuizModal, setShowQuizModal] = useState(false);
+
+  // Keyboard event listener for ESC key to open settings
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        // Don't open settings if other modals are open
+        if (showInstructionPopup || showMissionFailed || showDefuseModal || 
+            showBulletModal || showPointsModal || showLevelCompleteModal || 
+            showAllCompletedModal || showValidationResult || showLoadingScreen ||
+            showWrongAnswerNotification || showBombBlockingNotification || showQuizModal) {
+          return;
+        }
+        setShowSettings(prev => !prev);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showInstructionPopup, showMissionFailed, showDefuseModal, showBulletModal, 
+      showPointsModal, showLevelCompleteModal, showAllCompletedModal, 
+      showValidationResult, showLoadingScreen, showWrongAnswerNotification, 
+      showBombBlockingNotification, showQuizModal]);
 
   // Wrap setters in useCallback to prevent unnecessary re-renders
   const setCollectiblesCallback = useCallback((updater) => {
@@ -648,6 +718,9 @@ function CompetitiveMode() {
     // Activate audio context for better sound performance
     activateAudioContext();
     playSelectSound();
+    
+    // Start competitive background music
+    playCompeBgSong();
     
     // Reset game state
     setTimerSeconds(120); // Reset to 2 minutes
@@ -1137,6 +1210,9 @@ function CompetitiveMode() {
   
   // Handle retry from mission failed overlay: reset level state and restart without tutorial
   const handleRetry = useCallback(() => {
+    // Restart background music
+    restartCompeBgSong();
+    
     // Clear runtime state
     setCircles([]);
     setConnections([]);
@@ -1212,6 +1288,9 @@ function CompetitiveMode() {
       });
     }, 60);
   }, [loadExercise, exerciseKey]);
+
+  // Assign handleRetry to ref for settings modal access
+  handleRetryRef.current = handleRetry;
 
   // Initialize with basic exercise if none loaded (but only if game has started and loading is complete)
   useEffect(() => {
@@ -2647,18 +2726,11 @@ function CompetitiveMode() {
 
   return (
     <div className={styles.app}>
-      <video
+      <img
         className={styles.videoBackground}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        // onError={(e) => console.error("Video error:", e)}
-      >
-        <source src="./video/compe_bg1.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+        src="./images/compe_bg3.gif"
+        alt="Background"
+      />
 
       
 
@@ -3566,6 +3638,16 @@ function CompetitiveMode() {
         startExercise={startExercise}
         closeInstructionPopup={closeInstructionPopup}
         isGameActive={isGameStarted}
+      />
+
+      <SettingsModal
+        showSettings={showSettings}
+        musicEnabled={musicEnabled}
+        soundEffectsEnabled={soundEffectsEnabled}
+        onToggleMusic={handleToggleMusic}
+        onToggleSoundEffects={handleToggleSoundEffects}
+        onRestart={handleSettingsRestart}
+        onContinue={handleSettingsContinue}
       />
     </div>
   );
