@@ -25,6 +25,7 @@ function CompetitiveMode() {
   const [showInstructionPopup, setShowInstructionPopup] = useState(false);
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [collectiblesEnabled, setCollectiblesEnabled] = useState(false);
+  const [gameSessionKey, setGameSessionKey] = useState(Date.now()); // Key to force remount Collectibles on retry
   
   // Tutorial removed
   // Completion modal state for all exercises done
@@ -142,7 +143,7 @@ function CompetitiveMode() {
   const [insertionMode, setInsertionMode] = useState('right');
 
   // Timer for the challenge (2 minutes)
-  const [timerSeconds, setTimerSeconds] = useState(120); // total seconds remaining
+  const [timerSeconds, setTimerSeconds] = useState(180); // total seconds remaining
   const [timerRunning, setTimerRunning] = useState(false);
   const [showMissionFailed, setShowMissionFailed] = useState(false);
   const [gameStartTime, setGameStartTime] = useState(null); // Track when the game actually starts
@@ -166,6 +167,17 @@ function CompetitiveMode() {
         exerciseManagerRef.current.submitFinalScore().catch(err => {
           console.error('Failed to submit score on game over:', err);
         });
+        
+        // Force close all other modals when game over modal opens
+        setShowDefuseModal(false);
+        setShowBulletModal(false);
+        setShowPointsModal(false);
+        setShowLevelCompleteModal(false);
+        setShowAllCompletedModal(false);
+        setShowValidationResult(false);
+        setShowWrongAnswerNotification(false);
+        setShowBombBlockingNotification(false);
+        setShowQuizModal(false);
         
         setShowMissionFailed(true);
         return 0;
@@ -732,7 +744,7 @@ function CompetitiveMode() {
     playCompeBgSong();
     
     // Reset game state
-    setTimerSeconds(120); // Reset to 2 minutes
+    setTimerSeconds(180); // Reset to 3 minutes
     setTimerRunning(true); // Start the timer
     setShowMissionFailed(false);
     setShowValidationResult(false);
@@ -750,6 +762,7 @@ function CompetitiveMode() {
     
     // Disable collectibles initially, then enable after delay
     setCollectiblesEnabled(false);
+    setGameSessionKey(Date.now()); // Force Collectibles component to remount and reset internal timers
     setTimeout(() => {
       setCollectiblesEnabled(true);
     }, 5000); // 5 second delay for collectibles
@@ -1248,7 +1261,7 @@ function CompetitiveMode() {
     }
     
     // Restart exercise and timer
-    setTimerSeconds(120);
+    setTimerSeconds(180); // Reset to 3 minutes
     setTimerRunning(true);
     setShowMissionFailed(false);
     
@@ -1257,10 +1270,13 @@ function CompetitiveMode() {
     setFinalSurvivalTime(0);
     
     // Reset and delay collectibles
+    console.log('Retry: Resetting collectibles system');
     setCollectiblesEnabled(false);
     setCollectibles([]); // Clear existing collectibles from previous game
     setCollectibleCollisions([]); // Clear existing collectible collisions from previous game
+    setGameSessionKey(Date.now()); // Force Collectibles component to remount and reset internal timers
     setTimeout(() => {
+      console.log('Retry: Re-enabling collectibles after 5 second delay');
       setCollectiblesEnabled(true);
     }, 5000); // 5 second delay for collectibles
     // Reload the current exercise and request promotion/launch of its template initial
@@ -3430,6 +3446,7 @@ function CompetitiveMode() {
       {isGameStarted && collectiblesEnabled && (
         <div style={{ zIndex: 1 }}>
           <Collectibles 
+            key={gameSessionKey} // Force remount on retry to reset internal timers
             onCollect={handleCollect} 
             isGameActive={!!currentExercise && !showMissionFailed} 
             gameOver={showMissionFailed}

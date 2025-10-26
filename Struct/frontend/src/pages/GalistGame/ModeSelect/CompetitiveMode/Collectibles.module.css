@@ -9,7 +9,7 @@
   align-items: center;
   justify-content: center;
   z-index: 1;
-  border: 3px solid #fff;
+  border: 3px solid #ffbf00;
   user-select: none;
   pointer-events: none; /* No longer clickable */
 }
@@ -41,13 +41,9 @@
   align-items: center;
   justify-content: center;
   z-index: 1;
-  border: 3px solid #fff;
+  border: 3px solid #ffbf00;
   user-select: none;
   pointer-events: none; /* No longer clickable */
-}
-
-.bombCollectible:hover {
-  background-color: red;
 }
 
 /* Quiz Modal Styles */

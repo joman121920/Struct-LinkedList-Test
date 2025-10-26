@@ -3,8 +3,8 @@
   position: absolute;
   top: 10px;
   right: 30px;
-  font-size: 2rem;
-  color: #fff;
+  font-size: 1.8em;
+  color: #f88800;
   font-weight: 700;
   background: rgba(0, 0, 0, 0);
   border-radius: 10px;
@@ -56,7 +56,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #ffffff;
+  background: #f88800;
   color: #222;
   display: flex;
   flex-direction: column;
@@ -64,7 +64,7 @@
   justify-content: center;
   font-weight: 700;
   font-size: 18px;
-  border: 2px solid #bbb;
+  border: 2px solid #ff8c00;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0);
   position: relative;
   letter-spacing: 1px;
@@ -77,7 +77,7 @@
 }
 
 .expectedBarAddress {
-  font-size: 12px;
+  font-size: 10px;
   color: #1a1a1a;
   opacity: 0.85;
   font-weight: 800;
@@ -391,18 +391,17 @@
 .cannonCircle:hover {
   background: #ffbf00;
   transform: translate(-50%, -50%) scale(1.1);
-  box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
 }
 
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    box-shadow: #ffbf00;
   }
   50% {
-    box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+    box-shadow: #ffbf00;
   }
   100% {
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    box-shadow: #ffbf00;
   }
 }
 
@@ -1314,7 +1313,7 @@
 /* Game Over Modal Styles */
 .gameOverModal {
   background-color: #000;
-  border: 3px solid #ff00ff;
+  border: 3px solid #f88800;
   border-radius: 15px;
   padding: 40px;
   width: 750px;
@@ -1324,12 +1323,12 @@
 }
 
 .gameOverTitle {
-  color: #ff00ff;
+  color: #f88800;
   font-size: 3rem;
   font-weight: bold;
   margin: 0 0 75px 0;
   letter-spacing: 8px;
-  text-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+  text-shadow: 0 0 20px rgba(255, 208, 0, 0.8);
 }
 
 .gameOverStats {
@@ -1347,14 +1346,14 @@
 }
 
 .gameOverStatValue {
-  color: #fff;
+  color: #f88800;
   font-size: 3rem;
   font-weight: bold;
   margin-bottom: 10px;
 }
 
 .gameOverStatLabel {
-  color: #ccc;
+  color: #f88800;
   font-size: 0.9rem;
   letter-spacing: 2px;
 }
@@ -1362,7 +1361,7 @@
 .gameOverDivider {
   width: 2px;
   height: 80px;
-  background-color: #666;
+  background-color: #f88800;
 }
 
 .gameOverButtons {
@@ -1374,7 +1373,7 @@
 
 .gameOverButton {
   background: none;
-  border: 2px solid #ff00ff;
+  border: 2px solid #f88800;
   border-radius: 10px;
   color: #fff;
   font-weight: bold;
@@ -1386,7 +1385,8 @@
 }
 
 .gameOverButton:hover {
-  background-color: #555;
+  background-color: #ffd500;
+  color: black;
 }
 
 /* Bomb Node Styles */

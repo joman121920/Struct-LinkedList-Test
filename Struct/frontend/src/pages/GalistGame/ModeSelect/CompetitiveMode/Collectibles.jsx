@@ -263,6 +263,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
 
   // Spawn collectibles with controlled pattern
   useEffect(() => {
+    console.log('Collectibles useEffect: isGameActive=', isGameActive, 'gameOver=', gameOver);
     if (!isGameActive || gameOver) return;
 
     // Single spawn function that handles both types
@@ -303,7 +304,7 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
         // Spawn timer if decided
         if (shouldSpawnTimer) {
           const speed = SPAWN_CONFIG.MIN_SPEED + Math.random() * (SPAWN_CONFIG.MAX_SPEED - SPAWN_CONFIG.MIN_SPEED);
-          newCollectibles.push({
+          const newTimer = {
             id: `timer_${Date.now()}_${Math.random()}`,
             type: 'timer',
             ...generateRandomPosition(),
@@ -311,14 +312,15 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
             velocityY: (Math.random() - 0.5) * speed * 2,
             lifespan: SPAWN_CONFIG.TIMER_LIFESPAN,
             createdAt: Date.now(),
-          });
-          console.log('Spawned timer collectible');
+          };
+          newCollectibles.push(newTimer);
+          console.log('Spawned timer collectible:', newTimer.id);
         }
 
         // Spawn bomb if decided
         if (shouldSpawnBomb) {
           const speed = SPAWN_CONFIG.MIN_SPEED + Math.random() * (SPAWN_CONFIG.MAX_SPEED - SPAWN_CONFIG.MIN_SPEED);
-          newCollectibles.push({
+          const newBomb = {
             id: `bomb_${Date.now()}_${Math.random()}`,
             type: 'bomb',
             ...generateRandomPosition(),
@@ -326,8 +328,9 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
             velocityY: (Math.random() - 0.5) * speed * 2,
             lifespan: SPAWN_CONFIG.BOMB_LIFESPAN,
             createdAt: Date.now(),
-          });
-          console.log('Spawned bomb collectible');
+          };
+          newCollectibles.push(newBomb);
+          console.log('Spawned bomb collectible:', newBomb.id);
         }
 
         return [...prev, ...newCollectibles];
@@ -335,18 +338,27 @@ const Collectibles = ({ onCollect, isGameActive, gameOver, collectibles, setColl
     };
 
     // Wait for initial delay, then start spawning
+    let spawnInterval = null;
+    
+    console.log('Collectibles: Setting up spawn timer with delay=', SPAWN_CONFIG.INITIAL_SPAWN_DELAY);
+    
     const initialTimeout = setTimeout(() => {
+      console.log('Collectibles: Initial delay completed, starting spawn cycle');
       spawnCollectible(); // First spawn after delay
       
       // Then set up regular interval
-      const spawnInterval = setInterval(spawnCollectible, SPAWN_CONFIG.SPAWN_INTERVAL);
-      
-      // Store interval reference for cleanup
-      return () => clearInterval(spawnInterval);
+      spawnInterval = setInterval(() => {
+        console.log('Collectibles: Interval spawn triggered');
+        spawnCollectible();
+      }, SPAWN_CONFIG.SPAWN_INTERVAL);
     }, SPAWN_CONFIG.INITIAL_SPAWN_DELAY);
 
     return () => {
+      console.log('Collectibles: Cleaning up spawn timers');
       clearTimeout(initialTimeout);
+      if (spawnInterval) {
+        clearInterval(spawnInterval);
+      }
     };
   }, [isGameActive, gameOver, generateRandomPosition, setCollectibles]);
 
