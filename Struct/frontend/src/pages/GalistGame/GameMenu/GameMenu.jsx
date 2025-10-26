@@ -11,13 +11,11 @@ function GameMenu({ onStart }) {
   useEffect(() => {
     playMenuBgMusic();
     
-    // Stop menu music when component unmounts
-    return () => {
-      stopMenuBgMusic();
-    };
+    // Don't stop menu music on unmount - let individual actions handle it
   }, []);
 
   const handleCompetitiveMode = () => {
+    stopMenuBgMusic(); // Stop menu music when entering competitive mode
     playGameStartSound();
     navigate("/competitive-mode");
   }
@@ -28,11 +26,13 @@ function GameMenu({ onStart }) {
   }
 
   const handleStartGame = () => {
+    // Don't stop menu music here - let it continue to mode select
     playFirstClickSound();
     onStart();
   }
 
   const handleBackToGames = () => {
+    stopMenuBgMusic(); // Stop menu music when leaving to games menu
     navigate("/games");
   }
 

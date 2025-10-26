@@ -24,9 +24,7 @@ function SinglyLinkedListsSelection({ onSelect }) {
     playMenuBgMusic();
     
     // Cleanup: stop menu music when component unmounts
-    return () => {
-      stopMenuBgMusic();
-    };
+    
   }, []);
 
   const handleLevelSelect = (lvl) => {

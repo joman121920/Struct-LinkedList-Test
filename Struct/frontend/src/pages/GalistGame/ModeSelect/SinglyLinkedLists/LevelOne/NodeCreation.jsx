@@ -76,6 +76,7 @@ function MainGameComponent() {
   const [bulletsRemaining, setBulletsRemaining] = useState(10); // Start with 10 bullets per exercise
   const [showFailedModal, setShowFailedModal] = useState(false);
   const [maxBulletsPerExercise] = useState(10); // Constant bullets per exercise
+  const failureCheckTimeoutRef = useRef(null); // Track timeout to cancel if level completed
 
   // Floating target circles - some with values, some with addresses
   // Floating circles state and ref for performance optimization
@@ -216,6 +217,12 @@ function MainGameComponent() {
         setIsLevelCompleted(true);
         setShowCompletionPopup(true);
         
+        // Cancel any pending failure check since level is now completed
+        if (failureCheckTimeoutRef.current) {
+          clearTimeout(failureCheckTimeoutRef.current);
+          failureCheckTimeoutRef.current = null;
+        }
+        
         // Get current level number
         const currentLevelNum = parseInt(exerciseKey.split('_')[1]);
         setCompletionMessage(`Level Complete: ${currentLevelNum}/3`);
@@ -273,6 +280,9 @@ function MainGameComponent() {
       const st = e.state || { screen: "menu", mode: null };
       // If leaving gameplay via browser navigation, end the current game
       if (st.screen !== "play") {
+        // Stop the background music when navigating away
+        stopNodeCreationBgMusic();
+        
         setCircles([]);
         setConnections([]);
         setSuckingCircles([]);
@@ -336,6 +346,12 @@ function MainGameComponent() {
     // Reset completion states
     setIsLevelCompleted(false);
     setCompletionMessage("");
+    
+    // Clear any pending failure check timeout when changing exercises
+    if (failureCheckTimeoutRef.current) {
+      clearTimeout(failureCheckTimeoutRef.current);
+      failureCheckTimeoutRef.current = null;
+    }
     setShowCompletionPopup(false);
     setIsAllLevelsComplete(false);
     // Reset bullet count and failure modal
@@ -729,6 +745,7 @@ function MainGameComponent() {
   const handleGoBack = () => {
     // Navigate back to the previous screen or menu
     window.history.back();
+    stopNodeCreationBgMusic();
   };
 
   // Retry handler for failed modal
@@ -804,29 +821,44 @@ function MainGameComponent() {
     setBulletsRemaining(prev => {
       const newCount = prev - 1;
       
-      // Check for failure after a short delay to allow current shot to complete
-      setTimeout(() => {
-        if (newCount === 0 && !isLevelCompleted) {
-          // Check if level is completed with current square node state
-          if (currentExercise && squareNode.value && squareNode.address) {
-            const validation = exerciseManagerRef.current.validateLevel(
-              exerciseKey, 
-              squareNode.value, 
-              squareNode.address
-            );
-            if (!validation.isCorrect) {
-              setShowFailedModal(true);
-            }
-          } else {
-            // No complete square node and no bullets left = failure
-            setShowFailedModal(true);
-          }
-        }
-      }, 2000); // Give 2 seconds for the bullet to potentially hit something
+      // Clear any existing failure check timeout
+      if (failureCheckTimeoutRef.current) {
+        clearTimeout(failureCheckTimeoutRef.current);
+        failureCheckTimeoutRef.current = null;
+      }
+      
+      // Check for failure after a delay to allow current shot to complete
+      if (newCount === 0) {
+        failureCheckTimeoutRef.current = setTimeout(() => {
+          // Read current state values at time of execution, not at time of timeout creation
+          setSquareNode(currentSquareNode => {
+            setIsLevelCompleted(currentIsLevelCompleted => {
+              if (!currentIsLevelCompleted) {
+                // Check if level is completed with current square node state
+                if (currentExercise && currentSquareNode.value && currentSquareNode.address) {
+                  const validation = exerciseManagerRef.current.validateLevel(
+                    exerciseKey, 
+                    currentSquareNode.value, 
+                    currentSquareNode.address
+                  );
+                  if (!validation.isCorrect) {
+                    setShowFailedModal(true);
+                  }
+                } else {
+                  // No complete square node and no bullets left = failure
+                  setShowFailedModal(true);
+                }
+              }
+              return currentIsLevelCompleted; // Don't change the state
+            });
+            return currentSquareNode; // Don't change the state
+          });
+        }, 2000); // Give 2 seconds for the bullet to potentially hit something
+      }
       
       return newCount;
     });
-  }, [cannonAngle, bulletsRemaining, isLevelCompleted, currentExercise, squareNode, exerciseKey]);
+  }, [cannonAngle, bulletsRemaining, currentExercise, exerciseKey]);
 
   // Animation loop for launched circles
   useEffect(() => {
@@ -1262,6 +1294,16 @@ function MainGameComponent() {
       document.removeEventListener("contextmenu", handleGlobalRightClick);
     };
   }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick]);
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (failureCheckTimeoutRef.current) {
+        clearTimeout(failureCheckTimeoutRef.current);
+        failureCheckTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className={styles.app}>

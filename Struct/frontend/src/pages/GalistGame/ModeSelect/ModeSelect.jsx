@@ -1,23 +1,15 @@
 import PropTypes from "prop-types";
 import styles from "./ModeSelect.module.css";
-import { useEffect } from "react";
-import { playMenuBgMusic, stopMenuBgMusic, playFirstClickSound } from "../Sounds.jsx";
+import { playFirstClickSound } from "../Sounds.jsx";
 function ModeSelect({ onSelect }) {
   
-  // Start menu background music when component mounts
-  useEffect(() => {
-    playMenuBgMusic();
-    
-    // Cleanup: stop menu music when component unmounts
-    return () => {
-      stopMenuBgMusic();
-    };
-  }, []);
+  // Don't restart menu music - it should already be playing from GameMenu
+  // Don't stop music on unmount - only stop when mode is selected
   
   // Handle mode selection with sound effects
   const handleModeSelect = (mode) => {
-    playFirstClickSound(); // Play game start sound
-    stopMenuBgMusic(); // Stop menu music
+    playFirstClickSound(); // Play selection sound
+    // Don't stop menu music here - let it continue until actual level/competition is entered
     
     if (onSelect) {
       onSelect(mode);
