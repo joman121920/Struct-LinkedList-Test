@@ -252,6 +252,15 @@ function CompetitiveMode() {
       showValidationResult, showLoadingScreen, showWrongAnswerNotification, 
       showBombBlockingNotification, showQuizModal]);
 
+  // Cleanup effect to stop background music when component unmounts
+  useEffect(() => {
+    return () => {
+      // Stop background music when component unmounts (including browser back navigation)
+      stopCompeBgSong();
+      console.log('CompetitiveMode unmounting - stopped background music');
+    };
+  }, []);
+
   // Wrap setters in useCallback to prevent unnecessary re-renders
   const setCollectiblesCallback = useCallback((updater) => {
     setCollectibles(updater);
