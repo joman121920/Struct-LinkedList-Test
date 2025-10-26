@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
 import styles from "./NodeCreation.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
-import { playTutorialBgMusic, stopTutorialBgMusic, playFirstClickSound, playNodeCreationBgMusic, playHitSound } from "../../../Sounds.jsx";
+import { playTutorialBgMusic, stopTutorialBgMusic, playFirstClickSound, playNodeCreationBgMusic, playHitSound, playKeyboardSound } from "../../../Sounds.jsx";
 
 // Tutorial Scene Component
 function TutorialScene({ scene, onContinue, onValueShoot }) {
@@ -14,6 +14,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   // const [fadeIn, setFadeIn] = useState(false);
   const tutorialCirclesRef = useRef([]);
   const playedSoundsRef = useRef(new Set()); // Track which circles have already played sound
+  
+  // Typewriter effect states
+  const [typedText, setTypedText] = useState("");
+  const [, setIsTyping] = useState(false);
   
   // Update ref whenever tutorial circles change
   useEffect(() => {
@@ -94,6 +98,37 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       // Clear played sounds for new scene
       playedSoundsRef.current.clear();
     }
+  }, [scene]);
+
+  // Typewriter effect for instruction text
+  useEffect(() => {
+    const texts = {
+      'scene2': "Shoot any value to add in your node",
+      'scene3': "Shoot any address to add in your node"
+    };
+    
+    const currentText = texts[scene];
+    if (!currentText) {
+      setTypedText("");
+      return;
+    }
+    
+    setIsTyping(true);
+    setTypedText("");
+    
+    let currentIndex = 0;
+    const typeInterval = setInterval(() => {
+      if (currentIndex < currentText.length) {
+        setTypedText(currentText.slice(0, currentIndex + 1));
+        playKeyboardSound(); // Play keyboard sound for each character
+        currentIndex++;
+      } else {
+        setIsTyping(false);
+        clearInterval(typeInterval);
+      }
+    }, 80); // Speed of typing (80ms per character)
+    
+    return () => clearInterval(typeInterval);
   }, [scene]);
 
   // Animate tutorial circles
@@ -362,7 +397,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
         {/* Tutorial instruction bar */}
         <div className={tutorialStyles.tutorialInstructionBar}>
-          <h3>Shoot any value to add in your node</h3>
+          <h3>{typedText}</h3>
         </div>
 
         {/* Cannon */}
@@ -483,7 +518,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
         {/* Tutorial instruction bar */}
         <div className={tutorialStyles.tutorialInstructionBar}>
-          <h3>Shoot any address to add in your node</h3>
+          <h3>{typedText}</h3>
         </div>
 
         {/* Cannon */}
