@@ -2808,7 +2808,7 @@ function CompetitiveMode() {
               onClick={handleCannonClick}
               style={{ cursor: 'pointer' }}
             >
-              <div style={{ position: 'absolute', top: -28, color: '#000000ff', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+              <div style={{ position: 'absolute', top: -28, color: '#f88800', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                   {insertionMode === 'left' ? 'Before' : 'After'}
               </div>
               <span style={{ fontSize: '10px' }}>
@@ -3258,7 +3258,7 @@ function CompetitiveMode() {
               color: '#fff', 
               textAlign: 'center', 
               marginBottom: '30px',
-              fontSize: '24px'
+              fontSize: '30px'
             }}>
               Choose Bullet
             </h2>

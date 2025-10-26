@@ -37,7 +37,7 @@
 }
 
 .scoreText {
-  color: #ff00ff;
+  color: #f88800;
   font-weight: bold;
   font-size: 20px;
 }
@@ -345,8 +345,8 @@
   right: -40px;
   width: 70px;
   height: 110px;
-  background: linear-gradient(to top, #666 0%, #888 50%, #aaa 100%);
-  border: 2px solid #fff;
+  background: transparent;
+  border: 3px solid #f88800;
   z-index: 10;
   transform-origin: bottom center;
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
@@ -371,8 +371,8 @@
   transform: translate(-50%, -50%);
   width: 40px;
   height: 40px;
-  background: #4CAF50;
-  border: 3px solid #fff;
+  background: #f88800;
+  border: 2px solid #fcb500;
   border-radius: 50%;
   cursor: pointer;
   z-index: 11;
@@ -389,7 +389,7 @@
 }
 
 .cannonCircle:hover {
-  background: #45a049;
+  background: #ffbf00;
   transform: translate(-50%, -50%) scale(1.1);
   box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
 }
@@ -630,7 +630,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999999;
 }
 
 .popupContent {
