@@ -25,7 +25,10 @@ const audioInstances = {
   compeBgSong: null,
   menuBg: null,
   gameStartSound: null,
-  tutorialBg: null
+  tutorialBg: null,
+  linkingBg: null,
+  nodeCreationBg: null,
+  keyboardSound: null
 };
 
 // Initialize and preload all audio
@@ -109,6 +112,23 @@ const initializeAudio = () => {
     audioInstances.tutorialBg.preload = 'auto';
     audioInstances.tutorialBg.volume = 0.4; // Slightly lower than menu music
     audioInstances.tutorialBg.loop = true; // Loop the tutorial music
+    
+    // Preload linking background music
+    audioInstances.linkingBg = new Audio('/sounds/linking_bgm.mp3');
+    audioInstances.linkingBg.preload = 'auto';
+    audioInstances.linkingBg.volume = 0.14; // Moderate volume for linking music
+    audioInstances.linkingBg.loop = true; // Loop the linking music
+    
+    // Preload node creation background music
+    audioInstances.nodeCreationBg = new Audio('/sounds/creation_bgm.mp3');
+    audioInstances.nodeCreationBg.preload = 'auto';
+    audioInstances.nodeCreationBg.volume = 0.14; // Lower volume for node creation music
+    audioInstances.nodeCreationBg.loop = true; // Loop the node creation music
+    
+    // Preload keyboard sound for typewriter effects
+    audioInstances.keyboardSound = new Audio('/sounds/keyboard.mp3');
+    audioInstances.keyboardSound.preload = 'auto';
+    audioInstances.keyboardSound.volume = 0.3; // Low volume for subtle typing effect
     
     // Force load the audio files
     Object.values(audioInstances).forEach(audio => {
@@ -386,6 +406,27 @@ export const playSelectSound = () => {
   }
 };
 
+// Create and play keyboard sound for typewriter effects
+export const playKeyboardSound = () => {
+  if (!soundEffectsEnabled) return;
+  
+  try {
+    if (!audioInstances.keyboardSound) {
+      audioInstances.keyboardSound = new Audio('/sounds/keyboard.mp3');
+      audioInstances.keyboardSound.volume = 0.3;
+    }
+    
+    const audio = audioInstances.keyboardSound.cloneNode();
+    audio.volume = 0.3;
+    
+    audio.play().catch(error => {
+      console.warn('Could not play keyboard sound:', error);
+    });
+  } catch (error) {
+    console.warn('Error creating keyboard sound:', error);
+  }
+};
+
 // Start playing competitive background music (looped)
 export const playCompeBgSong = () => {
   if (!musicEnabled) return;
@@ -608,6 +649,52 @@ export const stopNodeCreationBgMusic = () => {
   }
 };
 
+// Start playing linking background music (looped)
+export const playLinkingBgMusic = () => {
+  if (!musicEnabled) return;
+  
+  try {
+    if (!audioInstances.linkingBg) {
+      audioInstances.linkingBg = new Audio('/sounds/linking_bgm.mp3');
+      audioInstances.linkingBg.volume = 0.14;
+      audioInstances.linkingBg.loop = true;
+    }
+    
+    // Check if music is already playing to prevent double playback
+    if (!audioInstances.linkingBg.paused) {
+      console.log('Linking background music is already playing, skipping...');
+      return;
+    }
+    
+    // Ensure volume is set correctly and reset to start
+    audioInstances.linkingBg.volume = 0.14;
+    audioInstances.linkingBg.currentTime = 0;
+    audioInstances.linkingBg.loop = true;
+
+    console.log('Starting linking background music at volume 0.14...');
+    audioInstances.linkingBg.play().then(() => {
+      console.log('Linking background music started successfully');
+    }).catch(error => {
+      console.warn('Could not play linking background music:', error);
+    });
+  } catch (error) {
+    console.warn('Error starting linking background music:', error);
+  }
+};
+
+// Stop linking background music
+export const stopLinkingBgMusic = () => {
+  try {
+    if (audioInstances.linkingBg) {
+      audioInstances.linkingBg.pause();
+      audioInstances.linkingBg.currentTime = 0;
+      console.log('Linking background music stopped');
+    }
+  } catch (error) {
+    console.warn('Error stopping linking background music:', error);
+  }
+};
+
 // Activate audio context with user interaction
 export const activateAudioContext = () => {
   try {
@@ -725,6 +812,7 @@ export default {
   playClaimSound,
   playHoverSound,
   playSelectSound,
+  playKeyboardSound,
   playCompeBgSong,
   stopCompeBgSong,
   restartCompeBgSong,
@@ -737,6 +825,8 @@ export default {
   setSoundSettings,
   playNodeCreationBgMusic,
   stopNodeCreationBgMusic,
+  playLinkingBgMusic,
+  stopLinkingBgMusic,
   preloadLinkSound,
   SoundManager 
 };

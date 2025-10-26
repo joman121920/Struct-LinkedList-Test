@@ -5,6 +5,7 @@ import { collisionDetection } from "../../../CollisionDetection";
 import PropTypes from "prop-types";
 import styles from "./LinkingNode.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
+import { playTutorialBgMusic, stopTutorialBgMusic, playHitSound, playFirstClickSound, playKeyboardSound } from "../../../Sounds.jsx";
 
 // Tutorial Scene Component for Linking Nodes
 function TutorialScene({ scene, onContinue, onValueShoot }) {
@@ -87,6 +88,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         currentIdx++;
         setTypedInstruction(instructionText.slice(0, currentIdx));
+        // Play typing sound for each character
+        playKeyboardSound();
         if (currentIdx >= instructionText.length) {
           clearInterval(interval);
           setTimeout(() => setInstructionStep(1), 2000);
@@ -99,6 +102,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx++;
         setTypedInstruction(secondText.slice(0, idx));
+        // Play typing sound for each character
+        playKeyboardSound();
         if (idx >= secondText.length) {
           clearInterval(interval);
         }
@@ -110,6 +115,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx++;
         setTypedInstruction(collisionText.slice(0, idx));
+        // Play typing sound for each character
+        playKeyboardSound();
         if (idx >= collisionText.length) {
           clearInterval(interval);
           setTimeout(() => setInstructionStep(3), 2000);
@@ -122,6 +129,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx++;
         setTypedInstruction(nextText.slice(0, idx));
+        // Play typing sound for each character
+        playKeyboardSound();
         if (idx >= nextText.length) {
           clearInterval(interval);
         }
@@ -136,6 +145,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [cannonCircle, setCannonCircle] = useState({ value: "42", address: "aa10" });
   const [tutorialBullets, setTutorialBullets] = useState([]);
   const tutorialCirclesRef = useRef([]);
+  const hitSoundsPlayedRef = useRef(new Set()); // Track which collisions have already played sound
 
 
   // Central expiry interval: scan for unlinked nodes older than 3s and remove instantly
@@ -192,6 +202,30 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       setCannonCircle({ value: cannonValue.toString(), address: cannonAddress });
     }
   }, [scene]);
+
+  // Initialize tutorial background music and cleanup
+  useEffect(() => {
+    // Play tutorial background music when component mounts
+    playTutorialBgMusic();
+
+    // Cleanup: stop music when component unmounts or scene changes
+    return () => {
+      stopTutorialBgMusic();
+    };
+  }, []);
+
+  // Add browser navigation cleanup
+  useEffect(() => {
+    const onPopState = (e) => {
+      const st = e.state || { screen: "menu", mode: null };
+      // If leaving gameplay via browser navigation, stop the music
+      if (st.screen !== "play") {
+        stopTutorialBgMusic();
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   // Scene2: Only connect the new node after bullet hits the initial node (smooth animation)
   useEffect(() => {
@@ -286,6 +320,18 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   return arr;
                 }
               });
+              
+              // Play hit sound for successful collision
+              const collisionKey = `head_${bullet.id}_${headNode.id}`;
+              if (!hitSoundsPlayedRef.current.has(collisionKey)) {
+                playHitSound();
+                hitSoundsPlayedRef.current.add(collisionKey);
+                // Clear old collision keys after a delay to prevent memory buildup
+                setTimeout(() => {
+                  hitSoundsPlayedRef.current.delete(collisionKey);
+                }, 1000);
+              }
+              
               // No expiry call needed; central interval handles removal
               setInstructionStep(2); // Show collision text only after hit
               setTutorialConnections([{ id: `conn_${Date.now()}`, from: headNode.id, to: newCircle.id }]);
@@ -362,6 +408,18 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   return arr;
                 }
               });
+              
+              // Play hit sound for successful collision
+              const collisionKey = `tail_${updatedBullet.id}_${tailNode.id}`;
+              if (!hitSoundsPlayedRef.current.has(collisionKey)) {
+                playHitSound();
+                hitSoundsPlayedRef.current.add(collisionKey);
+                // Clear old collision keys after a delay to prevent memory buildup
+                setTimeout(() => {
+                  hitSoundsPlayedRef.current.delete(collisionKey);
+                }, 1000);
+              }
+              
               // No expiry call needed; central interval handles removal
               setTutorialConnections(prevConns => [
                 ...prevConns,
@@ -488,6 +546,18 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 isLaunched: false
               };
               setTutorialCircles(prevCircles => [...prevCircles, newCircle]);
+              
+              // Play hit sound for successful collision
+              const collisionKey = `chain_${updatedBullet.id}_${circle.id}`;
+              if (!hitSoundsPlayedRef.current.has(collisionKey)) {
+                playHitSound();
+                hitSoundsPlayedRef.current.add(collisionKey);
+                // Clear old collision keys after a delay to prevent memory buildup
+                setTimeout(() => {
+                  hitSoundsPlayedRef.current.delete(collisionKey);
+                }, 1000);
+              }
+              
               // expiry handled by central interval
               setTutorialConnections(prevConns => [
                 ...prevConns,
@@ -562,10 +632,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               <p>In linked lists, each node connects to the next through a pointer, forming a chain that grows as new nodes are added.</p>
               <p>Let&apos;s link your nodes together and see how chains are formed!</p>
               <button 
-                onClick={onContinue}
+                onClick={() => { onContinue(); playFirstClickSound(); }}
                 className={tutorialStyles.tutorialButton}
               >
-                Continue
+                Let&apos;s Go
               </button>
             </div>
           </div>
@@ -730,7 +800,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 </p>
                 <button
                   className={tutorialStyles.tutorialButton}
-                  onClick={onContinue}
+                  onClick={() => { onContinue(); playFirstClickSound(); }}
                 >
                   Continue
                 </button>

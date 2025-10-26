@@ -9,6 +9,7 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
+import { playLinkingBgMusic, stopLinkingBgMusic, playHitSound, playFirstClickSound, playHoverSound, playClaimSound, playErrorSound, playSelectSound} from "../../../Sounds.jsx";
 
 // Exercise keys constant moved outside component to avoid useCallback dependency issues
 const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
@@ -21,6 +22,7 @@ function GalistGameLinkingNode() {
 
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
+    stopLinkingBgMusic();
     window.history.back();
   }, []);
 
@@ -38,6 +40,7 @@ function GalistGameLinkingNode() {
   const [connections, setConnections] = useState([]);
   const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
+  const connectionSoundsPlayedRef = useRef(new Set()); // Track played connection sounds to prevent duplicates
   const [suckingCircles, setSuckingCircles] = useState([]);
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
@@ -239,6 +242,8 @@ function GalistGameLinkingNode() {
     const updated = prev.map(c => {
       if (c.id !== circleId) return c;
       
+      // play when getting clicked
+      playHoverSound();
       // Prevent deletion of initial circle
       if (c.isInitial) {
         return c; // Don't update click count for initial circle
@@ -648,6 +653,8 @@ function GalistGameLinkingNode() {
   // Handler for when user clicks Continue on the instruction modal: start the game.
   const handleInstructionModalStart = useCallback(() => {
     setShowInstructionModal(false);
+    // Play linking background music when game starts
+    playLinkingBgMusic();
     // Ensure exercise is initialized and timer started
     startExercise();
   }, [startExercise]);
@@ -950,6 +957,7 @@ function GalistGameLinkingNode() {
             );
             const collisionThreshold = 70; // Larger threshold for easier collision
             if (distance <= collisionThreshold) {
+              
               // Check if connection already exists
               const connectionExists = connections.some(conn => 
                 (conn.from === circle1.id && conn.to === circle2.id) ||
@@ -1110,6 +1118,17 @@ function GalistGameLinkingNode() {
                     to: toId
                   };
                   
+                  // Play hit sound only when successfully linking nodes (prevent duplicates)
+                  const connectionKey = `${Math.min(fromId, toId)}_${Math.max(fromId, toId)}`;
+                  if (!connectionSoundsPlayedRef.current.has(connectionKey)) {
+                    playHitSound();
+                    connectionSoundsPlayedRef.current.add(connectionKey);
+                    // Clear sound tracking after delay to prevent memory buildup
+                    setTimeout(() => {
+                      connectionSoundsPlayedRef.current.delete(connectionKey);
+                    }, 1000);
+                  }
+                  
                   // ...existing code...
                   
                   setConnections(prev => {
@@ -1118,6 +1137,9 @@ function GalistGameLinkingNode() {
                     return updated;
                   });
                 } else if (shouldDeleteCircle) {
+                  // Play error sound for invalid connections (node deletion)
+                  playErrorSound();
+                  
                   // Delete the specified circle(s)
                   if (Array.isArray(shouldDeleteCircle)) {
                     // Delete multiple circles
@@ -1636,20 +1658,31 @@ function GalistGameLinkingNode() {
     setCurrentExercise(exercise);
   }, [exerciseKey]);
 
+  // Cleanup background music on component unmount and browser navigation
+  useEffect(() => {
+    const onPopState = (e) => {
+      const st = e.state || { screen: "menu", mode: null };
+      // If leaving gameplay via browser navigation, stop the music
+      if (st.screen !== "play") {
+        stopLinkingBgMusic();
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    
+    // Cleanup on component unmount
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      stopLinkingBgMusic();
+    };
+  }, []);
+
   return (
     <div className={styles.app}>
-      <video
+      <img
         className={styles.videoBackground}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        // onError={(e) => console.error("Video error:", e)}
-      >
-        <source src="./video/bubble_bg.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+        src="./images/linking_bg.gif"
+        alt="Background Video"
+      />
 
       {/* Countdown timer (top right) - HIDE DURING TUTORIAL and when instruction modal is open */}
       {!showInstructionPopup && !showInstructionModal && (
@@ -1745,10 +1778,10 @@ function GalistGameLinkingNode() {
 
             <div className={styles.instructionButtonWrapper}>
               <button
-                onClick={handleInstructionModalStart}
+                onClick={() => { handleInstructionModalStart(); playFirstClickSound(); }}
                 className={styles.instructionContinueBtn}
               >
-                Continue
+                Start Game
               </button>
             </div>
           </div>
@@ -1778,7 +1811,7 @@ function GalistGameLinkingNode() {
           {/* Cannon Circle */}
           <div 
             className={styles.cannonCircle}
-            onClick={handleCannonClick}
+            onClick={() => { handleCannonClick(); playSelectSound(); }}
             style={{ cursor: 'pointer' }}
           >
             <span style={{ fontSize: '14px' }}>
@@ -2157,7 +2190,7 @@ function GalistGameLinkingNode() {
               {bulletOptions.map((bullet) => (
                 <div
                   key={bullet.id}
-                  onClick={() => handleBulletSelect(bullet)}
+                  onClick={() => { handleBulletSelect(bullet); playSelectSound(); }}
                   style={{
                     width: '80px',
                     height: '80px',
@@ -2174,6 +2207,7 @@ function GalistGameLinkingNode() {
                     fontWeight: 'bold'
                   }}
                   onMouseEnter={(e) => {
+                    playHoverSound();
                     e.target.style.transform = 'scale(1.1)';
                     e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
                   }}
@@ -2200,23 +2234,35 @@ function GalistGameLinkingNode() {
       {/* Level Complete Modal */}
       {showLevelCompleteModal && currentExerciseNumber < totalExercises && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#1a1a1a', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '400px', textAlign: 'center' }}>
-            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '20px' }}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#1a1a1a04', border: '3px solid #004cff', borderRadius: '15px', padding: '30px', maxWidth: '400px', textAlign: 'center' }}>
+            <h2 style={{ color: '#004cff', fontSize: '2rem', marginBottom: '20px' }}>
               Level Complete: {currentExerciseNumber}/{totalExercises}
             </h2>
             <button
               style={{
                 background: 'none',
-                border: '2px solid #ff00ff',
+                border: '2px solid #004cff',
                 borderRadius: '10px',
-                color: '#fff',
+                color: '#004cff',
                 fontWeight: 'bold',
                 fontSize: '1.2rem',
                 padding: '10px 30px',
                 cursor: 'pointer',
                 marginTop: '20px',
+                transition: 'all 0.3s ease',
               }}
-              onClick={handleLevelContinue}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#02236fff';
+                e.target.style.color = '#000';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
+              }}
+              onClick={() => { handleLevelContinue(); playClaimSound(); }}
             >
               Continue
             </button>
@@ -2226,14 +2272,14 @@ function GalistGameLinkingNode() {
       {/* All Exercises Completed Modal */}
       {showAllCompletedModal && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #fff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
-            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '30px' }}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #004cff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
+            <h2 style={{ color: '#004cff', fontSize: '2rem', marginBottom: '30px' }}>
               Linking Nodes Completed
             </h2>
             <button
               style={{
                 background: 'none',
-                border: '2px solid #fff',
+                border: '2px solid #004cff',
                 borderRadius: '8px',
                 color: '#fff',
                 fontWeight: 'bold',
@@ -2241,6 +2287,17 @@ function GalistGameLinkingNode() {
                 padding: '10px 30px',
                 cursor: 'pointer',
                 marginTop: '20px',
+              }}
+               onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#002478ff';
+                e.target.style.color = '#000';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
               }}
               onClick={handleGoBack}
             >
