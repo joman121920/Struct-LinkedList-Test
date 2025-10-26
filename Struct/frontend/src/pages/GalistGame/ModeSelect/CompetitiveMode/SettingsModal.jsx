@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import styles from './SettingsModal.module.css';
-import { playHoverSound } from './Sounds.jsx';
+import { playHoverSound } from '../../Sounds.jsx';
 
 const SettingsModal = ({ 
   showSettings, 

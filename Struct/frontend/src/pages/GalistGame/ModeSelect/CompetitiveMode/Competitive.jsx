@@ -9,7 +9,7 @@ import CompetitiveInstruction from './CompetitiveInstruction.jsx';
 import LoadingScreen from '../../LoadingScreen/LoadingScreen.jsx';
 import SettingsModal from './SettingsModal.jsx';
 import { collisionDetection } from "../../CollisionDetection.js";
-import { playLinkSound, playBombCollectibleSound, playClockCollectibleSound, playAlarmSound, stopAlarmSound, playFirstClickSound, playSwapSound, playClaimSound, playHoverSound, playSelectSound, playCompeBgSong, stopCompeBgSong, restartCompeBgSong, activateAudioContext, setSoundSettings } from './Sounds.jsx';
+import { playLinkSound, playBombCollectibleSound, playClockCollectibleSound, playAlarmSound, stopAlarmSound, playFirstClickSound, playSwapSound, playClaimSound, playHoverSound, playSelectSound, playCompeBgSong, stopCompeBgSong, restartCompeBgSong, activateAudioContext, setSoundSettings } from '../../Sounds.jsx';
 // Portal visual components removed
 // Tutorial removed: import kept out intentionally
 
@@ -2303,6 +2303,10 @@ function CompetitiveMode() {
           // Do not change clickCount for initial circles or bomb nodes
           const hasBomb = (bombNode && bombNode.id === c.id) || activeBombs.some(bomb => bomb.id === c.id);
           if (c.isInitial || hasBomb) return c;
+          
+          // Play click sound when user clicks to delete a node
+          playHoverSound();
+          
           const nextCount = Math.min(5, (c.clickCount || 0) + 1);
           return { ...c, clickCount: nextCount, deletionReady: nextCount >= 5 ? true : (c.deletionReady || false) };
         }
@@ -2319,6 +2323,7 @@ function CompetitiveMode() {
       // If deletionReady just became true, schedule the actual deletion after a short delay
       if (clicked && clicked.deletionReady) {
         setTimeout(() => {
+          // playBombCollectibleSound(); // Play deletion sound
           performDelete(circleId);
         }, 420); // small delay so user sees the filled background
       }
