@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
 import styles from "./NodeCreation.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
+import { playTutorialBgMusic, stopTutorialBgMusic, playFirstClickSound, playNodeCreationBgMusic, playHitSound } from "../../../Sounds.jsx";
 
 // Tutorial Scene Component
 function TutorialScene({ scene, onContinue, onValueShoot }) {
@@ -12,11 +13,22 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [tutorialBullets, setTutorialBullets] = useState([]);
   // const [fadeIn, setFadeIn] = useState(false);
   const tutorialCirclesRef = useRef([]);
+  const playedSoundsRef = useRef(new Set()); // Track which circles have already played sound
   
   // Update ref whenever tutorial circles change
   useEffect(() => {
     tutorialCirclesRef.current = tutorialCircles;
   }, [tutorialCircles]);
+
+  // Start tutorial background music when component mounts
+  useEffect(() => {
+    playTutorialBgMusic();
+    
+    // Stop tutorial music when component unmounts
+    return () => {
+      stopTutorialBgMusic();
+    };
+  }, []);
 
   // Handle fade-in animation for scene4
   // useEffect(() => {
@@ -51,6 +63,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       }));
       
       setTutorialCircles(circles);
+      // Clear played sounds for new scene
+      playedSoundsRef.current.clear();
     } else if (scene === 'scene3') {
       // Generate 4 random address circles for scene 3
       const addressLetters = ['a', 'b', 'c', 'd', 'e', 'f'];
@@ -77,6 +91,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       setTutorialCircles(circles);
       // Reset bullets for new scene
       setTutorialBullets([]);
+      // Clear played sounds for new scene
+      playedSoundsRef.current.clear();
     }
   }, [scene]);
 
@@ -202,6 +218,12 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             if (centerDistance < collisionThreshold) {
               bulletHitSomething = true;
 
+              // Play hit sound effect only once per circle
+              if (!playedSoundsRef.current.has(circle.id)) {
+                playHitSound();
+                playedSoundsRef.current.add(circle.id);
+              }
+
               // Add value or address to square node based on scene
               if (scene === 'scene2' && circle.type === 'value') {
                 setSquareNode(prev => ({ ...prev, value: circle.content }));
@@ -258,6 +280,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     };
   }, [scene, handleTutorialRightClick]);
 
+  // Handle start game button click - stop tutorial music and play game start sound
+  const handleStartGame = useCallback(() => {
+    stopTutorialBgMusic();
+    playFirstClickSound();
+    playNodeCreationBgMusic();
+    onContinue();
+  }, [onContinue]);
+
   if (scene === 'scene1') {
     return (
       <div className={styles.app}>
@@ -281,10 +311,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               <p>In a linked list, a node is like a container and each node has two parts which is the value and the address of the node</p>
               <p><strong>Let&apos;s build one!</strong></p>
               <button 
-                onClick={onContinue}
+                onClick={() => { 
+                  playTutorialBgMusic(); 
+                  playFirstClickSound(); 
+                  onContinue(); 
+                }}
                 className={tutorialStyles.tutorialButton}
               >
-                Continue
+                Let&apos;s Go!
               </button>
             </div>
           </div>
@@ -371,7 +405,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               top: `${bullet.y}px`,
               width: '30px',
               height: '30px',
-              backgroundColor: '#ff6b6b',
+              backgroundColor: '#ff00bbff',
               cursor: 'default',
               opacity: 0.9,
               boxShadow: '0 0 15px rgba(255, 255, 0, 0.6)',
@@ -419,7 +453,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 </div>
                 <p>You&apos;ve added a value to your node. Now let&apos;s add an address to your node.</p>
                 <button 
-                  onClick={onContinue}
+                  onClick={() => { onContinue(); playFirstClickSound(); }}
                   className={tutorialStyles.tutorialButton}
                 >
                   Continue
@@ -492,7 +526,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               top: `${bullet.y}px`,
               width: '30px',
               height: '30px',
-              backgroundColor: '#ff6b6b',
+              backgroundColor: '#ff00bbff',
               cursor: 'default',
               opacity: 0.9,
               boxShadow: '0 0 15px rgba(255, 255, 0, 0.6)',
@@ -541,7 +575,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 <p>You created your first node with both data and address. Remember a node always needs both data and address.</p>
                 <p><strong>Let&apos;s head to the game.</strong></p>
                 <button 
-                  onClick={onContinue}
+                  onClick={() => { onContinue(); playFirstClickSound(); }}
                   className={tutorialStyles.tutorialButton}
                 >
                   Continue
@@ -596,11 +630,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               
               <div className={tutorialStyles.gameInstructionsFooter}>
                 <button 
-                  onClick={onContinue}
+                  onClick={handleStartGame}
                   className={tutorialStyles.tutorialButton}
                   
                 >
-                  Continue
+                  Start Game
                 </button>
               </div>
             </div>

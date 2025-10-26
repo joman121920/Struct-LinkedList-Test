@@ -12,6 +12,8 @@ export const setSoundSettings = (soundFx, music) => {
 // Preloaded audio instances to avoid delays
 const audioInstances = {
   linkSound: null,
+  linkSound2: null, // Hit sound effect for circle collisions
+  errorSound: null, // Error sound for wrong hits
   bombCollectible: null,
   clockCollectible: null,
   alarmSound: null,
@@ -22,7 +24,8 @@ const audioInstances = {
   selectSound: null,
   compeBgSong: null,
   menuBg: null,
-  gameStartSound: null
+  gameStartSound: null,
+  tutorialBg: null
 };
 
 // Initialize and preload all audio
@@ -32,6 +35,16 @@ const initializeAudio = () => {
     audioInstances.linkSound = new Audio('/sounds/link_sound.wav');
     audioInstances.linkSound.preload = 'auto';
     audioInstances.linkSound.volume = 0.5;
+    
+    // Preload hit sound (link_sound2)
+    audioInstances.linkSound2 = new Audio('/sounds/link_sound.wav');
+    audioInstances.linkSound2.preload = 'auto';
+    audioInstances.linkSound2.volume = 0.6;
+    
+    // Preload error sound
+    audioInstances.errorSound = new Audio('/sounds/error.mp3');
+    audioInstances.errorSound.preload = 'auto';
+    audioInstances.errorSound.volume = 0.7;
     
     // Preload bomb collectible sound
     audioInstances.bombCollectible = new Audio('/sounds/explode.mp3');
@@ -91,6 +104,12 @@ const initializeAudio = () => {
     audioInstances.gameStartSound.preload = 'auto';
     audioInstances.gameStartSound.volume = 0.6;
     
+    // Preload tutorial background music
+    audioInstances.tutorialBg = new Audio('/sounds/tutorial_bgm.mp3');
+    audioInstances.tutorialBg.preload = 'auto';
+    audioInstances.tutorialBg.volume = 0.4; // Slightly lower than menu music
+    audioInstances.tutorialBg.loop = true; // Loop the tutorial music
+    
     // Force load the audio files
     Object.values(audioInstances).forEach(audio => {
       if (audio) {
@@ -125,6 +144,48 @@ export const playLinkSound = () => {
     });
   } catch (error) {
     console.warn('Error creating link sound:', error);
+  }
+};
+
+// Create and play hit sound effect when bullet hits a circle
+export const playHitSound = () => {
+  if (!soundEffectsEnabled) return;
+  
+  try {
+    if (!audioInstances.linkSound2) {
+      audioInstances.linkSound2 = new Audio('/sounds/link_sound2.wav');
+      audioInstances.linkSound2.volume = 0.6;
+    }
+    
+    const audio = audioInstances.linkSound2.cloneNode();
+    audio.volume = 0.6;
+    
+    audio.play().catch(error => {
+      console.warn('Could not play hit sound:', error);
+    });
+  } catch (error) {
+    console.warn('Error creating hit sound:', error);
+  }
+};
+
+// Create and play error sound effect when hitting wrong circle
+export const playErrorSound = () => {
+  if (!soundEffectsEnabled) return;
+  
+  try {
+    if (!audioInstances.errorSound) {
+      audioInstances.errorSound = new Audio('/sounds/error.mp3');
+      audioInstances.errorSound.volume = 0.7;
+    }
+    
+    const audio = audioInstances.errorSound.cloneNode();
+    audio.volume = 0.7;
+    
+    audio.play().catch(error => {
+      console.warn('Could not play error sound:', error);
+    });
+  } catch (error) {
+    console.warn('Error creating error sound:', error);
   }
 };
 
@@ -455,6 +516,98 @@ export const playGameStartSound = () => {
   }
 };
 
+// Start playing tutorial background music (looped)
+export const playTutorialBgMusic = () => {
+  if (!musicEnabled) return;
+  
+  try {
+    if (!audioInstances.tutorialBg) {
+      audioInstances.tutorialBg = new Audio('/sounds/tutorial_bgm.mp3');
+      audioInstances.tutorialBg.volume = 0.4;
+      audioInstances.tutorialBg.loop = true;
+    }
+    
+    // Check if music is already playing to prevent double playback
+    if (!audioInstances.tutorialBg.paused) {
+      console.log('Tutorial background music is already playing, skipping...');
+      return;
+    }
+    
+    // Ensure volume is set correctly and reset to start
+    audioInstances.tutorialBg.volume = 0.4;
+    audioInstances.tutorialBg.currentTime = 0;
+    audioInstances.tutorialBg.loop = true;
+
+    console.log('Starting tutorial background music at volume 0.4...');
+    audioInstances.tutorialBg.play().then(() => {
+      console.log('Tutorial background music started successfully');
+    }).catch(error => {
+      console.warn('Could not play tutorial background music:', error);
+    });
+  } catch (error) {
+    console.warn('Error starting tutorial background music:', error);
+  }
+};
+
+// Stop tutorial background music
+export const stopTutorialBgMusic = () => {
+  try {
+    if (audioInstances.tutorialBg) {
+      audioInstances.tutorialBg.pause();
+      audioInstances.tutorialBg.currentTime = 0;
+      console.log('Tutorial background music stopped');
+    }
+  } catch (error) {
+    console.warn('Error stopping tutorial background music:', error);
+  }
+};
+
+// Start playing node creation background music (looped)
+export const playNodeCreationBgMusic = () => {
+  if (!musicEnabled) return;
+  
+  try {
+    if (!audioInstances.nodeCreationBg) {
+      audioInstances.nodeCreationBg = new Audio('/sounds/creation_bgm.mp3');
+      audioInstances.nodeCreationBg.volume = 0.14;
+      audioInstances.nodeCreationBg.loop = true;
+    }
+    
+    // Check if music is already playing to prevent double playback
+    if (!audioInstances.nodeCreationBg.paused) {
+      console.log('Node creation background music is already playing, skipping...');
+      return;
+    }
+    
+    // Ensure volume is set correctly and reset to start
+    audioInstances.nodeCreationBg.volume = 0.14;
+    audioInstances.nodeCreationBg.currentTime = 0;
+    audioInstances.nodeCreationBg.loop = true;
+
+    console.log('Starting node creation background music at volume 0.14...');
+    audioInstances.nodeCreationBg.play().then(() => {
+      console.log('Node creation background music started successfully');
+    }).catch(error => {
+      console.warn('Could not play node creation background music:', error);
+    });
+  } catch (error) {
+    console.warn('Error starting node creation background music:', error);
+  }
+};
+
+// Stop node creation background music
+export const stopNodeCreationBgMusic = () => {
+  try {
+    if (audioInstances.nodeCreationBg) {
+      audioInstances.nodeCreationBg.pause();
+      audioInstances.nodeCreationBg.currentTime = 0;
+      console.log('Node creation background music stopped');
+    }
+  } catch (error) {
+    console.warn('Error stopping node creation background music:', error);
+  }
+};
+
 // Activate audio context with user interaction
 export const activateAudioContext = () => {
   try {
@@ -520,6 +673,8 @@ export class SoundManager {
     this.preloadSound('compeBgSong', '/sounds/compe_bgSong.mp3');
     this.preloadSound('menuBg', '/sounds/menu_bgm.mp3');
     this.preloadSound('gameStartSound', '/sounds/game_start_sound.mp3');
+    this.preloadSound('tutorialBg', '/sounds/tutorial_bgm.mp3');
+    this.preloadSound('nodeCreationBg', '/sounds/node_creation_bgm.mp3');
   }
 
   preloadSound(name, path) {
@@ -559,6 +714,8 @@ export class SoundManager {
 
 export default { 
   playLinkSound, 
+  playHitSound,
+  playErrorSound,
   playBombCollectibleSound, 
   playClockCollectibleSound, 
   playAlarmSound,
@@ -574,8 +731,12 @@ export default {
   playMenuBgMusic,
   stopMenuBgMusic,
   playGameStartSound,
+  playTutorialBgMusic,
+  stopTutorialBgMusic,
   activateAudioContext,
   setSoundSettings,
-  preloadLinkSound, 
+  playNodeCreationBgMusic,
+  stopNodeCreationBgMusic,
+  preloadLinkSound,
   SoundManager 
 };

@@ -159,7 +159,7 @@
   height: 100vh;
   object-fit: cover;
   z-index: 0;
-  opacity: 0.3;
+  opacity: 0.14;
   pointer-events: none;
 }
 
@@ -383,8 +383,8 @@
   right: -40px;
   width: 70px;
   height: 110px;
-  background: linear-gradient(to top, #666 0%, #888 50%, #aaa 100%);
-  border: 2px solid #fff;
+  background:  transparent;
+  border: 4px solid #fe00cf;
   z-index: 10;
   transform-origin: bottom center;
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
@@ -399,9 +399,8 @@
   transform: translateX(-50%);
   width: 8px;
   height: 8px;
-  background: #ff6b6b;
+  background:transparent;
   border-radius: 50%;
-  box-shadow: 0 0 5px rgba(255, 107, 107, 0.8);
 }
 
 .cannonCircle {
@@ -411,8 +410,8 @@
   transform: translate(-50%, -50%);
   width: 40px;
   height: 40px;
-  background: #4CAF50;
-  border: 3px solid #fff;
+  background: #ff00c3;
+  border: 3px solid #4e0039;
   border-radius: 50%;
   cursor: pointer;
   z-index: 11;
@@ -421,28 +420,27 @@
   justify-content: center;
   font-size: 12px;
   font-weight: bold;
-  color: white;
   text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+  box-shadow: 0 0 10px #4e0039;
   transition: all 0.2s ease;
   animation: pulse 1.5s infinite;
 }
 
 .cannonCircle:hover {
-  background: #45a049;
+  background: #4e0039;
   transform: translate(-50%, -50%) scale(1.1);
-  box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+  box-shadow: 0 0 15px #4e0039;
 }
 
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    box-shadow: 0 0 10px #4e0039;
   }
   50% {
-    box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+    box-shadow: 0 0 20px #4e0039;
   }
   100% {
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    box-shadow: 0 0 10px #4e0039;
   }
 }
 
@@ -1509,7 +1507,7 @@
 }
 
 .completionPopup {
-  background: #0c0c0c00;
+  background: #0c0c0c;
   border: 2px solid #f609e2;
   border-radius: 15px;
   padding: 50px 80px 20px;
