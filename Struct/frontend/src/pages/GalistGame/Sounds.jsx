@@ -20,7 +20,9 @@ const audioInstances = {
   claimSound: null,
   hoverSound: null,
   selectSound: null,
-  compeBgSong: null
+  compeBgSong: null,
+  menuBg: null,
+  gameStartSound: null
 };
 
 // Initialize and preload all audio
@@ -77,6 +79,17 @@ const initializeAudio = () => {
     audioInstances.compeBgSong.preload = 'auto';
     audioInstances.compeBgSong.volume = 0.1; // Very low volume for background music
     audioInstances.compeBgSong.loop = true; // Loop the background music
+    
+    // Preload menu background music
+    audioInstances.menuBg = new Audio('/sounds/menu_bgm.mp3');
+    audioInstances.menuBg.preload = 'auto';
+    audioInstances.menuBg.volume = 0.15; // Slightly higher volume for menu music
+    audioInstances.menuBg.loop = true; // Loop the menu music
+    
+    // Preload game start sound
+    audioInstances.gameStartSound = new Audio('/sounds/game_start_sound.mp3');
+    audioInstances.gameStartSound.preload = 'auto';
+    audioInstances.gameStartSound.volume = 0.6;
     
     // Force load the audio files
     Object.values(audioInstances).forEach(audio => {
@@ -372,6 +385,76 @@ export const restartCompeBgSong = () => {
   }
 };
 
+// Start playing menu background music (looped)
+export const playMenuBgMusic = () => {
+  if (!musicEnabled) return;
+  
+  try {
+    if (!audioInstances.menuBg) {
+      audioInstances.menuBg = new Audio('/sounds/menu_bgm.mp3');
+      audioInstances.menuBg.volume = 0.15;
+      audioInstances.menuBg.loop = true;
+    }
+    
+    // Check if music is already playing to prevent double playback
+    if (!audioInstances.menuBg.paused) {
+      console.log('Menu background music is already playing, skipping...');
+      return;
+    }
+    
+    // Ensure volume is set correctly and reset to start
+    audioInstances.menuBg.volume = 0.15;
+    audioInstances.menuBg.currentTime = 0;
+    audioInstances.menuBg.loop = true;
+    
+    console.log('Starting menu background music at volume 0.15...');
+    audioInstances.menuBg.play().then(() => {
+      console.log('Menu background music started successfully');
+    }).catch(error => {
+      console.warn('Could not play menu background music:', error);
+    });
+  } catch (error) {
+    console.warn('Error starting menu background music:', error);
+  }
+};
+
+// Stop menu background music
+export const stopMenuBgMusic = () => {
+  try {
+    if (audioInstances.menuBg) {
+      audioInstances.menuBg.pause();
+      audioInstances.menuBg.currentTime = 0;
+      console.log('Menu background music stopped');
+    }
+  } catch (error) {
+    console.warn('Error stopping menu background music:', error);
+  }
+};
+
+// Play game start sound effect
+export const playGameStartSound = () => {
+  if (!soundEffectsEnabled) return;
+  
+  try {
+    if (!audioInstances.gameStartSound) {
+      audioInstances.gameStartSound = new Audio('/sounds/game_start_sound.mp3');
+      audioInstances.gameStartSound.volume = 0.6;
+    }
+    
+    const audio = audioInstances.gameStartSound.cloneNode();
+    audio.volume = 0.6;
+    
+    console.log('Playing game start sound...');
+    audio.play().then(() => {
+      console.log('Game start sound played successfully');
+    }).catch(error => {
+      console.warn('Could not play game start sound:', error);
+    });
+  } catch (error) {
+    console.warn('Error creating game start sound:', error);
+  }
+};
+
 // Activate audio context with user interaction
 export const activateAudioContext = () => {
   try {
@@ -435,6 +518,8 @@ export class SoundManager {
     this.preloadSound('hoverSound', '/sounds/hover_sound.mp3');
     this.preloadSound('selectSound', '/sounds/select_sound.wav');
     this.preloadSound('compeBgSong', '/sounds/compe_bgSong.mp3');
+    this.preloadSound('menuBg', '/sounds/menu_bgm.mp3');
+    this.preloadSound('gameStartSound', '/sounds/game_start_sound.mp3');
   }
 
   preloadSound(name, path) {
@@ -486,6 +571,9 @@ export default {
   playCompeBgSong,
   stopCompeBgSong,
   restartCompeBgSong,
+  playMenuBgMusic,
+  stopMenuBgMusic,
+  playGameStartSound,
   activateAudioContext,
   setSoundSettings,
   preloadLinkSound, 

@@ -1,25 +1,40 @@
 import PropTypes from "prop-types";
 import styles from "./ModeSelect.module.css";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { playMenuBgMusic, stopMenuBgMusic, playFirstClickSound } from "../Sounds.jsx";
 function ModeSelect({ onSelect }) {
-  const navigate = useNavigate();
+  
+  // Start menu background music when component mounts
+  useEffect(() => {
+    playMenuBgMusic();
+    
+    // Cleanup: stop menu music when component unmounts
+    return () => {
+      stopMenuBgMusic();
+    };
+  }, []);
+  
+  // Handle mode selection with sound effects
+  const handleModeSelect = (mode) => {
+    playFirstClickSound(); // Play game start sound
+    stopMenuBgMusic(); // Stop menu music
+    
+    if (onSelect) {
+      onSelect(mode);
+    }
+  };
   
   // const handleBackToGames = () => {
   //   navigate("/galist-game");
   // }
   return (
     <div className={styles.modeOverlay} role="dialog" aria-modal="true">
-      <video
+      <img
         className={styles.modeVideo}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-      >
-        <source src="./video/space.mp4" type="video/mp4" />
-      </video>
-      {/* <button 
+        src="./images/bg_menu.gif"
+        alt="Background"
+      />
+      {/* <button
               className={styles.backButton}
               onClick={handleBackToGames}
               aria-label="Back to games"
@@ -33,7 +48,7 @@ function ModeSelect({ onSelect }) {
         <div className={styles.modeOptions}>
           <button
             className={styles.modeCard}
-            onClick={() => onSelect("singly")}
+            onClick={() => handleModeSelect("singly")}
             aria-label="Singly Linked List"
           >
             <div className={styles.modeCardTitle}>Singly Linked List</div>
@@ -43,7 +58,7 @@ function ModeSelect({ onSelect }) {
           </button>
           <button
             className={styles.modeCard}
-            onClick={() => onSelect("doubly")}
+            onClick={() => handleModeSelect("doubly")}
             aria-label="Doubly Linked List"
           >
             <div className={styles.modeCardTitle}>Doubly Linked List</div>

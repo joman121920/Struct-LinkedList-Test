@@ -1,7 +1,8 @@
 import PropTypes from "prop-types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./SinglyLinkedListsSelection.module.css";
+import { playMenuBgMusic, stopMenuBgMusic, playGameStartSound, playFirstClickSound } from "../../Sounds.jsx";
 
 const levelsPage1 = [
   { level: 1, title: "Creating Node" },
@@ -18,7 +19,20 @@ function SinglyLinkedListsSelection({ onSelect }) {
   const [page, setPage] = useState(1);
   const navigate = useNavigate();
 
+  // Start menu background music when component mounts
+  useEffect(() => {
+    playMenuBgMusic();
+    
+    // Cleanup: stop menu music when component unmounts
+    return () => {
+      stopMenuBgMusic();
+    };
+  }, []);
+
   const handleLevelSelect = (lvl) => {
+    // Play game start sound and stop menu music when selecting a level
+    playGameStartSound();
+    stopMenuBgMusic();
     if (lvl.level === 4) {
       navigate("/galist-game-deletion");
     } else if(lvl.level ===1 ) {
@@ -37,16 +51,11 @@ function SinglyLinkedListsSelection({ onSelect }) {
 
   return (
     <div className={styles.selectionContainer} role="dialog" aria-modal="true">
-      <video
+      <img
         className={styles.modeVideo}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-      >
-        <source src="./video/space.mp4" type="video/mp4" />
-      </video>
+        src="./images/bg_menu.gif"
+        alt="Background"
+      />
 
       <div className={styles.modeContent}>
         <h2 className={styles.title}>Singly Linked Lists</h2>
@@ -68,7 +77,7 @@ function SinglyLinkedListsSelection({ onSelect }) {
           {page === 2 && (
             <button
               className={styles.arrowBtn}
-              onClick={() => setPage(1)}
+              onClick={() => { setPage(1); playFirstClickSound(); }}
               aria-label="Previous"
             >
               &#8592;
@@ -77,7 +86,7 @@ function SinglyLinkedListsSelection({ onSelect }) {
           {page === 1 && (
             <button
               className={styles.arrowBtn}
-              onClick={() => setPage(2)}
+              onClick={() => { setPage(2); playFirstClickSound(); }}
               aria-label="Next"
             >
               &#8594;
