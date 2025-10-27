@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import PropTypes from "prop-types";
 import styles from "./GameMenu.module.css";
-import { playMenuBgMusic, stopMenuBgMusic, playGameStartSound, playFirstClickSound } from "../Sounds.jsx";
+import { playMenuBgMusic, stopMenuBgMusic, playGameStartSound, playFirstClickSound, playHoverSound } from "../Sounds.jsx";
 import { useNavigate } from "react-router-dom";
 
 function GameMenu({ onStart }) {
@@ -63,18 +63,27 @@ function GameMenu({ onStart }) {
           <button
             className={`${styles.menuBtn} ${styles.primary}`}
             onClick={handleStartGame}
+            onMouseEnter={()=>{
+              playHoverSound();
+            }}
           >
             Start Game
           </button>
            <button
             className={`${styles.menuBtn} ${styles.primary}`}
             onClick={handleCompetitiveMode}
+            onMouseEnter={()=>{
+              playHoverSound();
+            }}
           >
             Competitive Mode
           </button>
           <button
             className={`${styles.menuBtn} ${styles.primary}`}
             onClick={handleLeaderboard}
+            onMouseEnter={()=>{
+              playHoverSound();
+            }}
           >
             Leaderboards
           </button>

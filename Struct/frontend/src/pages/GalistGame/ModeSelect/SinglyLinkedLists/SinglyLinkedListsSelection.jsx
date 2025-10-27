@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./SinglyLinkedListsSelection.module.css";
-import { playMenuBgMusic, stopMenuBgMusic, playGameStartSound, playFirstClickSound } from "../../Sounds.jsx";
+import { playMenuBgMusic, stopMenuBgMusic, playGameStartSound, playFirstClickSound, playHoverSound } from "../../Sounds.jsx";
 
 const levelsPage1 = [
   { level: 1, title: "Creating Node" },
@@ -63,6 +63,9 @@ function SinglyLinkedListsSelection({ onSelect }) {
               key={lvl.level}
               className={styles.levelCard}
               onClick={() => handleLevelSelect(lvl)}
+              onMouseEnter={()=>{
+                  playHoverSound();
+              }}
               tabIndex={0}
               aria-label={`Go to Level ${lvl.level}`}
             >
@@ -75,6 +78,9 @@ function SinglyLinkedListsSelection({ onSelect }) {
           {page === 2 && (
             <button
               className={styles.arrowBtn}
+              onMouseEnter={()=>{
+                  playHoverSound();
+              }}
               onClick={() => { setPage(1); playFirstClickSound(); }}
               aria-label="Previous"
             >
@@ -84,6 +90,9 @@ function SinglyLinkedListsSelection({ onSelect }) {
           {page === 1 && (
             <button
               className={styles.arrowBtn}
+              onMouseEnter={()=>{
+                  playHoverSound();
+              }}
               onClick={() => { setPage(2); playFirstClickSound(); }}
               aria-label="Next"
             >

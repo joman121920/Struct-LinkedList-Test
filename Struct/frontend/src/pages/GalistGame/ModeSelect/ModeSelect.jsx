@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import styles from "./ModeSelect.module.css";
-import { playFirstClickSound } from "../Sounds.jsx";
+import { playFirstClickSound, playHoverSound} from "../Sounds.jsx";
 function ModeSelect({ onSelect }) {
   
   // Don't restart menu music - it should already be playing from GameMenu
@@ -40,7 +40,11 @@ function ModeSelect({ onSelect }) {
         <div className={styles.modeOptions}>
           <button
             className={styles.modeCard}
+            onMouseEnter={()=>{
+                playHoverSound();
+            }}
             onClick={() => handleModeSelect("singly")}
+            
             aria-label="Singly Linked List"
           >
             <div className={styles.modeCardTitle}>Singly Linked List</div>
@@ -50,6 +54,9 @@ function ModeSelect({ onSelect }) {
           </button>
           <button
             className={styles.modeCard}
+            onMouseEnter={()=>{
+                playHoverSound();
+            }}
             onClick={() => handleModeSelect("doubly")}
             aria-label="Doubly Linked List"
           >

@@ -21,7 +21,7 @@
   height: 85%;
   max-height: 1000px;
   border-radius: 20px;
-  border: 2px solid #F609E2;
+  border: 3px solid #f88800;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -73,7 +73,7 @@
   font-weight: 900;
   flex: 1;
   text-align: center;
-  color: #F609E2;
+  color: #f88800;
 }
 
 .tab {
@@ -137,7 +137,7 @@
 }
 
 .howToPlayTitle {
-  color: #F609E2;
+  color: #f88800;
   font-size: 28px;
   font-weight: normal;
   margin-bottom: 5px;
@@ -145,7 +145,7 @@
 }
 
 .gameButtonsTitle {
-  color: #F609E2;
+  color: #f88800;
   font-size: 28px;
   font-weight: normal;
   margin-bottom: 5px;
@@ -249,12 +249,13 @@
   transition: all 0.3s ease;
   letter-spacing: 1px;
   text-transform: uppercase;
-  border: 3px solid #F609E2;
+  border: 3px solid #f88800;
   margin-top: -42px;
 }
 
 .startButton:hover {
-  background: linear-gradient(135deg, #F609E2);
+  background: linear-gradient(135deg, #ac5e00);
+  color: black;
   transform: translateY(-2px);
 }
 

@@ -155,7 +155,6 @@ const initializeAudio = () => {
       }
     });
     
-    console.log('Audio preloading initialized');
   } catch (error) {
     console.warn('Error initializing audio:', error);
   }
@@ -238,9 +237,7 @@ export const playBombCollectibleSound = () => {
     const audio = audioInstances.bombCollectible.cloneNode();
     audio.volume = 0.6;
     
-    console.log('Playing bomb collectible sound...');
     audio.play().then(() => {
-      console.log('Bomb sound played successfully');
     }).catch(error => {
       console.warn('Could not play bomb collectible sound:', error);
     });
@@ -260,9 +257,7 @@ export const playClockCollectibleSound = () => {
     const audio = audioInstances.clockCollectible.cloneNode();
     audio.volume = 0.5;
     
-    console.log('Playing clock collectible sound...');
     audio.play().then(() => {
-      console.log('Clock sound played successfully');
     }).catch(error => {
       console.warn('Could not play clock collectible sound:', error);
       // Try alternative approach if cloning fails
@@ -291,9 +286,7 @@ export const playAlarmSound = () => {
     audioInstances.alarmSound.currentTime = 0;
     audioInstances.alarmSound.loop = true;
     
-    console.log('Playing alarm sound...');
     audioInstances.alarmSound.play().then(() => {
-      console.log('Alarm sound started successfully');
     }).catch(error => {
       console.warn('Could not play alarm sound:', error);
     });
@@ -308,7 +301,6 @@ export const stopAlarmSound = () => {
     if (audioInstances.alarmSound) {
       audioInstances.alarmSound.pause();
       audioInstances.alarmSound.currentTime = 0;
-      console.log('Alarm sound stopped');
     }
   } catch (error) {
     console.warn('Error stopping alarm sound:', error);
@@ -326,9 +318,7 @@ export const playFirstClickSound = () => {
     const audio = audioInstances.firstClick.cloneNode();
     audio.volume = 0.5;
     
-    console.log('Playing first click sound...');
     audio.play().then(() => {
-      console.log('First click sound played successfully');
     }).catch(error => {
       console.warn('Could not play first click sound:', error);
     });
@@ -348,9 +338,7 @@ export const playSwapSound = () => {
     const audio = audioInstances.swapSound.cloneNode();
     audio.volume = 0.6;
     
-    console.log('Playing swap sound...');
     audio.play().then(() => {
-      console.log('Swap sound played successfully');
     }).catch(error => {
       console.warn('Could not play swap sound:', error);
     });
@@ -370,9 +358,7 @@ export const playClaimSound = () => {
     const audio = audioInstances.claimSound.cloneNode();
     audio.volume = 0.7;
     
-    console.log('Playing claim sound...');
     audio.play().then(() => {
-      console.log('Claim sound played successfully');
     }).catch(error => {
       console.warn('Could not play claim sound:', error);
     });
@@ -413,9 +399,7 @@ export const playSelectSound = () => {
     const audio = audioInstances.selectSound.cloneNode();
     audio.volume = 0.5;
     
-    console.log('Playing select sound...');
     audio.play().then(() => {
-      console.log('Select sound played successfully');
     }).catch(error => {
       console.warn('Could not play select sound:', error);
     });
@@ -437,9 +421,7 @@ export const playDequeueSound = () => {
     const audio = audioInstances.dequeueSound.cloneNode();
     audio.volume = 0.6;
     
-    console.log('Playing dequeue sound...');
     audio.play().then(() => {
-      console.log('Dequeue sound played successfully');
     }).catch(error => {
       console.warn('Could not play dequeue sound:', error);
     });
@@ -482,7 +464,6 @@ export const playCompeBgSong = () => {
     
     // Check if music is already playing to prevent double playback
     if (!audioInstances.compeBgSong.paused) {
-      console.log('Competitive background music is already playing, skipping...');
       return;
     }
     
@@ -491,9 +472,7 @@ export const playCompeBgSong = () => {
     audioInstances.compeBgSong.currentTime = 0;
     audioInstances.compeBgSong.loop = true;
     
-    console.log('Starting competitive background music at volume 0.1...');
     audioInstances.compeBgSong.play().then(() => {
-      console.log('Competitive background music started successfully');
     }).catch(error => {
       console.warn('Could not play competitive background music:', error);
     });
@@ -508,7 +487,6 @@ export const stopCompeBgSong = () => {
     if (audioInstances.compeBgSong) {
       audioInstances.compeBgSong.pause();
       audioInstances.compeBgSong.currentTime = 0;
-      console.log('Competitive background music stopped');
     }
   } catch (error) {
     console.warn('Error stopping competitive background music:', error);
@@ -542,7 +520,6 @@ export const playMenuBgMusic = () => {
     
     // Check if music is already playing to prevent double playback
     if (!audioInstances.menuBg.paused) {
-      console.log('Menu background music is already playing, skipping...');
       return;
     }
     
@@ -551,9 +528,7 @@ export const playMenuBgMusic = () => {
     audioInstances.menuBg.currentTime = 0;
     audioInstances.menuBg.loop = true;
     
-    console.log('Starting menu background music at volume 0.15...');
     audioInstances.menuBg.play().then(() => {
-      console.log('Menu background music started successfully');
     }).catch(error => {
       console.warn('Could not play menu background music:', error);
     });
@@ -568,7 +543,6 @@ export const stopMenuBgMusic = () => {
     if (audioInstances.menuBg) {
       audioInstances.menuBg.pause();
       audioInstances.menuBg.currentTime = 0;
-      console.log('Menu background music stopped');
     }
   } catch (error) {
     console.warn('Error stopping menu background music:', error);
@@ -588,9 +562,7 @@ export const playGameStartSound = () => {
     const audio = audioInstances.gameStartSound.cloneNode();
     audio.volume = 0.6;
     
-    console.log('Playing game start sound...');
     audio.play().then(() => {
-      console.log('Game start sound played successfully');
     }).catch(error => {
       console.warn('Could not play game start sound:', error);
     });
@@ -612,7 +584,6 @@ export const playTutorialBgMusic = () => {
     
     // Check if music is already playing to prevent double playback
     if (!audioInstances.tutorialBg.paused) {
-      console.log('Tutorial background music is already playing, skipping...');
       return;
     }
     
@@ -621,9 +592,7 @@ export const playTutorialBgMusic = () => {
     audioInstances.tutorialBg.currentTime = 0;
     audioInstances.tutorialBg.loop = true;
 
-    console.log('Starting tutorial background music at volume 0.4...');
     audioInstances.tutorialBg.play().then(() => {
-      console.log('Tutorial background music started successfully');
     }).catch(error => {
       console.warn('Could not play tutorial background music:', error);
     });
@@ -638,7 +607,6 @@ export const stopTutorialBgMusic = () => {
     if (audioInstances.tutorialBg) {
       audioInstances.tutorialBg.pause();
       audioInstances.tutorialBg.currentTime = 0;
-      console.log('Tutorial background music stopped');
     }
   } catch (error) {
     console.warn('Error stopping tutorial background music:', error);
@@ -658,7 +626,6 @@ export const playNodeCreationBgMusic = () => {
     
     // Check if music is already playing to prevent double playback
     if (!audioInstances.nodeCreationBg.paused) {
-      console.log('Node creation background music is already playing, skipping...');
       return;
     }
     
@@ -667,9 +634,7 @@ export const playNodeCreationBgMusic = () => {
     audioInstances.nodeCreationBg.currentTime = 0;
     audioInstances.nodeCreationBg.loop = true;
 
-    console.log('Starting node creation background music at volume 0.14...');
     audioInstances.nodeCreationBg.play().then(() => {
-      console.log('Node creation background music started successfully');
     }).catch(error => {
       console.warn('Could not play node creation background music:', error);
     });
@@ -684,7 +649,6 @@ export const stopNodeCreationBgMusic = () => {
     if (audioInstances.nodeCreationBg) {
       audioInstances.nodeCreationBg.pause();
       audioInstances.nodeCreationBg.currentTime = 0;
-      console.log('Node creation background music stopped');
     }
   } catch (error) {
     console.warn('Error stopping node creation background music:', error);
@@ -704,7 +668,6 @@ export const playLinkingBgMusic = () => {
     
     // Check if music is already playing to prevent double playback
     if (!audioInstances.linkingBg.paused) {
-      console.log('Linking background music is already playing, skipping...');
       return;
     }
     
@@ -713,9 +676,7 @@ export const playLinkingBgMusic = () => {
     audioInstances.linkingBg.currentTime = 0;
     audioInstances.linkingBg.loop = true;
 
-    console.log('Starting linking background music at volume 0.14...');
     audioInstances.linkingBg.play().then(() => {
-      console.log('Linking background music started successfully');
     }).catch(error => {
       console.warn('Could not play linking background music:', error);
     });
@@ -730,7 +691,6 @@ export const stopLinkingBgMusic = () => {
     if (audioInstances.linkingBg) {
       audioInstances.linkingBg.pause();
       audioInstances.linkingBg.currentTime = 0;
-      console.log('Linking background music stopped');
     }
   } catch (error) {
     console.warn('Error stopping linking background music:', error);
@@ -750,7 +710,6 @@ export const playInsertionBgMusic = () => {
     
     // Check if music is already playing to prevent double playback
     if (!audioInstances.insertionBg.paused) {
-      console.log('Insertion background music is already playing, skipping...');
       return;
     }
     
@@ -759,9 +718,7 @@ export const playInsertionBgMusic = () => {
     audioInstances.insertionBg.currentTime = 0;
     audioInstances.insertionBg.loop = true;
 
-    console.log('Starting insertion background music at volume 0.14...');
     audioInstances.insertionBg.play().then(() => {
-      console.log('Insertion background music started successfully');
     }).catch(error => {
       console.warn('Could not play insertion background music:', error);
     });
@@ -776,7 +733,6 @@ export const stopInsertionBgMusic = () => {
     if (audioInstances.insertionBg) {
       audioInstances.insertionBg.pause();
       audioInstances.insertionBg.currentTime = 0;
-      console.log('Insertion background music stopped');
     }
   } catch (error) {
     console.warn('Error stopping insertion background music:', error);
@@ -796,7 +752,6 @@ export const playAdtBgMusic = () => {
     
     // Check if music is already playing to prevent double playback
     if (!audioInstances.adtBg.paused) {
-      console.log('ADT background music is already playing, skipping...');
       return;
     }
     
@@ -805,9 +760,7 @@ export const playAdtBgMusic = () => {
     audioInstances.adtBg.currentTime = 0;
     audioInstances.adtBg.loop = true;
 
-    console.log('Starting ADT background music at volume 0.14...');
     audioInstances.adtBg.play().then(() => {
-      console.log('ADT background music started successfully');
     }).catch(error => {
       console.warn('Could not play ADT background music:', error);
     });
@@ -822,7 +775,6 @@ export const stopAdtBgMusic = () => {
     if (audioInstances.adtBg) {
       audioInstances.adtBg.pause();
       audioInstances.adtBg.currentTime = 0;
-      console.log('ADT background music stopped');
     }
   } catch (error) {
     console.warn('Error stopping ADT background music:', error);
@@ -836,7 +788,6 @@ export const activateAudioContext = () => {
     const silentAudio = new Audio();
     silentAudio.volume = 0;
     silentAudio.play().then(() => {
-      console.log('Audio context activated successfully');
       
       // Pre-play all sounds at zero volume to prepare them
       Object.values(audioInstances).forEach(audio => {
@@ -851,7 +802,6 @@ export const activateAudioContext = () => {
         }
       });
     }).catch(() => {
-      console.log('Audio context activation deferred until user interaction');
     });
   } catch (error) {
     console.warn('Error activating audio context:', error);
