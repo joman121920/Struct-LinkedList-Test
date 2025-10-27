@@ -1869,28 +1869,31 @@ function GalistGameInsertionNode() {
 
       
       
-      <div 
-        className={styles.rightSquare} 
-        style={{ 
-          outlineOffset: "5px",
-          transform: `rotate(${cannonAngle}deg)`,
-          transformOrigin: "bottom center"
-        }} 
-      >
-        {/* Cannon Circle */}
+      {/* Only show main cannon when not in tutorial scene2 (which has its own cannon) */}
+      {(!showInstructionPopup || tutorialScene !== "scene2") && (
         <div 
-          className={styles.cannonCircle}
-          onClick={() => { handleCannonClick(); playSelectSound(); }}
-          style={{ cursor: 'pointer' }}
+          className={styles.rightSquare} 
+          style={{ 
+            outlineOffset: "5px",
+            transform: `rotate(${cannonAngle}deg)`,
+            transformOrigin: "bottom center"
+          }} 
         >
-          <div style={{ position: 'absolute', top: -34, color: '#004cff', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                  {insertionMode === 'left' ? 'Before' : 'After'}
+          {/* Cannon Circle */}
+          <div 
+            className={styles.cannonCircle}
+            onClick={() => { handleCannonClick(); playSelectSound(); }}
+            style={{ cursor: 'pointer' }}
+          >
+            <div style={{ position: 'absolute', top: -34, color: '#004cff', zIndex:1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                    {insertionMode === 'left' ? 'Before' : 'After'}
+            </div>
+            <span style={{ fontSize: '14px' }}>
+              {cannonCircle.value}
+            </span>
           </div>
-          <span style={{ fontSize: '14px' }}>
-            {cannonCircle.value}
-          </span>
         </div>
-      </div>
+      )}
 
       {circles.map((circle) => {
         const label = getCircleLabel(circle.id);

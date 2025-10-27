@@ -56,6 +56,22 @@
   transition: all 0.3s ease;
   margin-top: 20px;
 }
+.gametutorialButton {
+  background: transparent;
+  color: white;
+  border: 2px solid #ec0000ff;
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 20px;
+}
+.gametutorialButton:hover {
+  background: rgb(147, 0, 0);
+  transform: translateY(-2px);
+}
 
 .tutorialButton:hover {
   background: #f609e2;
@@ -190,9 +206,6 @@
   font-weight: 700;
 }
 
-
-
-
 .gameInstructionsFooter {
   flex-shrink: 0;
   padding-top: 20px;
@@ -215,7 +228,7 @@
 
 .instructionPopup {
   background: rgba(0,0,0,0.65);
-  border: 3px solid #f609e2;
+  border: 3px solid #ec0000ff;
   border-radius: 12px;
   padding: 36px 44px;
   max-width: 1000px;
@@ -227,7 +240,7 @@
 }
 
 .instructionContent h2 {
-  color: #f609e2;
+  color: #ec0000ff;
   font-size: 24px;
   margin: 0 0 18px 0;
   font-weight: 800;
@@ -247,7 +260,7 @@
 .instructionButton {
   background: transparent;
   color: white;
-  border: 2px solid #f609e2;
+  border: 2px solid #ec0000ff;
   padding: 12px 30px;
   border-radius: 8px;
   font-size: 16px;

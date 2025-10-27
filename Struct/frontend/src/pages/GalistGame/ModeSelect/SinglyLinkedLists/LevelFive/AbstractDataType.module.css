@@ -104,8 +104,9 @@
   width: 100vw;
   height: 100vh;
   object-fit: cover;
+  object-position: center -120px;
   z-index: 0;
-  opacity: 0.25;
+  opacity: 0.4;
   pointer-events: none;
 }
 
@@ -329,8 +330,8 @@
   right: -40px;
   width: 70px;
   height: 110px;
-  background: linear-gradient(to top, #666 0%, #888 50%, #aaa 100%);
-  border: 2px solid #fff;
+  background: transparent;
+  border: 5px solid #d70505;
   z-index: 10;
   transform-origin: bottom center;
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
@@ -347,7 +348,6 @@
   height: 8px;
   background: transparent;
   border-radius: 50%;
-  box-shadow: 0 0 5px rgba(255, 107, 107, 0.8);
 }
 
 .cannonCircle {
@@ -357,8 +357,8 @@
   transform: translate(-50%, -50%);
   width: 40px;
   height: 40px;
-  background: #4CAF50;
-  border: 3px solid #fff;
+  background: #7f0000;
+  border: 3px solid #9e0000;
   border-radius: 50%;
   cursor: pointer;
   z-index: 11;
@@ -375,20 +375,19 @@
 }
 
 .cannonCircle:hover {
-  background: #45a049;
+  background: #9e0000;
   transform: translate(-50%, -50%) scale(1.1);
-  box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
 }
 
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    box-shadow: 0 0 10px #9e0000;
   }
   50% {
-    box-shadow: 0 0 20px rgba(76, 175, 80, 0.8);
+    box-shadow: 0 0 20px #9e0000;
   }
   100% {
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+    box-shadow: 0 0 10px #9e0000;
   }
 }
 

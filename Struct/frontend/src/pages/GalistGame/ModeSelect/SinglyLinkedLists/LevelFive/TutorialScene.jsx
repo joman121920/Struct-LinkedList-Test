@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { collisionDetection } from "../../../CollisionDetection";
 import styles from "./AbstractDataType.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
+import { playTutorialBgMusic, stopTutorialBgMusic, playHitSound, playDequeueSound, playKeyboardSound, playFirstClickSound} from "../../../Sounds.jsx";
 
 function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [tutorialCircles, setTutorialCircles] = useState([]);
@@ -67,6 +68,13 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     }
     setInstructionStep(0);
   }, [scene, onValueShoot]);
+
+  // Cleanup effect to stop tutorial music when component unmounts
+  useEffect(() => {
+    return () => {
+      stopTutorialBgMusic();
+    };
+  }, []);
 
   function buildInitialEnqueueScene() {
     const addressTypes = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj"];
@@ -226,6 +234,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           const distance = Math.sqrt(dx * dx + dy * dy);
           if (distance < 70 && !didConnect) {
             didConnect = true;
+            playHitSound(); // Play hit sound when bullet successfully hits tail node
             const approachNorm = Math.max(0.0001, Math.sqrt(dx * dx + dy * dy));
             const offset = 60;
             const nx = dx / approachNorm;
@@ -362,6 +371,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           const distance = Math.sqrt(dx * dx + dy * dy);
           if (distance < 65 && !headRemoved) {
             headRemoved = true;
+            playDequeueSound(); // Play dequeue sound when head is successfully removed
             const nextNode = circles[1];
             setTutorialCircles(prevCircles => prevCircles.slice(1));
 
@@ -446,6 +456,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         interval = setInterval(() => {
           idx += 1;
           setTypedInstruction(text.slice(0, idx));
+          playKeyboardSound(); // Play keyboard sound for each character
           if (idx >= text.length) {
             clearInterval(interval);
             postTimeout = setTimeout(() => {
@@ -464,6 +475,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         interval = setInterval(() => {
           idx += 1;
           setTypedInstruction(text.slice(0, idx));
+          playKeyboardSound(); // Play keyboard sound for each character
           if (idx >= text.length) {
             clearInterval(interval);
             postTimeout = setTimeout(() => {
@@ -489,6 +501,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx += 1;
         setTypedInstruction(text.slice(0, idx));
+        playKeyboardSound(); // Play keyboard sound for each character
         if (idx >= text.length) {
           clearInterval(interval);
           // After the third instruction (index 2) finishes typing in enqueue,
@@ -604,8 +617,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               <h2>Abstract Data Type: Queue Mechanics</h2>
               <p>In this mission you will practice enqueueing new nodes at the tail and dequeueing nodes from the head.</p>
               <p>Let&apos;s explore how each operation affects the linked structure before you dive into the challenge.</p>
-              <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
-                Continue
+              <button onClick={() => { playTutorialBgMusic(); onContinue(); playFirstClickSound();}} className={tutorialStyles.tutorialButton}>
+                Let&apos;s Go
               </button>
             </div>
           </div>
@@ -718,7 +731,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               <div className={tutorialStyles.tutorialContent}>
                 <h2>Awsome Work!</h2>
                 <p>You just attached multiple nodes to the tail. The head never moves, but the tail keeps updating to the newest node.</p>
-                <button className={tutorialStyles.tutorialButton} onClick={onContinue}>
+                <button className={tutorialStyles.tutorialButton} onClick={() => {onContinue(); playFirstClickSound();}}>
                   Continue
                 </button>
               </div>
@@ -745,7 +758,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           style={{ outlineOffset: "5px", transform: `rotate(${cannonAngle}deg)`, transformOrigin: "bottom center" }}
         >
           <div className={styles.cannonCircle} style={{ backgroundColor: "#ff4040", color: "#fff" }}>
-            <span style={{ fontSize: "9px" }}>Dequeue</span>
+            <span style={{ fontSize: "9px" }}></span>
           </div>
         </div>
 
@@ -833,7 +846,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 <h2>Perfect</h2>
                 <p>You now understand how a queue works: new elements are added at the rear (enqueue) and removed from the front (dequeue). This “first in, first out” principle is what makes queues so useful in real-world scenarios like task scheduling and waiting lines.</p>
                 <p><strong>Time to put your knowledge to the test in the mission!</strong></p>
-                <button className={tutorialStyles.tutorialButton} onClick={() => setShowScene4(true)}>
+                <button className={tutorialStyles.tutorialButton} onClick={() => {setShowScene4(true); playFirstClickSound();}}>
                   Continue
                 </button>
               </div>
@@ -851,21 +864,22 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
                 <div className={tutorialStyles.gameInstructionsBody}>
                   <ul>
-                    <li><strong style={{color:'#f609e2'}}>Objective:</strong> Meet the expected linked list</li>
-                    <li><strong style={{color:'#f609e2'}}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 time&quot;.</li>
-                    <li><strong style={{color:'#f609e2'}}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
-                    <li><strong style={{color:'#f609e2'}}>Scoring:</strong> Earn points for each successful node creation</li>
-                    <li><strong style={{color:'#f609e2'}}>Obstacles:</strong> Watch out for the black hole, freshly created node that collides with it will be destroyed!</li>
-                    <li><strong style={{color:'#f609e2'}}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
+                    <li><strong style={{color:'#ec0000ff'}}>Objective:</strong> Meet the expected linked list</li>
+                    <li><strong style={{color:'#ec0000ff'}}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 time&quot;.</li>
+                    <li><strong style={{color:'#ec0000ff'}}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
+                    <li><strong style={{color:'#ec0000ff'}}>Scoring:</strong> Earn points for each successful node creation</li>
+                    <li><strong style={{color:'#ec0000ff'}}>Obstacles:</strong> Watch out for the black hole, freshly created node that collides with it will be destroyed!</li>
+                    <li><strong style={{color:'#ec0000ff'}}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
                   </ul>
                 </div>
 
                 <div className={tutorialStyles.gameInstructionsFooter}>
                   <button
-                    className={tutorialStyles.tutorialButton}
+                    className={tutorialStyles.gametutorialButton}
                     onClick={() => {
                       setShowScene4(false);
                       onContinue();
+                      playFirstClickSound();
                     }}
                   >
                     Continue

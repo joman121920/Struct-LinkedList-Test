@@ -782,7 +782,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         )}
         
         <div
-          className={styles.rightSquare}
+          className={styles.tutorialCannon}
           style={{
             outlineOffset: "5px",
             transform: `rotate(${cannonAngle}deg)`,
@@ -790,6 +790,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           }}
         >
           <div className={styles.cannonCircle}>
+            <div style={{ position: 'absolute', top: -34, color: '#004cff', zIndex: 1000, fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+              {insertionMode === 'before' ? 'Before' : 'After'}
+            </div>
             <span style={{ fontSize: "10px" }}>{cannonCircle.value}</span>
             <span style={{ fontSize: "8px" }}>{cannonCircle.address}</span>
           </div>

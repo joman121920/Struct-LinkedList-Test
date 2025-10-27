@@ -29,6 +29,8 @@ const audioInstances = {
   linkingBg: null,
   nodeCreationBg: null,
   insertionBg: null,
+  dequeueSound: null,
+  adtBg: null,
   keyboardSound: null
 };
 
@@ -126,18 +128,27 @@ const initializeAudio = () => {
     audioInstances.nodeCreationBg.volume = 0.14; // Lower volume for node creation music
     audioInstances.nodeCreationBg.loop = true; // Loop the node creation music
     
-    // Preload insertion background music
-    audioInstances.insertionBg = new Audio('/sounds/insertion_bgm.mp3');
-    audioInstances.insertionBg.preload = 'auto';
-    audioInstances.insertionBg.volume = 0.14; // Lower volume for insertion music
-    audioInstances.insertionBg.loop = true; // Loop the insertion music
-    
-    // Preload keyboard sound for typewriter effects
-    audioInstances.keyboardSound = new Audio('/sounds/keyboard.mp3');
-    audioInstances.keyboardSound.preload = 'auto';
-    audioInstances.keyboardSound.volume = 0.3; // Low volume for subtle typing effect
-    
-    // Force load the audio files
+  // Preload insertion background music
+  audioInstances.insertionBg = new Audio('/sounds/insertion_bgm.mp3');
+  audioInstances.insertionBg.preload = 'auto';
+  audioInstances.insertionBg.volume = 0.14; // Lower volume for insertion music
+  audioInstances.insertionBg.loop = true; // Loop the insertion music
+  
+  // Preload dequeue sound effect
+  audioInstances.dequeueSound = new Audio('/sounds/dequeue_soundfx.mp3');
+  audioInstances.dequeueSound.preload = 'auto';
+  audioInstances.dequeueSound.volume = 0.6; // Moderate volume for dequeue sound
+  
+  // Preload ADT background music
+  audioInstances.adtBg = new Audio('/sounds/adt_bgm.mp3');
+  audioInstances.adtBg.preload = 'auto';
+  audioInstances.adtBg.volume = 0.14; // Lower volume for ADT background music
+  audioInstances.adtBg.loop = true; // Loop the ADT music
+  
+  // Preload keyboard sound for typewriter effects
+  audioInstances.keyboardSound = new Audio('/sounds/keyboard.mp3');
+  audioInstances.keyboardSound.preload = 'auto';
+  audioInstances.keyboardSound.volume = 0.3; // Low volume for subtle typing effect    // Force load the audio files
     Object.values(audioInstances).forEach(audio => {
       if (audio) {
         audio.load();
@@ -410,6 +421,30 @@ export const playSelectSound = () => {
     });
   } catch (error) {
     console.warn('Error creating select sound:', error);
+  }
+};
+
+// Create and play dequeue sound effect
+export const playDequeueSound = () => {
+  if (!soundEffectsEnabled) return;
+  
+  try {
+    if (!audioInstances.dequeueSound) {
+      audioInstances.dequeueSound = new Audio('/sounds/dequeue_soundfx.mp3');
+      audioInstances.dequeueSound.volume = 0.6;
+    }
+    
+    const audio = audioInstances.dequeueSound.cloneNode();
+    audio.volume = 0.6;
+    
+    console.log('Playing dequeue sound...');
+    audio.play().then(() => {
+      console.log('Dequeue sound played successfully');
+    }).catch(error => {
+      console.warn('Could not play dequeue sound:', error);
+    });
+  } catch (error) {
+    console.warn('Error creating dequeue sound:', error);
   }
 };
 
@@ -748,6 +783,52 @@ export const stopInsertionBgMusic = () => {
   }
 };
 
+// Start playing ADT background music (looped)
+export const playAdtBgMusic = () => {
+  if (!musicEnabled) return;
+  
+  try {
+    if (!audioInstances.adtBg) {
+      audioInstances.adtBg = new Audio('/sounds/adt_bgm.mp3');
+      audioInstances.adtBg.volume = 0.14;
+      audioInstances.adtBg.loop = true;
+    }
+    
+    // Check if music is already playing to prevent double playback
+    if (!audioInstances.adtBg.paused) {
+      console.log('ADT background music is already playing, skipping...');
+      return;
+    }
+    
+    // Ensure volume is set correctly and reset to start
+    audioInstances.adtBg.volume = 0.14;
+    audioInstances.adtBg.currentTime = 0;
+    audioInstances.adtBg.loop = true;
+
+    console.log('Starting ADT background music at volume 0.14...');
+    audioInstances.adtBg.play().then(() => {
+      console.log('ADT background music started successfully');
+    }).catch(error => {
+      console.warn('Could not play ADT background music:', error);
+    });
+  } catch (error) {
+    console.warn('Error starting ADT background music:', error);
+  }
+};
+
+// Stop ADT background music
+export const stopAdtBgMusic = () => {
+  try {
+    if (audioInstances.adtBg) {
+      audioInstances.adtBg.pause();
+      audioInstances.adtBg.currentTime = 0;
+      console.log('ADT background music stopped');
+    }
+  } catch (error) {
+    console.warn('Error stopping ADT background music:', error);
+  }
+};
+
 // Activate audio context with user interaction
 export const activateAudioContext = () => {
   try {
@@ -865,6 +946,7 @@ export default {
   playClaimSound,
   playHoverSound,
   playSelectSound,
+  playDequeueSound,
   playKeyboardSound,
   playCompeBgSong,
   stopCompeBgSong,
@@ -882,6 +964,8 @@ export default {
   stopLinkingBgMusic,
   playInsertionBgMusic,
   stopInsertionBgMusic,
+  playAdtBgMusic,
+  stopAdtBgMusic,
   preloadLinkSound,
   SoundManager 
 };

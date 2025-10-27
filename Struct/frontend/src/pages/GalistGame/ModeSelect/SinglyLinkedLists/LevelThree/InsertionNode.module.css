@@ -337,6 +337,25 @@
   border-radius: 5px 5px 15px 15px;
 }
 
+/* Tutorial cannon - same as rightSquare but without pseudo-elements */
+.tutorialCannon {
+  position: absolute;
+  bottom: 1px;
+  right: -40px;
+  width: 70px;
+  height: 110px;
+  background: transparent;
+  border: 5px solid #004cff;
+  z-index: 10;
+  transform-origin: bottom center;
+  border-radius: 5px 5px 15px 15px;
+}
+
+/* Remove only the pseudo-element that creates the duplicate cannon */
+.tutorialCannon::before {
+  display: none !important;
+}
+
 .rightSquare::before {
   content: '';
   position: absolute;

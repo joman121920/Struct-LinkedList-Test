@@ -9,6 +9,7 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
+import { playAdtBgMusic, stopAdtBgMusic, playHitSound, playDequeueSound, playHoverSound, playSelectSound, playErrorSound, playClaimSound, playFirstClickSound } from "../../../Sounds.jsx";
 
 function GalistAbstractDataType() {
   const [isLoading, setIsLoading] = useState(true);
@@ -29,11 +30,8 @@ function GalistAbstractDataType() {
   // Track which exercise is active
   const [exerciseKey, setExerciseKey] = useState("exercise_one");
   const [circles, setCircles] = useState([]);
-  const [draggedCircle, setDraggedCircle] = useState(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [connections, setConnections] = useState([]);
   const animationRef = useRef();
-  const mouseHistoryRef = useRef([]);
   const [suckingCircles, setSuckingCircles] = useState([]);
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
@@ -194,10 +192,15 @@ function GalistAbstractDataType() {
 
   // Handle cannon circle click to open bullet selection modal
   const handleCannonClick = useCallback(() => {
+    // Disable bullet selection access when in dequeue mode
+    if (adtMode === 'dequeue') {
+      return; // Do nothing if in dequeue mode
+    }
+    
     const bullets = generateBulletOptions();
     setBulletOptions(bullets);
     setShowBulletModal(true);
-  }, [generateBulletOptions]);
+  }, [generateBulletOptions, adtMode]);
 
   // Handle bullet selection
   const handleBulletSelect = useCallback((selectedBullet) => {
@@ -581,6 +584,8 @@ function GalistAbstractDataType() {
     setTimerSeconds(300);
     setTimerRunning(true);
     setShowMissionFailed(false);
+    // Start background music when the game begins
+    playAdtBgMusic();
   }, [loadExercise, exerciseKey]);
 
   const handleTutorialContinue = useCallback(() => {
@@ -600,6 +605,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
 
   // Handle retry from mission failed overlay: reset level state and restart without tutorial
   const handleRetry = useCallback(() => {
+    // Stop background music before clearing state
+    stopAdtBgMusic();
     // Clear runtime state
     setCircles([]);
     setConnections([]);
@@ -690,10 +697,6 @@ const handleTutorialValueShoot = useCallback((mode) => {
 
       setCircles((prevCircles) => {
         const circlesWithSpecialBehavior = prevCircles.map((circle) => {
-          if (draggedCircle && circle.id === draggedCircle.id) {
-            return circle;
-          }
-
           // Apply natural movement for launched circles - no friction in space!
           if (circle.isLaunched && (circle.velocityX || circle.velocityY)) {
             // No friction - circles float forever in space
@@ -909,31 +912,13 @@ const handleTutorialValueShoot = useCallback((mode) => {
 
         // Second pass: Apply collision detection and physics
         const allCirclesForCollision = circlesWithSpecialBehavior.filter(c => c !== null);
-        const draggedCircleData = draggedCircle
-          ? allCirclesForCollision.find(
-              (circle) => circle && circle.id === draggedCircle.id
-            )
-          : null;
-        const updatedAllCircles =
+        const finalCircles =
           allCirclesForCollision.length > 0
             ? collisionDetection.updatePhysics(
                 allCirclesForCollision,
                 suckingCircles
               )
             : [];
-        let finalCircles = updatedAllCircles;
-        if (draggedCircleData) {
-          finalCircles = updatedAllCircles.map((circle) => {
-            if (circle && circle.id === draggedCircle.id) {
-              return {
-                ...draggedCircleData,
-                velocityX: circle.velocityX,
-                velocityY: circle.velocityY,
-              };
-            }
-            return circle;
-          });
-        }
 
         // Third pass: Check for collisions and auto-connect between ANY circles
         // Use indexed loops to avoid checking each pair twice
@@ -1019,12 +1004,16 @@ const handleTutorialValueShoot = useCallback((mode) => {
                       setCircles((prev) => prev.filter(c => c.id !== target.id && c.id !== launched.id));
                       // Update head id
                       if (nextId) setHeadCircleId(nextId); else setHeadCircleId(null);
+                      // Play dequeue sound for successful head removal
+                      playDequeueSound();
                       // Both the head and the bullet are removed; skip further collision processing for this pair
                       continue; // skip further collision processing for this pair
                     } else if (launched.isDequeueBullet) {
                       // Dequeue bullet hit a non-head: bullet should bounce off and be deleted.
                       const bulletId = launched.id;
                       const targetId = target.id;
+                      // Play error sound for incorrect dequeue attempt
+                      playErrorSound();
                       // Remove any connections referencing the bullet (defensive)
                       setConnections(prev => prev.filter(c => c.from !== bulletId && c.to !== bulletId));
                       // Remove the bullet and nudge the target by applying a small velocity from the bullet
@@ -1060,11 +1049,19 @@ const handleTutorialValueShoot = useCallback((mode) => {
                       // Ensure launched is no longer treated as 'launched' for deletion rules
                       launched.isLaunched = false;
                       launched.launchTime = undefined;
+                      // Play hit sound for successful enqueue
+                      playHitSound();
                       continue; // skip further collision processing for this pair
                     } else {
                       // Enqueue bullet hit a non-tail: remove the bullet and nudge the hit node (no connection)
                       const bulletId = launched.id;
                       const targetId = target.id;
+                      // Play error sound for incorrect enqueue attempt
+                      try {
+                        playErrorSound();
+                      } catch (e) {
+                        console.warn("Error playing error sound:", e);
+                      }
                       // Defensive: remove any connections referencing the bullet
                       setConnections(prev => prev.filter(c => c.from !== bulletId && c.to !== bulletId));
                       // Remove the bullet and apply a small velocity to the target to simulate a nudge
@@ -1470,7 +1467,6 @@ const handleTutorialValueShoot = useCallback((mode) => {
   }, [
     portalInfo,
     suckingCircles,
-    draggedCircle,
     findConnectedCircles,
     connections,
     currentExercise,
@@ -1533,30 +1529,6 @@ const handleTutorialValueShoot = useCallback((mode) => {
     }
   }, [portalInfo.isVisible, circles, connections, isHeadNode, startChainSuction]);
 
-  // Mouse event handlers for dragging
-  const handleMouseDown = (e, circle) => {
-    // Prevent dragging launched circles or initial protected circles
-    if (circle.isLaunched || circle.isInitial) {
-      return;
-    }
-    
-    e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setDraggedCircle(circle);
-    setDragOffset({
-      x: e.clientX - rect.left - 30,
-      y: e.clientY - rect.top - 30,
-    });
-
-    mouseHistoryRef.current = [
-      {
-        x: e.clientX,
-        y: e.clientY,
-        time: Date.now(),
-      },
-    ];
-  };
-
   // Handle simple clicks on circles to increment a click-counter; delete after 5 clicks
   // Helper to perform deletion and bridge connections
   const performDelete = useCallback((circleId) => {
@@ -1608,6 +1580,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
   const handleCircleClick = useCallback((circleId, e) => {
     e.stopPropagation();
 
+    // Play when gets clicked
+    playHoverSound();
 
     setCircles(prev => {
       const updated = prev.map(c => {
@@ -1756,168 +1730,10 @@ const handleTutorialValueShoot = useCallback((mode) => {
       
       // Update cannon angle
       setCannonAngle(angle);
-
-      // Existing circle dragging logic (only for non-launched circles)
-      if (draggedCircle && !draggedCircle.isLaunched) {
-        const newX = e.clientX - dragOffset.x;
-        const newY = e.clientY - dragOffset.y;
-
-        const findValidPosition = (targetX, targetY, currentX, currentY) => {
-          const circleRadius = 30;
-
-          const isValid = (x, y) => {
-            const rightSquareSize = 100;
-            const rightSquareLeft = window.innerWidth - rightSquareSize;
-            const rightSquareRight = window.innerWidth;
-            const rightSquareTop = window.innerHeight - rightSquareSize;
-            const rightSquareBottom = window.innerHeight;
-
-            if (
-              x + circleRadius >= rightSquareLeft &&
-              x - circleRadius <= rightSquareRight &&
-              y + circleRadius >= rightSquareTop &&
-              y - circleRadius <= rightSquareBottom
-            ) {
-              return false;
-            }
-
-            if (
-              x - circleRadius < 0 ||
-              x + circleRadius > window.innerWidth ||
-              y - circleRadius < 0 ||
-              y + circleRadius > window.innerHeight
-            ) {
-              return false;
-            }
-
-            const otherCircles = circles.filter(
-              (c) => c.id !== draggedCircle.id
-            );
-            for (let otherCircle of otherCircles) {
-              const dx = x - otherCircle.x;
-              const dy = y - otherCircle.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-              if (distance < circleRadius * 2) {
-                return false;
-              }
-            }
-
-            return true;
-          };
-
-          if (isValid(targetX, targetY)) {
-            return { x: targetX, y: targetY };
-          }
-
-          const deltaX = targetX - currentX;
-          const deltaY = targetY - currentY;
-          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-          if (distance === 0) {
-            return { x: currentX, y: currentY };
-          }
-
-          const dirX = deltaX / distance;
-          const dirY = deltaY / distance;
-
-          let validDistance = 0;
-          let testDistance = distance;
-          let step = distance / 2;
-
-          for (let i = 0; i < 20; i++) {
-            const testX = currentX + dirX * testDistance;
-            const testY = currentY + dirY * testDistance;
-
-            if (isValid(testX, testY)) {
-              validDistance = testDistance;
-              testDistance += step;
-            } else {
-              testDistance -= step;
-            }
-            step /= 2;
-
-            if (step < 0.1) break;
-          }
-
-          return {
-            x: currentX + dirX * validDistance,
-            y: currentY + dirY * validDistance,
-          };
-        };
-
-        const validPosition = findValidPosition(
-          newX,
-          newY,
-          draggedCircle.x,
-          draggedCircle.y
-        );
-
-        const now = Date.now();
-        mouseHistoryRef.current.push({
-          x: e.clientX,
-          y: e.clientY,
-          time: now,
-        });
-
-        mouseHistoryRef.current = mouseHistoryRef.current.filter(
-          (entry) => now - entry.time < 100
-        );
-
-        setCircles((prevCircles) =>
-          prevCircles.map((circle) =>
-            circle.id === draggedCircle.id
-              ? {
-                  ...circle,
-                  x: validPosition.x,
-                  y: validPosition.y,
-                  velocityX: 0,
-                  velocityY: 0,
-                }
-              : circle
-          )
-        );
-      }
     };
 
     const handleMouseUpGlobal = () => {
-      if (draggedCircle) {
-        let velocityX = 0;
-        let velocityY = 0;
-
-        if (mouseHistoryRef.current.length >= 2) {
-          const recent =
-            mouseHistoryRef.current[mouseHistoryRef.current.length - 1];
-          const older = mouseHistoryRef.current[0];
-          const timeDiff = recent.time - older.time;
-
-          if (timeDiff > 0) {
-            velocityX = ((recent.x - older.x) / timeDiff) * 16;
-            velocityY = ((recent.y - older.y) / timeDiff) * 16;
-
-            const maxVelocity = 15;
-            velocityX = Math.max(
-              -maxVelocity,
-              Math.min(maxVelocity, velocityX)
-            );
-            velocityY = Math.max(
-              -maxVelocity,
-              Math.min(maxVelocity, velocityY)
-            );
-          }
-        }
-
-        setCircles((prevCircles) =>
-          prevCircles.map((circle) =>
-            circle.id === draggedCircle.id
-              ? { ...circle, velocityX, velocityY }
-              : circle
-          )
-        );
-      }
-
-      setDraggedCircle(null);
-      setDragOffset({ x: 0, y: 0 });
-      mouseHistoryRef.current = [];
+      // Mouse up handler - no longer handling drag functionality
     };
 
     document.addEventListener("mousemove", handleMouseMoveGlobal);
@@ -1929,7 +1745,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
       document.removeEventListener("mouseup", handleMouseUpGlobal);
       document.removeEventListener("contextmenu", handleGlobalRightClick);
     };
-  }, [draggedCircle, dragOffset, findConnectedCircles, circles, handleGlobalRightClick, showInstructionPopup]);
+  }, [findConnectedCircles, circles, handleGlobalRightClick, showInstructionPopup]);
 
   // Helper: Get current linked list structure as array of {value, address}
   const getCurrentLinkedList = useCallback(() => {
@@ -2012,22 +1828,20 @@ const handleTutorialValueShoot = useCallback((mode) => {
     setCurrentExercise(exercise);
   }, [exerciseKey]);
 
-
+  // Cleanup effect: stop background music when component unmounts
+  useEffect(() => {
+    return () => {
+      stopAdtBgMusic();
+    };
+  }, []);
 
   return (
     <div className={styles.app}>
-      <video
+      <img
         className={styles.videoBackground}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        // onError={(e) => console.error("Video error:", e)}
-      >
-        <source src="./video/rocks.mp4" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
+        src="./images/adt_bg.gif"
+        alt="Background"
+      />
 
       
 
@@ -2082,7 +1896,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
       {!isLoading && showInstructionPopup && (
         <TutorialScene
           scene={tutorialScene}
-          onContinue={handleTutorialContinue}
+          onContinue={() => {handleTutorialContinue(); playClaimSound();}}
           onValueShoot={handleTutorialValueShoot}
         />
       )}
@@ -2109,10 +1923,15 @@ const handleTutorialValueShoot = useCallback((mode) => {
         >
           <div 
             className={styles.cannonCircle}
-            onClick={handleCannonClick}
+            onClick={() => {
+              if (adtMode === 'enqueue') {
+                handleCannonClick(); 
+                playSelectSound();
+              }
+            }}
             style={{ 
-              cursor: 'pointer',
-              backgroundColor: adtMode === 'dequeue' ? '#ff4040' : '#4CAF50'
+              cursor: adtMode === 'dequeue' ? 'not-allowed' : 'pointer',
+              backgroundColor: adtMode === 'dequeue' ? '#ff2b2bff' : '#8d0000ff'
             }}
           >
             <span style={{ fontSize: '14px' }}>
@@ -2141,9 +1960,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
               height: `${sizePx}px`,
               cursor: circle.isInitial ? 'default' : (circle.isLaunched 
                 ? "default" 
-                : (draggedCircle && circle.id === draggedCircle.id
-                  ? "grabbing"
-                  : "grab")),
+                : "pointer"),
               opacity: circle.isLaunched ? 0.9 : 1,
               boxShadow: isSmallBullet
                 ? (circle.isLaunched ? "0 0 12px rgba(255, 50, 50, 0.9)" : "0 4px 8px rgba(255, 0, 0, 0.4)")
@@ -2151,7 +1968,6 @@ const handleTutorialValueShoot = useCallback((mode) => {
               backgroundColor: isSmallBullet ? '#ff3b3b' : undefined,
               borderRadius: '50%',
             }}
-            onMouseDown={(e) => handleMouseDown(e, circle)}
             {...(!circle.isInitial ? { onClick: (e) => handleCircleClick(circle.id, e) } : {})}
             // Double click disabled
           >
@@ -2445,20 +2261,31 @@ const handleTutorialValueShoot = useCallback((mode) => {
       {/* Mission Failed Overlay */}
       {showMissionFailed && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
-            <h2 style={{ color: '#ff6bff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff0000ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
+            <h2 style={{ color: '#fa0000ff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
             <p style={{ color: '#ddd', marginBottom: '20px' }}>You missed your chance to insert the node in the right spot. Reset and try again to master node insertion!</p>
             <button
-              onClick={() => handleRetry()}
+              onClick={() => {handleRetry(); playFirstClickSound();}}
               style={{
                 background: 'none',
-                border: '2px solid #ff00ff',
+                border: '2px solid #ff0000ff',
                 borderRadius: '10px',
                 color: '#fff',
                 fontWeight: 'bold',
                 fontSize: '1.2rem',
                 padding: '10px 30px',
                 cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#6e0000ff';
+                e.target.style.color = '#000';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
               }}
             >
               Retry
@@ -2503,7 +2330,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
               {bulletOptions.map((bullet) => (
                 <div
                   key={bullet.id}
-                  onClick={() => handleBulletSelect(bullet)}
+                  onClick={() => { handleBulletSelect(bullet); playSelectSound(); }}
                   style={{
                     width: '80px',
                     height: '80px',
@@ -2522,6 +2349,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
                   onMouseEnter={(e) => {
                     e.target.style.transform = 'scale(1.1)';
                     e.target.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
+                    // Play hover sound when bullet option is hovered
+                    playHoverSound();
                   }}
                   onMouseLeave={(e) => {
                    
@@ -2546,14 +2375,14 @@ const handleTutorialValueShoot = useCallback((mode) => {
       {/* Level Complete Modal */}
       {showLevelCompleteModal && currentExerciseNumber < totalExercises && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#1a1a1a', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '400px', textAlign: 'center' }}>
-            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '20px' }}>
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000000ff', border: '3px solid #ff0000ff', borderRadius: '15px', padding: '30px', maxWidth: '400px', textAlign: 'center' }}>
+            <h2 style={{ color: ' #ff0000ff', fontSize: '2rem', marginBottom: '20px' }}>
               Level Complete: {currentExerciseNumber}/{totalExercises}
             </h2>
             <button
               style={{
                 background: 'none',
-                border: '2px solid #ff00ff',
+                border: '2px solid  #ff0000ff',
                 borderRadius: '10px',
                 color: '#fff',
                 fontWeight: 'bold',
@@ -2562,7 +2391,18 @@ const handleTutorialValueShoot = useCallback((mode) => {
                 cursor: 'pointer',
                 marginTop: '20px',
               }}
-              onClick={handleLevelContinue}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#6e0000ff';
+                e.target.style.color = '#000';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
+              }}
+              onClick={() => {handleLevelContinue(); playClaimSound();}}
             >
               Continue
             </button>
@@ -2572,14 +2412,14 @@ const handleTutorialValueShoot = useCallback((mode) => {
       {/* All Exercises Completed Modal */}
       {showAllCompletedModal && (
         <div className={styles.popupOverlay}>
-          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #fff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
-            <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '30px' }}>
-              Insertion Nodes Completed
+          <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '2px solid #ff0101ff', borderRadius: '15px', padding: '40px', maxWidth: '500px', textAlign: 'center' }}>
+            <h2 style={{ color: '#ff0101ff', fontSize: '2rem', marginBottom: '30px' }}>
+              Abstract Data Type: Queue Completed
             </h2>
             <button
               style={{
                 background: 'none',
-                border: '2px solid #fff',
+                border: '2px solid #ff0101ff',
                 borderRadius: '8px',
                 color: '#fff',
                 fontWeight: 'bold',
@@ -2587,6 +2427,17 @@ const handleTutorialValueShoot = useCallback((mode) => {
                 padding: '10px 30px',
                 cursor: 'pointer',
                 marginTop: '20px',
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#6e0000ff';
+                e.target.style.color = '#000';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
               }}
               onClick={handleGoBack}
             >
