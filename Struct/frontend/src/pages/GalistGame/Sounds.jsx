@@ -148,7 +148,7 @@ const initializeAudio = () => {
   // Preload keyboard sound for typewriter effects
   audioInstances.keyboardSound = new Audio('/sounds/keyboard.mp3');
   audioInstances.keyboardSound.preload = 'auto';
-  audioInstances.keyboardSound.volume = 0.3; // Low volume for subtle typing effect    // Force load the audio files
+  audioInstances.keyboardSound.volume = 0.05; // Low volume for subtle typing effect    // Force load the audio files
     Object.values(audioInstances).forEach(audio => {
       if (audio) {
         audio.load();
@@ -437,11 +437,11 @@ export const playKeyboardSound = () => {
   try {
     if (!audioInstances.keyboardSound) {
       audioInstances.keyboardSound = new Audio('/sounds/keyboard.mp3');
-      audioInstances.keyboardSound.volume = 0.3;
+      audioInstances.keyboardSound.volume = 0.05;
     }
     
     const audio = audioInstances.keyboardSound.cloneNode();
-    audio.volume = 0.3;
+    audio.volume = 0.05;
     
     audio.play().catch(error => {
       console.warn('Could not play keyboard sound:', error);

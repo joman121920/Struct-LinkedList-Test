@@ -3,8 +3,18 @@ import PropTypes from "prop-types";
 import { collisionDetection } from "../../../CollisionDetection";
 import styles from "./AbstractDataType.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
+import {
+  playTutorialBgMusic,
+  stopTutorialBgMusic,
+  playHitSound,
+  playDequeueSound,
+  playKeyboardSound,
+  playFirstClickSound
+} from "../../../Sounds.jsx";
 
 function TutorialScene({ scene, onContinue, onValueShoot }) {
+  const NULL_POINTER = "null";
+
   const [tutorialCircles, setTutorialCircles] = useState([]);
   const [tutorialConnections, setTutorialConnections] = useState([]);
   const [tutorialBullets, setTutorialBullets] = useState([]);
@@ -12,52 +22,89 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [cannonAngle, setCannonAngle] = useState(0);
   const [cannonCircle, setCannonCircle] = useState({ value: "42", address: "aa10" });
   const [currentMode, setCurrentMode] = useState("enqueue");
-  const NULL_POINTER = "null";
 
-  const addBidirectionalConnections = useCallback((currentConnections, fromId, toId) => {
-    let updated = currentConnections;
+  const annotatePrevNext = useCallback(
+    circles => {
+      if (!circles || circles.length === 0) return circles;
+      return circles.map((circle, idx) => {
+        if (circle.isDequeueBullet) return circle;
+        const prevCircle = circles[idx - 1];
+        const nextCircle = circles[idx + 1];
+        const prevAddress = prevCircle ? prevCircle.address : NULL_POINTER;
+        const nextAddress = nextCircle ? nextCircle.address : NULL_POINTER;
 
-    if (!currentConnections.some(conn => conn.from === fromId && conn.to === toId)) {
-      updated = [
-        ...updated,
-        {
-          id: `conn_${fromId}_${toId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          from: fromId,
-          to: toId
+        if (circle.prevAddress === prevAddress && circle.nextAddress === nextAddress) {
+          return circle;
         }
-      ];
-    }
 
-    if (!updated.some(conn => conn.from === toId && conn.to === fromId)) {
-      updated = [
-        ...updated,
-        {
-          id: `conn_${toId}_${fromId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          from: toId,
-          to: fromId
-        }
-      ];
-    }
+        return {
+          ...circle,
+          prevAddress,
+          nextAddress
+        };
+      });
+    },
+    [NULL_POINTER]
+  );
 
-    return updated;
-  }, []);
+  const buildInitialEnqueueScene = useCallback(() => {
+    const addressTypes = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj"];
+    const numbers = ["10", "20", "30", "40", "50", "60", "70", "80", "90"];
+    const nodeCount = 3;
+    const baseX = 240;
+    const spacing = 140;
+
+    const nodes = Array.from({ length: nodeCount }).map((_, idx) => {
+      const randomValue = Math.floor(Math.random() * 100) + 1;
+      const randomAddress =
+        addressTypes[Math.floor(Math.random() * addressTypes.length)] +
+        numbers[Math.floor(Math.random() * numbers.length)];
+      return {
+        id: `enqueue_${idx}`,
+        x: baseX + idx * spacing,
+        y: 220,
+        value: randomValue.toString(),
+        address: randomAddress,
+        velocityX: 0,
+        velocityY: 0,
+        isLaunched: false
+      };
+    });
+
+    const annotatedNodes = annotatePrevNext(nodes);
+
+    const conns = annotatedNodes.slice(0, -1).map((node, idx) => ({
+      id: `enqueue_conn_${idx}`,
+      from: node.id,
+      to: annotatedNodes[idx + 1].id
+    }));
+
+    setTutorialCircles(prev => (prev && prev.length > 0 ? prev : annotatedNodes));
+    setTutorialConnections(prev => (prev && prev.length > 0 ? prev : conns));
+
+    const cannonValue = Math.floor(Math.random() * 100) + 1;
+    const cannonAddress =
+      addressTypes[Math.floor(Math.random() * addressTypes.length)] +
+      numbers[Math.floor(Math.random() * numbers.length)];
+    setCannonCircle({ value: cannonValue.toString(), address: cannonAddress });
+  }, [annotatePrevNext]);
 
   const enqueueTexts = useMemo(
     () => [
-      "In enqueue mode, every shot attaches a node to the tail of the doubly linked list.",
-      "Aim for the tail. Watch the new node lock on with matching addresses.",
-      "Nice shot! The old tail’s next pointer and the new node’s prev pointer both update.",
-      "Keep adding nodes to feel how the doubly linked queue grows."
+      "In enqueue mode, each shot adds a node to the tail and updates both next and prev links.",
+      "Shoot the tail. Watch how the old tail's next pointer and the new node's prev pointer connect.",
+      "Great shot! The old tail now points forward and the new node points back, so the tail label shifts.",
+      "Keep adding nodes to see the doubly linked list grow in both directions."
     ],
     []
   );
 
   const dequeueTexts = useMemo(
     () => [
-      "Dequeue mode always removes the node at the head.",
-      "Target the head. Its prev pointer clears and the next node slides forward.",
-      "Great! The promoted head now reports null as its prev pointer while its next stays intact.",
-      "Keep removing nodes to shrink the doubly linked queue."
+      "Dequeue mode removes the node at the head while keeping both pointers consistent.",
+      "Shoot the head. Its neighbors will detach the old head from both directions.",
+      "Nice! The next node becomes the new head and its prev pointer resets to null.",
+      "Keep removing nodes to watch the doubly linked list shrink safely."
     ],
     []
   );
@@ -89,132 +136,88 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       setTutorialBullets([]);
     }
     setInstructionStep(0);
-  }, [scene, onValueShoot]);
+  }, [scene, onValueShoot, buildInitialEnqueueScene]);
 
-  function buildInitialEnqueueScene() {
-    const addressTypes = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj"];
-    const numbers = ["10", "20", "30", "40", "50", "60", "70", "80", "90"];
-    const nodeCount = 3;
-    const baseX = 240;
-    const spacing = 140;
-
-    const nodes = Array.from({ length: nodeCount }).map((_, idx) => {
-      const randomValue = Math.floor(Math.random() * 100) + 1;
-      const randomAddress =
-        addressTypes[Math.floor(Math.random() * addressTypes.length)] +
-        numbers[Math.floor(Math.random() * numbers.length)];
-
-      const prevAddress = idx === 0 ? NULL_POINTER : null;
-      const nextAddress = idx === nodeCount - 1 ? NULL_POINTER : null;
-
-      return {
-        id: `enqueue_${idx}`,
-        x: baseX + idx * spacing,
-        y: 220,
-        value: randomValue.toString(),
-        address: randomAddress,
-        prevAddress,
-        nextAddress,
-        velocityX: 0,
-        velocityY: 0,
-        isLaunched: false
-      };
-    });
-
-    nodes.forEach((node, idx) => {
-      if (idx > 0) {
-        node.prevAddress = nodes[idx - 1].address;
-      }
-      if (idx < nodes.length - 1) {
-        node.nextAddress = nodes[idx + 1].address;
-      }
-    });
-
-    let conns = [];
-    for (let i = 0; i < nodes.length - 1; i += 1) {
-      conns = addBidirectionalConnections(conns, nodes[i].id, nodes[i + 1].id);
-    }
-
-    setTutorialCircles(prev => (prev && prev.length > 0 ? prev : nodes));
-    setTutorialConnections(prev => (prev && prev.length > 0 ? prev : conns));
-
-    const cannonValue = Math.floor(Math.random() * 100) + 1;
-    const cannonAddress =
-      addressTypes[Math.floor(Math.random() * addressTypes.length)] +
-      numbers[Math.floor(Math.random() * numbers.length)];
-    setCannonCircle({ value: cannonValue.toString(), address: cannonAddress });
-  }
+  useEffect(() => {
+    return () => {
+      stopTutorialBgMusic();
+    };
+  }, []);
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") return;
     const interval = setInterval(() => {
       setTutorialCircles(prevCircles =>
-        prevCircles.map(circle => {
-          let floatVx = circle.floatVelocityX;
-          let floatVy = circle.floatVelocityY;
-          if (floatVx === undefined || floatVy === undefined) {
-            const angle = Math.random() * 2 * Math.PI;
-            const speed = 0.2 + Math.random() * 0.5;
-            floatVx = Math.cos(angle) * speed;
-            floatVy = Math.sin(angle) * speed;
-          }
+        annotatePrevNext(
+          prevCircles.map(circle => {
+            let floatVx = circle.floatVelocityX;
+            let floatVy = circle.floatVelocityY;
+            if (floatVx === undefined || floatVy === undefined) {
+              const angle = Math.random() * 2 * Math.PI;
+              const speed = 0.2 + Math.random() * 0.5;
+              floatVx = Math.cos(angle) * speed;
+              floatVy = Math.sin(angle) * speed;
+            }
 
-          let newX = circle.x + floatVx;
-          let newY = circle.y + floatVy;
-          let newFloatVx = floatVx;
-          let newFloatVy = floatVy;
+            let newX = circle.x + floatVx;
+            let newY = circle.y + floatVy;
+            let newFloatVx = floatVx;
+            let newFloatVy = floatVy;
 
-          if (newX <= 30 || newX >= window.innerWidth - 30) newFloatVx = -newFloatVx;
-          if (newY <= 30 || newY >= window.innerHeight - 30) newFloatVy = -newFloatVy;
+            if (newX <= 30 || newX >= window.innerWidth - 30) newFloatVx = -newFloatVx;
+            if (newY <= 30 || newY >= window.innerHeight - 30) newFloatVy = -newFloatVy;
 
-          newX = Math.max(30, Math.min(window.innerWidth - 30, newX));
-          newY = Math.max(30, Math.min(window.innerHeight - 30, newY));
+            newX = Math.max(30, Math.min(window.innerWidth - 30, newX));
+            newY = Math.max(30, Math.min(window.innerHeight - 30, newY));
 
-          let vx = circle.velocityX || 0;
-          let vy = circle.velocityY || 0;
-          const speedMag = Math.sqrt(vx * vx + vy * vy);
-          const minSpeed = 0.15;
-          if (circle.isLaunched && speedMag < minSpeed) {
-            vx += newFloatVx * 0.6;
-            vy += newFloatVy * 0.6;
-          } else {
-            vx *= 0.99;
-            vy *= 0.99;
-          }
+            let vx = circle.velocityX || 0;
+            let vy = circle.velocityY || 0;
+            const speedMag = Math.sqrt(vx * vx + vy * vy);
+            const minSpeed = 0.15;
+            if (circle.isLaunched && speedMag < minSpeed) {
+              vx += newFloatVx * 0.6;
+              vy += newFloatVy * 0.6;
+            } else {
+              vx *= 0.99;
+              vy *= 0.99;
+            }
 
-          return {
-            ...circle,
-            x: newX,
-            y: newY,
-            floatVelocityX: newFloatVx,
-            floatVelocityY: newFloatVy,
-            velocityX: vx,
-            velocityY: vy
-          };
-        })
+            return {
+              ...circle,
+              x: newX,
+              y: newY,
+              floatVelocityX: newFloatVx,
+              floatVelocityY: newFloatVy,
+              velocityX: vx,
+              velocityY: vy
+            };
+          })
+        )
       );
     }, 16);
     return () => clearInterval(interval);
-  }, [scene]);
+  }, [scene, annotatePrevNext]);
 
   useEffect(() => {
     if (scene !== "scene2") return;
     const interval = setInterval(() => {
       setTutorialCircles(prev => {
         const now = Date.now();
-        return prev.filter(circle => {
-          const linked = tutorialConnections.some(
-            conn => conn.from === circle.id || conn.to === circle.id
-          );
-          if (circle.isLaunched && !linked && now - (circle.launchTime || 0) > 3000) {
-            return false;
-          }
-          return true;
-        });
+        return annotatePrevNext(
+          prev.filter(circle => {
+            const linked = tutorialConnections.some(
+              conn => conn.from === circle.id || conn.to === circle.id
+            );
+            if (circle.isLaunched && !linked && now - (circle.launchTime || 0) > 3000) {
+              return false;
+            }
+            return true;
+          })
+        );
       });
     }, 200);
     return () => clearInterval(interval);
-  }, [scene, tutorialConnections]);
+  }, [scene, tutorialConnections, annotatePrevNext]);
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") return;
@@ -255,6 +258,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           const distance = Math.sqrt(dx * dx + dy * dy);
           if (distance < 70 && !didConnect) {
             didConnect = true;
+            playHitSound();
             const approachNorm = Math.max(0.0001, Math.sqrt(dx * dx + dy * dy));
             const offset = 60;
             const nx = dx / approachNorm;
@@ -268,26 +272,26 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               y: placedY,
               value: bullet.value,
               address: bullet.address,
-              prevAddress: tailNode.address,
-              nextAddress: NULL_POINTER,
               velocityX: updatedBullet.velocityX * 0.6 + nx * 2,
               velocityY: updatedBullet.velocityY * 0.6 + ny * 2,
               isLaunched: true,
               launchTime: Date.now(),
-              connected: true
+              connected: true,
+              prevAddress: tailNode.address,
+              nextAddress: NULL_POINTER
             };
 
             setTutorialCircles(prevCircles => {
               const updatedTail = {
                 ...prevCircles[prevCircles.length - 1],
-                nextAddress: newCircle.address,
                 velocityX: updatedBullet.velocityX * 0.4,
-                velocityY: updatedBullet.velocityY * 0.4
+                velocityY: updatedBullet.velocityY * 0.4,
+                nextAddress: newCircle.address
               };
               const arr = [...prevCircles.slice(0, -1), updatedTail, newCircle];
 
               const minDist = 60;
-              for (let i = 0; i < arr.length - 1; i += 1) {
+              for (let i = 0; i < arr.length - 1; i++) {
                 const a = arr[i];
                 const b = arr[i + 1];
                 let ddx = b.x - a.x;
@@ -308,16 +312,23 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 }
               }
 
+              let nextArr = arr;
               try {
-                return collisionDetection.updatePhysics(arr);
+                nextArr = collisionDetection.updatePhysics(arr);
               } catch {
-                return arr;
+                nextArr = arr;
               }
+              return annotatePrevNext(nextArr);
             });
 
-            setTutorialConnections(prevConns =>
-              addBidirectionalConnections(prevConns, tailNode.id, newCircle.id)
-            );
+            setTutorialConnections(prevConns => [
+              ...prevConns,
+              {
+                id: `enqueue_conn_${Date.now()}`,
+                from: tailNode.id,
+                to: newCircle.id
+              }
+            ]);
 
             setInstructionStep(prev => (prev < 2 ? 2 : prev));
           }
@@ -344,19 +355,21 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
       if (filtered.length > 1) {
         try {
-          return collisionDetection.updatePhysics(filtered);
+          const physics = collisionDetection.updatePhysics(filtered);
+          return annotatePrevNext(physics);
         } catch {
-          return filtered;
+          return annotatePrevNext(filtered);
         }
       }
-      return filtered;
+      return annotatePrevNext(filtered);
     });
-  }, [tutorialConnections, addBidirectionalConnections]);
+  }, [tutorialConnections, annotatePrevNext, NULL_POINTER]);
 
   const runDequeueAnimation = useCallback(() => {
     setTutorialBullets(prevBullets => {
       const updatedBullets = [];
       let headRemoved = false;
+      let removedHeadId = null;
 
       prevBullets.forEach(bullet => {
         let newX = bullet.x + bullet.velocityX;
@@ -384,24 +397,44 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         const circles = tutorialCirclesRef.current;
         if (circles.length > 0) {
           const headNode = circles[0];
-          const dx = (updatedBullet.x + 18) - headNode.x;
-          const dy = (updatedBullet.y + 18) - headNode.y;
+          const dx = updatedBullet.x + 18 - headNode.x;
+          const dy = updatedBullet.y + 18 - headNode.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           if (distance < 65 && !headRemoved) {
             headRemoved = true;
+            removedHeadId = headNode.id;
+            playDequeueSound();
             const nextNode = circles[1];
-
             setTutorialCircles(prevCircles => {
-              const newCircles = prevCircles.slice(1);
-              if (newCircles.length > 0) {
-                newCircles[0] = { ...newCircles[0], prevAddress: NULL_POINTER };
+              const sliced = prevCircles.slice(1);
+              let nextArr = sliced;
+              if (sliced.length > 1) {
+                try {
+                  nextArr = collisionDetection.updatePhysics(sliced);
+                } catch {
+                  nextArr = sliced;
+                }
               }
-              return newCircles;
+              return annotatePrevNext(nextArr);
             });
 
-            setTutorialConnections(prevConns =>
-              prevConns.filter(conn => conn.from !== headNode.id && conn.to !== headNode.id)
-            );
+            setTutorialConnections(prevConns => {
+              const filtered = prevConns.filter(
+                conn => conn.from !== headNode.id && conn.to !== headNode.id
+              );
+              if (nextNode && circles.length > 2) {
+                const following = circles[2];
+                return [
+                  {
+                    id: `dequeue_conn_${Date.now()}`,
+                    from: nextNode.id,
+                    to: following.id
+                  },
+                  ...filtered.filter(conn => conn.from !== nextNode.id)
+                ];
+              }
+              return filtered;
+            });
 
             setInstructionStep(prev => (prev < 2 ? 2 : prev));
           } else {
@@ -416,16 +449,17 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     });
 
     setTutorialCircles(prev => {
-      if (prev.length > 1) {
+      let nextArr = prev;
+      if (nextArr.length > 1) {
         try {
-          return collisionDetection.updatePhysics(prev);
+          nextArr = collisionDetection.updatePhysics(prev);
         } catch {
-          return prev;
+          nextArr = prev;
         }
       }
-      return prev;
+      return annotatePrevNext(nextArr);
     });
-  }, [NULL_POINTER]);
+  }, [annotatePrevNext]);
 
   useEffect(() => {
     if (scene !== "scene2" && scene !== "scene3") return;
@@ -465,6 +499,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         interval = setInterval(() => {
           idx += 1;
           setTypedInstruction(text.slice(0, idx));
+          playKeyboardSound();
           if (idx >= text.length) {
             clearInterval(interval);
             postTimeout = setTimeout(() => {
@@ -481,6 +516,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         interval = setInterval(() => {
           idx += 1;
           setTypedInstruction(text.slice(0, idx));
+          playKeyboardSound();
           if (idx >= text.length) {
             clearInterval(interval);
             postTimeout = setTimeout(() => {
@@ -502,6 +538,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx += 1;
         setTypedInstruction(text.slice(0, idx));
+        playKeyboardSound();
         if (idx >= text.length) {
           clearInterval(interval);
           if (scene === "scene2" && instructionStep === 2) {
@@ -529,7 +566,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       const cannonTipX = window.innerWidth - 35;
       const cannonTipY = window.innerHeight - 1;
       const tipDistance = 55;
-      const angleRad = cannonAngle * (Math.PI / 180);
+      const angleRad = (cannonAngle * Math.PI) / 180;
       const tipX = cannonTipX + Math.sin(angleRad) * tipDistance;
       const tipY = cannonTipY - Math.cos(angleRad) * tipDistance;
 
@@ -560,14 +597,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           y: tipY - 30,
           value: randomValue.toString(),
           address: randomAddress,
-          prevAddress: NULL_POINTER,
-          nextAddress: NULL_POINTER,
           velocityX,
           velocityY,
           isBullet: true,
           connected: false,
           isLaunched: true,
-          launchTime: Date.now()
+          launchTime: Date.now(),
+          prevAddress: "?",
+          nextAddress: "?"
         };
         setTutorialBullets(prev => [...prev, newBullet]);
         if (instructionStep === 0) setInstructionStep(1);
@@ -616,9 +653,16 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             <div className={tutorialStyles.tutorialContent}>
               <h2>Abstract Data Type: Queue Mechanics</h2>
               <p>In this mission you will practice enqueueing new nodes at the tail and dequeueing nodes from the head.</p>
-              <p>Let&apos;s explore how each operation affects the doubly linked structure before you dive into the challenge.</p>
-              <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
-                Continue
+              <p>Let&apos;s explore how each operation keeps both next and prev pointers aligned before you dive into the challenge.</p>
+              <button
+                onClick={() => {
+                  playTutorialBgMusic();
+                  onContinue();
+                  playFirstClickSound();
+                }}
+                className={tutorialStyles.tutorialButton}
+              >
+                Let&apos;s Go
               </button>
             </div>
           </div>
@@ -655,15 +699,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               className={styles.animatedCircle}
               style={{ left: `${circle.x - 30}px`, top: `${circle.y - 30}px`, cursor: "default" }}
             >
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-                <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
-                  {circle.prevAddress ?? NULL_POINTER}
-                </span>
-                <span className={styles.circleValue}>{circle.value}</span>
-                <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
-                  {circle.nextAddress ?? NULL_POINTER}
-                </span>
-              </div>
+              <span className={styles.circleAddress}>{circle.prevAddress ?? NULL_POINTER}</span>
+              <span className={styles.circleValue}>{circle.value}</span>
+              <span className={styles.circleAddress}>{circle.nextAddress ?? NULL_POINTER}</span>
               {label && (
                 <div
                   className={styles.headTailLabel}
@@ -703,15 +741,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               boxShadow: "0 0 15px rgba(255, 255, 0, 0.6)"
             }}
           >
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-              <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
-                {bullet.prevAddress ?? NULL_POINTER}
-              </span>
-              <span className={styles.circleValue}>{bullet.value}</span>
-              <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
-                {bullet.nextAddress ?? NULL_POINTER}
-              </span>
-            </div>
+            <span className={styles.circleAddress}>{bullet.prevAddress ?? "?"}</span>
+            <span className={styles.circleValue}>{bullet.value}</span>
+            <span className={styles.circleAddress}>{bullet.nextAddress ?? "?"}</span>
           </div>
         ))}
 
@@ -735,11 +767,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             );
           })}
           <defs>
-            <marker id="arrowheadStart" markerWidth="10" markerHeight="10" refX="-8" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
-              <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
+            <marker id="arrowheadStart" markerWidth="8" markerHeight="8" refX="-6" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
+              <path d="M8,0 L0,4 L8,8 L5,4 z" fill="#fff" />
             </marker>
-            <marker id="arrowheadEnd" markerWidth="10" markerHeight="10" refX="15" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
-              <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
+            <marker id="arrowheadEnd" markerWidth="8" markerHeight="8" refX="16" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
+              <path d="M0,0 L8,4 L0,8 L3,4 z" fill="#fff" />
             </marker>
           </defs>
         </svg>
@@ -749,8 +781,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
                 <h2>Awesome Work!</h2>
-                <p>You just attached multiple nodes to the tail. The head never moves, but the tail keeps updating to the newest node. Notice how each node maintains both previous and next pointers for the doubly linked structure.</p>
-                <button className={tutorialStyles.tutorialButton} onClick={onContinue}>
+                <p>You just attached multiple nodes to the tail. Both next and prev pointers stay in sync as the tail label moves.</p>
+                <button className={tutorialStyles.tutorialButton} onClick={() => { onContinue(); playFirstClickSound(); }}>
                   Continue
                 </button>
               </div>
@@ -777,7 +809,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           style={{ outlineOffset: "5px", transform: `rotate(${cannonAngle}deg)`, transformOrigin: "bottom center" }}
         >
           <div className={styles.cannonCircle} style={{ backgroundColor: "#ff4040", color: "#fff" }}>
-            <span style={{ fontSize: "9px" }}>Dequeue</span>
+            <span style={{ fontSize: "9px" }}></span>
           </div>
         </div>
 
@@ -789,15 +821,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               className={styles.animatedCircle}
               style={{ left: `${circle.x - 30}px`, top: `${circle.y - 30}px`, cursor: "default" }}
             >
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-                <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
-                  {circle.prevAddress ?? NULL_POINTER}
-                </span>
-                <span className={styles.circleValue}>{circle.value}</span>
-                <span style={{ fontSize: "10px", color: "#000", opacity: 0.85 }}>
-                  {circle.nextAddress ?? NULL_POINTER}
-                </span>
-              </div>
+              <span className={styles.circleAddress}>{circle.prevAddress ?? NULL_POINTER}</span>
+              <span className={styles.circleValue}>{circle.value}</span>
+              <span className={styles.circleAddress}>{circle.nextAddress ?? NULL_POINTER}</span>
               {label && (
                 <div
                   className={styles.headTailLabel}
@@ -861,11 +887,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             );
           })}
           <defs>
-            <marker id="arrowheadStart" markerWidth="10" markerHeight="10" refX="-8" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
-              <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
+            <marker id="arrowheadStart" markerWidth="8" markerHeight="8" refX="-6" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
+              <path d="M8,0 L0,4 L8,8 L5,4 z" fill="#fff" />
             </marker>
-            <marker id="arrowheadEnd" markerWidth="10" markerHeight="10" refX="15" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
-              <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
+            <marker id="arrowheadEnd" markerWidth="8" markerHeight="8" refX="16" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
+              <path d="M0,0 L8,4 L0,8 L3,4 z" fill="#fff" />
             </marker>
           </defs>
         </svg>
@@ -875,9 +901,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             <div className={tutorialStyles.tutorialPopup}>
               <div className={tutorialStyles.tutorialContent}>
                 <h2>Perfect</h2>
-                <p>You now understand how a queue works with doubly linked lists: new elements are added at the rear (enqueue) with proper prev/next pointers, and removed from the front (dequeue) while maintaining bidirectional links. This &quot;first in, first out&quot; principle with dual pointers is what makes doubly linked queues powerful in real-world scenarios.</p>
+                <p>You now understand how a doubly linked queue works: new elements connect at the rear and removed heads reset both pointers cleanly.</p>
                 <p><strong>Time to put your knowledge to the test in the mission!</strong></p>
-                <button className={tutorialStyles.tutorialButton} onClick={() => setShowScene4(true)}>
+                <button
+                  className={tutorialStyles.tutorialButton}
+                  onClick={() => {
+                    setShowScene4(true);
+                    playFirstClickSound();
+                  }}
+                >
                   Continue
                 </button>
               </div>
@@ -894,21 +926,22 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
                 <div className={tutorialStyles.gameInstructionsBody}>
                   <ul>
-                    <li><strong style={{ color: "#f609e2" }}>Objective:</strong> Meet the expected doubly linked list with correct prev/next pointers</li>
-                    <li><strong style={{ color: "#f609e2" }}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 times&quot;.</li>
-                    <li><strong style={{ color: "#f609e2" }}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
-                    <li><strong style={{ color: "#f609e2" }}>Scoring:</strong> Earn points for each successful node creation with proper bidirectional links</li>
-                    <li><strong style={{ color: "#f609e2" }}>Obstacles:</strong> Watch out for the black hole, freshly created nodes that collide with it will be destroyed!</li>
-                    <li><strong style={{ color: "#f609e2" }}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
+                    <li><strong style={{ color: "#ec0000ff" }}>Objective:</strong> Meet the expected doubly linked list</li>
+                    <li><strong style={{ color: "#ec0000ff" }}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 time&quot;.</li>
+                    <li><strong style={{ color: "#ec0000ff" }}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
+                    <li><strong style={{ color: "#ec0000ff" }}>Scoring:</strong> Earn points for each successful node creation</li>
+                    <li><strong style={{ color: "#ec0000ff" }}>Obstacles:</strong> Watch out for the black hole, freshly created node that collides with it will be destroyed!</li>
+                    <li><strong style={{ color: "#ec0000ff" }}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
                   </ul>
                 </div>
 
                 <div className={tutorialStyles.gameInstructionsFooter}>
                   <button
-                    className={tutorialStyles.tutorialButton}
+                    className={tutorialStyles.gametutorialButton}
                     onClick={() => {
                       setShowScene4(false);
                       onContinue();
+                      playFirstClickSound();
                     }}
                   >
                     Continue

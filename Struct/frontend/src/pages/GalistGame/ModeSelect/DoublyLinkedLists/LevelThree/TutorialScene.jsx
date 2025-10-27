@@ -8,7 +8,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [typedInstruction, setTypedInstruction] = useState("");
   const [instructionStep, setInstructionStep] = useState(0);
   const [insertionMode, setInsertionMode] = useState("after");
-
+  const NULL_POINTER = "null";
 
   const instructionText =
     "Insertion happens where you aim. Hit a node and the new value is placed into the chain.";
@@ -142,6 +142,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         velocityX: 0,
         velocityY: 0,
         isLaunched: false,
+        prevAddress: NULL_POINTER,
+        nextAddress: NULL_POINTER,
       };
       const tailNode = {
         id: "tailNode",
@@ -152,6 +154,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         velocityX: 0,
         velocityY: 0,
         isLaunched: false,
+        prevAddress: NULL_POINTER,
+        nextAddress: NULL_POINTER,
       };
       setTutorialCircles([headNode, tailNode]);
       setTutorialConnections([{ id: "conn_init", from: headNode.id, to: tailNode.id }]);
@@ -161,6 +165,37 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       });
     }
   }, [scene]);
+
+  useEffect(() => {
+    setTutorialCircles(prevCircles => {
+      if (prevCircles.length === 0) return prevCircles;
+
+      const idToAddress = new Map(prevCircles.map(circle => [circle.id, circle.address]));
+      const prevMap = new Map();
+      const nextMap = new Map();
+
+      tutorialConnections.forEach(conn => {
+        nextMap.set(conn.from, conn.to);
+        prevMap.set(conn.to, conn.from);
+      });
+
+      let changed = false;
+      const updated = prevCircles.map(circle => {
+        const prevId = prevMap.get(circle.id);
+        const nextId = nextMap.get(circle.id);
+        const prevAddress = prevId ? (idToAddress.get(prevId) ?? NULL_POINTER) : NULL_POINTER;
+        const nextAddress = nextId ? (idToAddress.get(nextId) ?? NULL_POINTER) : NULL_POINTER;
+
+        if (circle.prevAddress !== prevAddress || circle.nextAddress !== nextAddress) {
+          changed = true;
+          return { ...circle, prevAddress, nextAddress };
+        }
+        return circle;
+      });
+
+      return changed ? updated : prevCircles;
+    });
+  }, [tutorialConnections]);
 
   useEffect(() => {
     if (scene !== "scene2") return;
@@ -300,6 +335,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       velocityY: updatedBullet.velocityY * 0.3,
                       isLaunched: true,
                       launchTime: Date.now(),
+                      prevAddress: NULL_POINTER,
+                      nextAddress: NULL_POINTER,
                     };
 
                     // Insert a temporary visual node (no connections) to show the hit/nudge
@@ -471,7 +508,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 // Create new node
                 const newCircle = {
                   id: `inserted_${Date.now()}`,
-                  // position the inserted node close enough so it appears like a collision
                   x: target.x,
                   y: target.y,
                   value: bullet.value,
@@ -480,6 +516,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   velocityY: updatedBullet.velocityY * 0.3,
                   isLaunched: true,
                   launchTime: Date.now(),
+                  prevAddress: NULL_POINTER,
+                  nextAddress: NULL_POINTER,
                 };
 
                 // Update circles and connections based on insertion mode
@@ -683,6 +721,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
         velocityY,
         isLaunched: true,
         insertionMode,
+        prevAddress: NULL_POINTER,
+        nextAddress: NULL_POINTER,
       };
       setTutorialBullets(prev => [...prev, newBullet]);
     },
@@ -773,8 +813,12 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               className={styles.animatedCircle}
               style={{ left: `${circle.x - 30}px`, top: `${circle.y - 30}px`, cursor: "default" }}
             >
-              <span className={styles.circleValue}>{circle.value}</span>
-              <span className={styles.circleAddress}>{circle.address}</span>
+              <div className={styles.circleTextStack}>
+                <span className={styles.circlePointer}>{circle.prevAddress ?? NULL_POINTER}</span>
+                <span className={styles.circleValue}>{circle.value}</span>
+                <span className={styles.circlePointer}>{circle.nextAddress ?? NULL_POINTER}</span>
+              </div>
+              {/* <span className={styles.circleAddress}>{circle.address}</span> */}
               {label && (
                 <div
                   style={{
@@ -813,8 +857,12 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               boxShadow: "0 0 15px rgba(255, 255, 0, 0.6)",
             }}
           >
-            <span className={styles.circleValue}>{bullet.value}</span>
-            <span className={styles.circleAddress}>{bullet.address}</span>
+            <div className={styles.circleTextStack}>
+              <span className={styles.circlePointer}>{bullet.prevAddress ?? NULL_POINTER}</span>
+              <span className={styles.circleValue}>{bullet.value}</span>
+              <span className={styles.circlePointer}>{bullet.nextAddress ?? NULL_POINTER}</span>
+            </div>
+            {/* <span className={styles.circleAddress}>{bullet.address}</span> */}
           </div>
         ))}
 
@@ -831,14 +879,38 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   x2={toCircle.x}
                   y2={toCircle.y}
                   className={styles.animatedLine}
-                  markerEnd="url(#arrowhead)"
+                  markerStart="url(#arrowheadStart)"
+                  markerEnd="url(#arrowheadEnd)"
                 />
               </g>
             );
           })}
           <defs>
-            <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="16" refY="4" orient="auto" fill="#fff" stroke="#fff" strokeWidth="0.5">
-              <path d="M0,0 L0,8 L8,4 z" fill="#fff" />
+            <marker
+              id="arrowheadStart"
+              markerWidth="10"
+              markerHeight="10"
+              refX="-8"
+              refY="4"
+              orient="auto"
+              fill="#fff"
+              stroke="#fff"
+              strokeWidth="0.5"
+            >
+              <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
+            </marker>
+            <marker
+              id="arrowheadEnd"
+              markerWidth="10"
+              markerHeight="10"
+              refX="15"
+              refY="4"
+              orient="auto"
+              fill="#fff"
+              stroke="#fff"
+              strokeWidth="0.5"
+            >
+              <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
             </marker>
           </defs>
         </svg>

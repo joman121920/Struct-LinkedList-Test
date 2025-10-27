@@ -25,11 +25,11 @@ function DoublyLinkedListsSelection({ onSelect }) {
     if (lvl.level === 4) {
       navigate("/galist-game-doubly-deletion");
     } else if(lvl.level ===1 ) {
-      navigate("/galist-game-doubly-node-creation");
-    } else if(lvl.level ===2 ) {
       navigate("/galist-game-doubly-linking-node");
-    }  else if(lvl.level ===3 ) {
+    } else if(lvl.level ===2 ) {
       navigate("/galist-game-doubly-insertion-node");
+    }  else if(lvl.level ===3 ) {
+      navigate("/galist-game-doubly-abstract-data-type");
     } else if(lvl.level ===5 ) {
       navigate("/galist-game-doubly-abstract-data-type");
     } else {
