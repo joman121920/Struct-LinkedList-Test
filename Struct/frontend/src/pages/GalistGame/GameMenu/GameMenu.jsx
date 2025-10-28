@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import styles from "./GameMenu.module.css";
 import { playMenuBgMusic, stopMenuBgMusic, playGameStartSound, playFirstClickSound, playHoverSound } from "../Sounds.jsx";
 import { useNavigate } from "react-router-dom";
+import { api } from "../../../data/api";
 
 function GameMenu({ onStart }) {
   const navigate = useNavigate();
@@ -14,11 +15,18 @@ function GameMenu({ onStart }) {
     // Don't stop menu music on unmount - let individual actions handle it
   }, []);
 
-  const handleCompetitiveMode = () => {
-    stopMenuBgMusic(); // Stop menu music when entering competitive mode
+  const handleCompetitiveMode = async () => {
+    try {
+      await api.post("user/hearts/", { hearts_to_use: 2 });
+    } catch (error) {
+      alert(error.message || "Unable to start Competitive Mode. Check your hearts.");
+      return;
+    }
+
+    stopMenuBgMusic();
     playGameStartSound();
     navigate("/competitive-mode");
-  }
+  };
 
   const handleLeaderboard = () => {
     playFirstClickSound();

@@ -9,6 +9,7 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
+import { playAdtBgMusic, stopAdtBgMusic, playHitSound, playDequeueSound, playHoverSound, playSelectSound, playErrorSound, playClaimSound, playFirstClickSound } from "../../../Sounds.jsx";
 
 function GalistAbstractDataType() {
   const [isLoading, setIsLoading] = useState(true);
@@ -17,6 +18,7 @@ function GalistAbstractDataType() {
   
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
+    stopAdtBgMusic(); // Stop music when going back
     window.history.back();
   }, []);
 
@@ -261,13 +263,19 @@ function GalistAbstractDataType() {
 
   // Handle cannon circle click to open bullet selection modal
   const handleCannonClick = useCallback(() => {
+    // Disable bullet selection when in dequeue mode
+    if (adtMode === 'dequeue') {
+      return;
+    }
+    playSelectSound(); // Play sound when opening bullet modal
     const bullets = generateBulletOptions();
     setBulletOptions(bullets);
     setShowBulletModal(true);
-  }, [generateBulletOptions]);
+  }, [generateBulletOptions, adtMode]);
 
   // Handle bullet selection
   const handleBulletSelect = useCallback((selectedBullet) => {
+    playFirstClickSound(); // Play sound when selecting bullet
     setCannonCircle({
       value: selectedBullet.value,
       address: selectedBullet.address
@@ -506,6 +514,7 @@ function GalistAbstractDataType() {
         // Reset head/tail state
         setHeadCircleId(null);
         setTailCircleId(null);
+        stopAdtBgMusic();
       }
       // applyNavigationState(st);
     };
@@ -522,6 +531,7 @@ function GalistAbstractDataType() {
     return () => {
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener('wheel', handleWheel);
+      stopAdtBgMusic();
     };
   }, []);
 
@@ -648,6 +658,8 @@ function GalistAbstractDataType() {
     setTimerSeconds(300);
     setTimerRunning(true);
     setShowMissionFailed(false);
+    // Start ADT background music when game begins
+    playAdtBgMusic();
   }, [loadExercise, exerciseKey]);
 
   const handleTutorialContinue = useCallback(() => {
@@ -684,11 +696,13 @@ const handleTutorialValueShoot = useCallback((mode) => {
     setTimerSeconds(300);
     setTimerRunning(true);
     setShowMissionFailed(false);
+    stopAdtBgMusic();
     // Reset to exercise one
     setExerciseKey("exercise_one");
     // Reload exercise one and request promotion/launch of its template initial
     loadExercise("exercise_one", true);
     // Ensure an initial launched circle exists after load (promote or create if needed)
+    setTimeout(() => playAdtBgMusic(), 500);
     setTimeout(() => {
       setCircles((prev) => {
         const existing = prev || [];
@@ -1077,6 +1091,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
                                         (isHeadNode(target.id)) || 
                                         (connections.some(conn => conn.from === target.id) && !connections.some(conn => conn.to === target.id));
                     if (targetIsHead) {
+                      playDequeueSound();
                       // Remove head: find its outgoing connection and promote next node to head
                       const outConn = connections.find(conn => conn.from === target.id);
                       const nextId = outConn ? outConn.to : null;
@@ -1090,6 +1105,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
                       continue; // skip further collision processing for this pair
                     } else if (launched.isDequeueBullet) {
                       // Dequeue bullet hit a non-head: bullet should bounce off and be deleted.
+                      playErrorSound();
                       const bulletId = launched.id;
                       const targetId = target.id;
                       // Remove any connections referencing the bullet (defensive)
@@ -1120,6 +1136,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
                   if (launched && target) {
                     const targetIsTail = (connections.some(conn => conn.to === target.id) && !connections.some(conn => conn.from === target.id)) || tailCircleId === target.id;
                     if (targetIsTail) {
+                      playHitSound();
                       // Create connection from target (old tail) to launched
                       setConnections((prev) => [...prev, { id: Date.now(), from: target.id, to: launched.id }]);
                       // Update tail id
@@ -1132,6 +1149,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
                       // Enqueue bullet hit a non-tail: remove the bullet and nudge the hit node (no connection)
                       const bulletId = launched.id;
                       const targetId = target.id;
+                      playErrorSound();
                       // Defensive: remove any connections referencing the bullet
                       setConnections(prev => prev.filter(c => c.from !== bulletId && c.to !== bulletId));
                       // Remove the bullet and apply a small velocity to the target to simulate a nudge
@@ -1674,7 +1692,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
 
   const handleCircleClick = useCallback((circleId, e) => {
     e.stopPropagation();
-
+    playHoverSound();
 
     setCircles(prev => {
       const updated = prev.map(c => {
@@ -2356,49 +2374,55 @@ const handleTutorialValueShoot = useCallback((mode) => {
             // Only draw if both endpoints exist right now
             if (!fromCircle || !toCircle) return null;
 
+            // Calculate the center positions of both circles
+            const fromX = fromCircle.x; // 30 is the radius
+            const fromY = fromCircle.y;
+            const toX = toCircle.x;
+            const toY = toCircle.y;
+
             return (
-                          <g key={connection.id}>
-                            <line
-                              x1={fromX}
-                              y1={fromY}
-                              x2={toX}
-                              y2={toY}
-                              className={styles.animatedLine}
-                              markerStart="url(#arrowheadStart)"
-                              markerEnd="url(#arrowheadEnd)"
-                            />
-                          </g>
-                        );
-                      });
-                    })()}
-                    <defs>
-                      <marker
-                        id="arrowheadStart"
-                        markerWidth="10"
-                        markerHeight="10"
-                        refX="-8"
-                        refY="4"
-                        orient="auto"
-                        fill="#fff"
-                        stroke="#fff"
-                        strokeWidth="0.5"
-                      >
-                        <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
-                      </marker>
-                      <marker
-                        id="arrowheadEnd"
-                        markerWidth="10"
-                        markerHeight="10"
-                        refX="15"
-                        refY="4"
-                        orient="auto"
-                        fill="#fff"
-                        stroke="#fff"
-                        strokeWidth="0.5"
-                      >
-                        <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
-                      </marker>
-                    </defs>
+              <g key={connection.id}>
+                <line
+                  x1={fromX}
+                  y1={fromY}
+                  x2={toX}
+                  y2={toY}
+                  className={styles.animatedLine}
+                  markerStart="url(#arrowheadStart)"
+                  markerEnd="url(#arrowheadEnd)"
+                />
+              </g>
+            );
+          });
+        })()}
+        <defs>
+          <marker
+            id="arrowheadStart"
+            markerWidth="10"
+            markerHeight="10"
+            refX="-8"
+            refY="4"
+            orient="auto"
+            fill="#fff"
+            stroke="#fff"
+            strokeWidth="0.5"
+          >
+            <path d="M8,0 L0,4 L8,8 L4.5,4 Z" fill="#fff" />
+          </marker>
+          <marker
+            id="arrowheadEnd"
+            markerWidth="10"
+            markerHeight="10"
+            refX="15"
+            refY="4"
+            orient="auto"
+            fill="#fff"
+            stroke="#fff"
+            strokeWidth="0.5"
+          >
+            <path d="M0,0 L8,4 L0,8 L3.5,4 Z" fill="#fff" />
+          </marker>
+        </defs>
       </svg>
       {/* Validation Result Overlay */}
       {showValidationResult && validationResult && (
@@ -2587,8 +2611,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
           <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
             <h2 style={{ color: '#ff6bff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
             <p style={{ color: '#ddd', marginBottom: '20px' }}>You missed your chance to insert the node in the right spot. Reset and try again to master node insertion!</p>
-            <button
-              onClick={() => handleRetry()}
+           <button
+              onClick={() => { handleRetry(); playFirstClickSound(); }}
               style={{
                 background: 'none',
                 border: '2px solid #ff00ff',
@@ -2598,6 +2622,15 @@ const handleTutorialValueShoot = useCallback((mode) => {
                 fontSize: '1.2rem',
                 padding: '10px 30px',
                 cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                playHoverSound();
+                e.target.style.backgroundColor = '#ff00ff44';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'scale(1)';
               }}
             >
               Retry
@@ -2660,6 +2693,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
                           padding: '6px'
                         }}
                         onMouseEnter={(e) => {
+                          playHoverSound();
                           e.currentTarget.style.transform = 'scale(1.1)';
                           e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
                         }}
@@ -2693,6 +2727,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
               Level Complete: {currentExerciseNumber}/{totalExercises}
             </h2>
             <button
+              onMouseEnter={() => playHoverSound()}
               style={{
                 background: 'none',
                 border: '2px solid #ff00ff',
@@ -2730,7 +2765,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
                 cursor: 'pointer',
                 marginTop: '20px',
               }}
-              onClick={handleGoBack}
+              onClick={() => { handleGoBack(); playFirstClickSound(); }}
+              onMouseEnter={() => playHoverSound()}
             >
               Go back
             </button>

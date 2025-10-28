@@ -3,7 +3,7 @@ import { collisionDetection } from "../../../CollisionDetection";
 import PropTypes from "prop-types";
 import styles from "./LinkingNode.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
-
+import { playTutorialBgMusic, stopTutorialBgMusic, playHitSound, playFirstClickSound, playKeyboardSound } from "../../../Sounds.jsx";
 const NULL_POINTER = "null";
 
 // Tutorial Scene Component for Linking Nodes (Doubly Linked List)
@@ -66,7 +66,29 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const nextText = "Add another node to see the bidirectional chain grow longer.";
   const [typedInstruction, setTypedInstruction] = useState("");
   const [instructionStep, setInstructionStep] = useState(0);
-  
+
+  useEffect(() => {
+    // Play tutorial background music when component mounts
+    playTutorialBgMusic();
+
+    // Cleanup: stop music when component unmounts or scene changes
+    return () => {
+      stopTutorialBgMusic();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onPopState = (e) => {
+      const st = e.state || { screen: "menu", mode: null };
+      // If leaving gameplay via browser navigation, stop the music
+      if (st.screen !== "play") {
+        stopTutorialBgMusic();
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   useEffect(() => {
     if (scene !== 'scene2') {
       setTypedInstruction("");
@@ -82,6 +104,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         currentIdx++;
         setTypedInstruction(instructionText.slice(0, currentIdx));
+        playKeyboardSound();
         if (currentIdx >= instructionText.length) {
           clearInterval(interval);
           setTimeout(() => setInstructionStep(1), 2000);
@@ -93,6 +116,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx++;
         setTypedInstruction(secondText.slice(0, idx));
+        playKeyboardSound();
         if (idx >= secondText.length) {
           clearInterval(interval);
         }
@@ -103,6 +127,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx++;
         setTypedInstruction(collisionText.slice(0, idx));
+        playKeyboardSound();
         if (idx >= collisionText.length) {
           clearInterval(interval);
           setTimeout(() => setInstructionStep(3), 2000);
@@ -114,6 +139,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx++;
         setTypedInstruction(nextText.slice(0, idx));
+        playKeyboardSound();
         if (idx >= nextText.length) {
           clearInterval(interval);
         }
@@ -213,6 +239,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             const distance = Math.sqrt(dx * dx + dy * dy);
             if (distance < 70 && !didConnect) {
               didConnect = true;
+              
+              // Add hit sound and keyboard sound on collision
+              playHitSound();
+              setTimeout(() => playKeyboardSound(), 200);
+              
               const amplify = 0.5;
               const retain = 0.7;
               const approachNorm = Math.max(0.0001, Math.sqrt(dx * dx + dy * dy));
@@ -228,8 +259,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 y: newY,
                 value: bullet.value,
                 address: bullet.address,
-                prevAddress: headNode.address,  // Points back to head
-                nextAddress: NULL_POINTER,      // No next node yet
+                prevAddress: headNode.address,
+                nextAddress: NULL_POINTER,
                 velocityX: updatedBullet.velocityX * retain + nx * 2,
                 velocityY: updatedBullet.velocityY * retain + ny * 2,
                 isLaunched: true,
@@ -240,7 +271,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               setTutorialCircles(prevCircles => {
                 const updatedHead = {
                   ...prevCircles[0],
-                  nextAddress: newCircle.address,  // Head now points to new node
+                  nextAddress: newCircle.address,
                   velocityX: updatedBullet.velocityX * amplify,
                   velocityY: updatedBullet.velocityY * amplify
                 };
@@ -291,6 +322,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             const distance = Math.sqrt(dx * dx + dy * dy);
             if (distance < 70 && !didConnect) {
               didConnect = true;
+              
+              // Add hit sound and keyboard sound on collision
+              playHitSound();
+              setTimeout(() => playKeyboardSound(), 200);
+              
               const amplify = 0.5;
               const retain = 0.7;
               const approachNorm = Math.max(0.0001, Math.sqrt(dx * dx + dy * dy));
@@ -306,8 +342,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 y: newY,
                 value: bullet.value,
                 address: bullet.address,
-                prevAddress: tailNode.address,  // Points back to previous tail
-                nextAddress: NULL_POINTER,      // New tail has no next
+                prevAddress: tailNode.address,
+                nextAddress: NULL_POINTER,
                 velocityX: updatedBullet.velocityX * retain + nx * 2,
                 velocityY: updatedBullet.velocityY * retain + ny * 2,
                 isLaunched: true,
@@ -318,7 +354,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               setTutorialCircles(prevCircles => {
                 const updatedTail = {
                   ...prevCircles[tailIdx],
-                  nextAddress: newCircle.address,  // Old tail now points to new node
+                  nextAddress: newCircle.address,
                   velocityX: updatedBullet.velocityX * amplify,
                   velocityY: updatedBullet.velocityY * amplify
                 };
@@ -397,6 +433,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     if (scene !== 'scene2' && scene !== 'scene3') return;
 
     e.preventDefault();
+    
+    // Add shoot sound when firing a bullet
+    playFirstClickSound();
 
     const cannonTipX = window.innerWidth - 35;
     const cannonTipY = window.innerHeight - 1;
@@ -421,7 +460,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       y: tipY - 30,
       value: randomValue.toString(),
       address: randomAddress,
-      prevAddress: NULL_POINTER,  // New bullets start unconnected
+      prevAddress: NULL_POINTER,
       nextAddress: NULL_POINTER,
       velocityX: velocityX,
       velocityY: velocityY,
@@ -432,7 +471,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
 
     setTutorialBullets(prev => [...prev, newBullet]);
   }, [scene, cannonAngle]);
-
   // Bullet animation for scene3 (if needed)
   useEffect(() => {
     if (scene !== 'scene3') return;
@@ -464,6 +502,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
             const distance = Math.sqrt(dx * dx + dy * dy);
             if (distance < 70) {
               bulletHitSomething = true;
+              
+              // Add hit sound and keyboard sound on collision
+              playHitSound();
+              setTimeout(() => playKeyboardSound(), 200);
+              
               const newCircle = {
                 id: `inserted_${Date.now()}`,
                 x: circle.x + 100,
@@ -501,7 +544,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     animationFrameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrameId);
   }, [scene, onValueShoot]);
-
+  
   useEffect(() => {
     if (scene !== 'scene2' && scene !== 'scene3') return;
 
@@ -526,7 +569,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     };
   }, [scene, handleTutorialRightClick]);
 
-  if (scene === 'scene1') {
+   if (scene === 'scene1') {
     return (
       <div className={styles.app}>
         <video
@@ -548,7 +591,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               <p>In doubly linked lists, each node connects to BOTH the previous and next nodes through two pointers, allowing traversal in both directions.</p>
               <p>Let&apos;s build a bidirectional chain and see how nodes link together!</p>
               <button 
-                onClick={onContinue}
+                onClick={() => {
+                  playFirstClickSound();
+                  playKeyboardSound();
+                  onContinue();
+                }}
                 className={tutorialStyles.tutorialButton}
               >
                 Continue
@@ -732,7 +779,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 </p>
                 <button
                   className={tutorialStyles.tutorialButton}
-                  onClick={onContinue}
+                  onClick={() => {
+                    playFirstClickSound();
+                    playKeyboardSound();
+                    onContinue();
+                  }}
                 >
                   Continue
                 </button>

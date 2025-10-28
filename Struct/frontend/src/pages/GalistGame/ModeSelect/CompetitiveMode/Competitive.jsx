@@ -35,13 +35,11 @@ function CompetitiveMode() {
   const [showSettings, setShowSettings] = useState(false);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(true);
-
+  const handleNavigate = useNavigate();
   // Handler for Go Back button
-  const handleGoBack = useCallback(() => {
-    // Stop background music when leaving the game
+  const resetGameState = useCallback(() => {
     stopCompeBgSong();
-    
-    // Reset all modal states before navigating back
+    setShowSettings(false);
     setShowMissionFailed(false);
     setShowDefuseModal(false);
     setShowBulletModal(false);
@@ -52,9 +50,36 @@ function CompetitiveMode() {
     setShowWrongAnswerNotification(false);
     setShowBombBlockingNotification(false);
     setShowQuizModal(false);
-    
-    window.history.back();
   }, []);
+
+  // const handleGoBack = useCallback(() => {
+  //   // Stop background music when leaving the game
+  //   stopCompeBgSong();
+    
+  //   // Reset all modal states before navigating back
+  //   setShowMissionFailed(false);
+  //   setShowDefuseModal(false);
+  //   setShowBulletModal(false);
+  //   setShowPointsModal(false);
+  //   setShowLevelCompleteModal(false);
+  //   setShowAllCompletedModal(false);
+  //   setShowValidationResult(false);
+  //   setShowWrongAnswerNotification(false);
+  //   setShowBombBlockingNotification(false);
+  //   setShowQuizModal(false);
+    
+  //   window.history.back();
+  // }, []);
+
+  const handleGoBack = useCallback(() => {
+    resetGameState();
+    window.history.back();
+  }, [resetGameState]);
+
+  const handleSettingsMenu = useCallback(() => {
+    resetGameState();
+    navigate('/galist-game');
+  }, [navigate, resetGameState]);
   
   // Handler for loading screen completion
   const handleLoadingComplete = useCallback(() => {
@@ -3699,6 +3724,7 @@ function CompetitiveMode() {
         onToggleSoundEffects={handleToggleSoundEffects}
         onRestart={handleSettingsRestart}
         onContinue={handleSettingsContinue}
+        onMenu={handleSettingsMenu}
       />
     </div>
   );

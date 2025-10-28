@@ -36,6 +36,7 @@ const levelsPage2 = [
 ];
 
 function SinglyLinkedListsSelection({ onSelect }) {
+  
   const [page, setPage] = useState(1);
   const navigate = useNavigate();
 

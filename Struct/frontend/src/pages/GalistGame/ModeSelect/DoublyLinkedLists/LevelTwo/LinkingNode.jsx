@@ -9,10 +9,11 @@ import PortalComponent from "../../../PortalComponent";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene";
 import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
-
+import { playLinkingBgMusic, stopLinkingBgMusic, playHitSound, playFirstClickSound, playHoverSound, playClaimSound, playErrorSound, playSelectSound} from "../../../Sounds.jsx";
 // Exercise keys constant moved outside component to avoid useCallback dependency issues
 const EXERCISE_KEYS = ["exercise_one", "exercise_two", "exercise_three"];
 const NULL_POINTER = "null";
+
 function GalistGameLinkingNode() {
   const [isLoading, setIsLoading] = useState(true);
   const [tutorialScene, setTutorialScene] = useState("scene1");
@@ -21,9 +22,10 @@ function GalistGameLinkingNode() {
 
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
+    stopLinkingBgMusic();
     window.history.back();
   }, []);
-
+  
   const handleLoadingComplete = useCallback(() => {
     setIsLoading(false);
   }, []);
@@ -38,6 +40,7 @@ function GalistGameLinkingNode() {
   const [connections, setConnections] = useState([]);
   const animationRef = useRef();
   const mouseHistoryRef = useRef([]);
+  const connectionSoundsPlayedRef = useRef(new Set());
   const [suckingCircles, setSuckingCircles] = useState([]);
   const [suckedCircles, setSuckedCircles] = useState([]);
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]);
@@ -260,7 +263,7 @@ const generateBulletOptions = useCallback(() => {
   setCircles(prev => {
     const updated = prev.map(c => {
       if (c.id !== circleId) return c;
-      
+      playHoverSound();
       // Prevent deletion of initial circle
       if (c.isInitial) {
         return c; // Don't update click count for initial circle
@@ -528,11 +531,14 @@ const generateBulletOptions = useCallback(() => {
         // Reset head/tail state
         setHeadCircleId(null);
         setTailCircleId(null);
+        stopLinkingBgMusic();
       }
       // applyNavigationState(st);
     };
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    return () => {window.removeEventListener("popstate", onPopState)
+      stopLinkingBgMusic();
+    };
   }, []);
 
   // Function to find all connected circles recursively
@@ -670,6 +676,7 @@ const generateBulletOptions = useCallback(() => {
   // Handler for when user clicks Continue on the instruction modal: start the game.
   const handleInstructionModalStart = useCallback(() => {
     setShowInstructionModal(false);
+    playLinkingBgMusic();
     // Ensure exercise is initialized and timer started
     startExercise();
   }, [startExercise]);
@@ -1125,60 +1132,74 @@ const generateBulletOptions = useCallback(() => {
                 
                 // Execute the decision
                 if (shouldConnect) {
-                  // Create connection
-                  const newConnection = {
-                    id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                    from: fromId,
-                    to: toId
-                  };
-                  
-                  // ...existing code...
-                  
-                  setConnections(prev => {
-                    const updated = [...prev, newConnection];
-                    // ...existing code...
-                    return updated;
-                  });
-                } else if (shouldDeleteCircle) {
-                  // Delete the specified circle(s)
-                  if (Array.isArray(shouldDeleteCircle)) {
-                    // Delete multiple circles
-                    // ...existing code...
-                    
-                    setTimeout(() => {
-                      setCircles(prev => prev.filter(c => !shouldDeleteCircle.includes(c.id)));
-                    }, 100);
-                  } else {
-                    // Delete single circle
-                    // ...existing code...
-                    
-                    setTimeout(() => {
-                      setCircles(prev => prev.filter(c => c.id !== shouldDeleteCircle));
-                    }, 100);
-                  }
-                }
-                
-                // Give the other circle a small push if it's stationary and not being deleted
-                if (!shouldDeleteCircle) {
-                  const otherCircle = circle1Moving ? circle2 : circle1;
-                  const circle2MovingCheck = circle2Moving;
-                  
-                  setCircles(prev => prev.map(circle => {
-                    if (circle.id === otherCircle.id && !circle2MovingCheck) {
-                      return {
-                        ...circle,
-                        velocityX: movingCircle.velocityX * 0.3,
-                        velocityY: movingCircle.velocityY * 0.3,
-                        isLaunched: true,
-                        launchTime: Date.now()
-                      };
-                    }
-                    return circle;
-                  }));
-                }
-              } else {
-                // ...existing code...
-              }
+                                  // Create connection
+                                  const newConnection = {
+                                    id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                    from: fromId,
+                                    to: toId
+                                  };
+                                  
+                                  // Play hit sound only when successfully linking nodes (prevent duplicates)
+                                  const connectionKey = `${Math.min(fromId, toId)}_${Math.max(fromId, toId)}`;
+                                  if (!connectionSoundsPlayedRef.current.has(connectionKey)) {
+                                    playHitSound();
+                                    connectionSoundsPlayedRef.current.add(connectionKey);
+                                    // Clear sound tracking after delay to prevent memory buildup
+                                    setTimeout(() => {
+                                      connectionSoundsPlayedRef.current.delete(connectionKey);
+                                    }, 1000);
+                                  }
+                                  
+                                  // ...existing code...
+                                  
+                                  setConnections(prev => {
+                                    const updated = [...prev, newConnection];
+                                    // ...existing code...
+                                    return updated;
+                                  });
+                                } else if (shouldDeleteCircle) {
+                                  // Play error sound for invalid connections (node deletion)
+                                  playErrorSound();
+                                  
+                                  // Delete the specified circle(s)
+                                  if (Array.isArray(shouldDeleteCircle)) {
+                                    // Delete multiple circles
+                                    // ...existing code...
+                                    
+                                    setTimeout(() => {
+                                      setCircles(prev => prev.filter(c => !shouldDeleteCircle.includes(c.id)));
+                                    }, 100);
+                                  } else {
+                                    // Delete single circle
+                                    // ...existing code...
+                                    
+                                    setTimeout(() => {
+                                      setCircles(prev => prev.filter(c => c.id !== shouldDeleteCircle));
+                                    }, 100);
+                                  }
+                                }
+                                
+                                // Give the other circle a small push if it's stationary and not being deleted
+                                if (!shouldDeleteCircle) {
+                                  const otherCircle = circle1Moving ? circle2 : circle1;
+                                  const circle2MovingCheck = circle2Moving;
+                                  
+                                  setCircles(prev => prev.map(circle => {
+                                    if (circle.id === otherCircle.id && !circle2MovingCheck) {
+                                      return {
+                                        ...circle,
+                                        velocityX: movingCircle.velocityX * 0.3,
+                                        velocityY: movingCircle.velocityY * 0.3,
+                                        isLaunched: true,
+                                        launchTime: Date.now()
+                                      };
+                                    }
+                                    return circle;
+                                  }));
+                                }
+                              } else {
+                                // ...existing code...
+                              }
             }
           }
         }
@@ -1801,7 +1822,7 @@ useEffect(() => {
 
             <div className={styles.instructionButtonWrapper}>
               <button
-                onClick={handleInstructionModalStart}
+                onClick={() => { handleInstructionModalStart(); playFirstClickSound(); }}
                 className={styles.instructionContinueBtn}
               >
                 Continue
@@ -1834,7 +1855,7 @@ useEffect(() => {
           {/* Cannon Circle */}
           <div 
             className={styles.cannonCircle}
-            onClick={handleCannonClick}
+            onClick={() => { handleCannonClick(); playSelectSound();}}
             style={{ cursor: 'pointer' }}
           >
             <span style={{ fontSize: '14px' }}>
@@ -2240,7 +2261,7 @@ useEffect(() => {
         {bulletOptions.map((bullet) => (
           <div
             key={bullet.id}
-            onClick={() => handleBulletSelect(bullet)}
+            onClick={() => { handleBulletSelect(bullet); playFirstClickSound(); }}
             className={styles.bulletCircle}
             style={{
               width: '100px',
@@ -2259,6 +2280,7 @@ useEffect(() => {
               padding: '8px'
             }}
             onMouseEnter={(e) => {
+              playHoverSound();
               e.currentTarget.style.transform = 'scale(1.1)';
               e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
             }}
@@ -2303,7 +2325,7 @@ useEffect(() => {
                 cursor: 'pointer',
                 marginTop: '20px',
               }}
-              onClick={handleLevelContinue}
+              onClick={() => { handleLevelContinue(); playClaimSound(); }}
             >
               Continue
             </button>

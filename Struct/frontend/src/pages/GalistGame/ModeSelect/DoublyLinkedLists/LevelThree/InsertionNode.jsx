@@ -9,6 +9,8 @@ import PortalComponent from "../../../PortalComponent.jsx";
 import PortalParticles from "../../../Particles.jsx";
 import TutorialScene from "./TutorialScene.jsx";
 import LoadingScreen from "../../../LoadingScreen/LoadingScreen.jsx";
+import { playInsertionBgMusic, stopInsertionBgMusic, playHitSound, playHoverSound, playSelectSound, playClaimSound , playFirstClickSound} from "../../../Sounds";
+
 
 function GalistGameInsertionNode() {
   const [isLoading, setIsLoading] = useState(true);
@@ -18,6 +20,7 @@ function GalistGameInsertionNode() {
 
   // Handler for Go Back button
   const handleGoBack = useCallback(() => {
+    stopInsertionBgMusic(); // Stop music when going back
     window.history.back();
   }, []);
 
@@ -119,6 +122,8 @@ function GalistGameInsertionNode() {
       to: toId
     };
     setConnections(prev => [...prev, newConnection]);
+    // Play hit sound for successful connection
+    playHitSound();
     return newConnection;
   }, []);
 
@@ -212,6 +217,7 @@ function GalistGameInsertionNode() {
 
   // Handle cannon circle click to open bullet selection modal
   const handleCannonClick = useCallback(() => {
+    playSelectSound(); // Play sound when opening bullet modal
     const bullets = generateBulletOptions();
     setBulletOptions(bullets);
     setShowBulletModal(true);
@@ -219,6 +225,7 @@ function GalistGameInsertionNode() {
 
   // Handle bullet selection
   const handleBulletSelect = useCallback((selectedBullet) => {
+    playFirstClickSound(); // Play sound when selecting bullet
     setCannonCircle({
       value: selectedBullet.value,
       address: selectedBullet.address
@@ -457,6 +464,8 @@ function GalistGameInsertionNode() {
         // Reset head/tail state
         setHeadCircleId(null);
         setTailCircleId(null);
+        // Stop insertion background music when leaving
+        stopInsertionBgMusic();
       }
       // applyNavigationState(st);
     };
@@ -473,6 +482,7 @@ function GalistGameInsertionNode() {
     return () => {
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener('wheel', handleWheel);
+      stopInsertionBgMusic(); // Stop music on unmount
     };
   }, []);
 
@@ -599,8 +609,9 @@ function GalistGameInsertionNode() {
     setTimerSeconds(300);
     setTimerRunning(true);
     setShowMissionFailed(false);
+    // Start insertion background music
+    playInsertionBgMusic();
   }, [loadExercise, exerciseKey]);
-
   const handleTutorialContinue = useCallback(() => {
     if (tutorialScene === "scene1") {
       setTutorialScene("scene2");
@@ -1013,6 +1024,7 @@ function GalistGameInsertionNode() {
                   circle2.velocityY = circle1.velocityY * transferRatio;
                   circle1.velocityX = -circle1.velocityX * retentionRatio;
                   circle1.velocityY = -circle1.velocityY * retentionRatio;
+                   playHitSound();
                 } else if (circle2IsLaunched && !circle1IsLaunched) {
                   const transferRatio = 0.8;
                   const retentionRatio = 0.4;
@@ -1020,6 +1032,7 @@ function GalistGameInsertionNode() {
                   circle1.velocityY = circle2.velocityY * transferRatio;
                   circle2.velocityX = -circle2.velocityX * retentionRatio;
                   circle2.velocityY = -circle2.velocityY * retentionRatio;
+                   playHitSound();
                 } else {
                   // Default collision (both slow or both fast)
                   const bounceReduction = 0.6;
@@ -1503,7 +1516,6 @@ function GalistGameInsertionNode() {
   const handleCircleClick = useCallback((circleId, e) => {
     e.stopPropagation();
 
-
     setCircles(prev => {
       const updated = prev.map(c => {
         if (c.id === circleId) {
@@ -1520,6 +1532,9 @@ function GalistGameInsertionNode() {
       if (clicked && clicked.isInitial) {
         return updated;
       }
+
+      // Play hover sound on click
+      playHoverSound();
 
       // If deletionReady just became true, schedule the actual deletion after a short delay
       if (clicked && clicked.deletionReady) {
@@ -1540,7 +1555,7 @@ function GalistGameInsertionNode() {
   const handleGlobalRightClick = useCallback((e) => {
     e.preventDefault(); // Prevent context menu
     if (showInstructionPopup) return;
-    
+    playFirstClickSound();
 
     // Launch circle from cannon if values are set
     if (cannonCircle.value && cannonCircle.address) {
@@ -2294,8 +2309,8 @@ function GalistGameInsertionNode() {
           <div className={styles.bulletModalContent} style={{ backgroundColor: '#000', border: '3px solid #ff00ff', borderRadius: '15px', padding: '30px', maxWidth: '600px', textAlign: 'center' }}>
             <h2 style={{ color: '#ff6bff', fontSize: '2.5rem', marginBottom: '10px' }}>Mission Failed</h2>
             <p style={{ color: '#ddd', marginBottom: '20px' }}>You missed your chance to insert the node in the right spot. Reset and try again to master node insertion!</p>
-            <button
-              onClick={() => handleRetry()}
+             <button
+              onClick={() => { handleRetry(); playFirstClickSound(); }}
               style={{
                 background: 'none',
                 border: '2px solid #ff00ff',
@@ -2305,6 +2320,15 @@ function GalistGameInsertionNode() {
                 fontSize: '1.2rem',
                 padding: '10px 30px',
                 cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                playHoverSound();
+                e.target.style.backgroundColor = '#ff00ff44';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'scale(1)';
               }}
             >
               Retry
@@ -2367,6 +2391,7 @@ function GalistGameInsertionNode() {
                     padding: '6px'
                   }}
                   onMouseEnter={(e) => {
+                    playHoverSound();
                     e.currentTarget.style.transform = 'scale(1.1)';
                     e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.5)';
                   }}
@@ -2411,7 +2436,16 @@ function GalistGameInsertionNode() {
                 cursor: 'pointer',
                 marginTop: '20px',
               }}
-              onClick={handleLevelContinue}
+              onMouseEnter={(e) => {
+                playHoverSound();
+                e.target.style.backgroundColor = '#ff00ff44';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'scale(1)';
+              }}
+              onClick={() => { handleLevelContinue(); playClaimSound(); }}
             >
               Continue
             </button>
@@ -2425,7 +2459,7 @@ function GalistGameInsertionNode() {
             <h2 style={{ color: '#fff', fontSize: '2rem', marginBottom: '30px' }}>
               Insertion Nodes Completed
             </h2>
-            <button
+             <button
               style={{
                 background: 'none',
                 border: '2px solid #fff',
@@ -2437,7 +2471,16 @@ function GalistGameInsertionNode() {
                 cursor: 'pointer',
                 marginTop: '20px',
               }}
-              onClick={handleGoBack}
+              onMouseEnter={(e) => {
+                playHoverSound();
+                e.target.style.backgroundColor = '#ffffff44';
+                e.target.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'scale(1)';
+              }}
+              onClick={() => { handleGoBack(); playFirstClickSound(); }}
             >
               Go back
             </button>

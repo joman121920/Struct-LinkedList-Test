@@ -31,7 +31,7 @@ function GalistGame() {
   const [suckedCircles, setSuckedCircles] = useState([]); // Track circles that have been sucked out
   const [currentEntryOrder, setCurrentEntryOrder] = useState([]); // Track entry order for current submission only
   const [originalSubmission, setOriginalSubmission] = useState(null); // Store original circles and connections for validation
-
+  
   // Portal state management
   const [portalInfo, setPortalInfo] = useState({
     isVisible: false,
@@ -115,6 +115,17 @@ function GalistGame() {
     setSelectedMode(null);
     setSelectedSLL(null);
     setSelectedDLL(null);
+    // Clear game state
+    setCircles([]);
+    setConnections([]);
+    setSuckingCircles([]);
+    setSuckedCircles([]);
+    setCurrentEntryOrder([]);
+    setOriginalSubmission(null);
+    setShowValidationResult(false);
+    setValidationResult(null);
+    setIsPortalOpen(false);
+    setPortalInfo((prev) => ({ ...prev, isVisible: false }));
   }, []);
   
   const handleSelectionSLL = useCallback((sll) => {
@@ -166,7 +177,7 @@ function GalistGame() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [applyNavigationState]);
-
+  
   // Function to find all connected circles recursively
   const findConnectedCircles = useCallback(
     (circleId, visited = new Set()) => {
@@ -245,7 +256,7 @@ function GalistGame() {
       loadExercise();
     }
   }, [loadExercise, currentExercise]);
-
+  
   // Initialize exercise on component mount
   useEffect(() => {
     if (!currentExercise) {
@@ -1248,18 +1259,47 @@ function GalistGame() {
       )}
 
       {showMenu && <GameMenu onStart={startGame} />}
-      {!showMenu && !selectedMode && <ModeSelect onSelect={handleSelectMode} />}
+      
+      {/* Show mode select with back button */}
+      {!showMenu && !selectedMode && (
+        <>
+          <button 
+            className={styles.backButton}
+            onClick={handleBackToMenu}
+            aria-label="Back to menu"
+          >
+            ← Back
+          </button>
+          <ModeSelect onSelect={handleSelectMode} />
+        </>
+      )}
 
       {/* Show SLL selection UI if mode is singly and no SLL is selected */}
       {!showMenu && selectedMode === "singly" && !selectedSLL && (
-        <SinglyLinkedListsSelection onSelect={handleSelectionSLL} />
+        <>
+          <button 
+            className={styles.backButton}
+            onClick={() => setSelectedMode(null)}
+            aria-label="Back to mode select"
+          >
+            ← Back
+          </button>
+          <SinglyLinkedListsSelection onSelect={handleSelectionSLL} />
+        </>
       )}
+      
       {/* Show DLL selection UI if mode is doubly and no DLL is selected */}
       {!showMenu && selectedMode === "doubly" && !selectedDLL && (
-        <DoblyLinkedListsSelection onSelect={handleSelectionDLL} />
-      )}
-      {!showMenu && !selectedMode && (
-        <ModeSelect onSelect={handleSelectMode} onBack={handleBackToMenu} />
+        <>
+          <button 
+            className={styles.backButton}
+            onClick={() => setSelectedMode(null)}
+            aria-label="Back to mode select"
+          >
+            ← Back
+          </button>
+          <DoblyLinkedListsSelection onSelect={handleSelectionDLL} />
+        </>
       )}
       {/* Only show the rest of the game UI if not in SLL selection UI
       {!showMenu && ((selectedMode === "doubly") || (selectedMode === "singly" && selectedSLL)) && (

@@ -9,7 +9,8 @@ const SettingsModal = ({
   onToggleMusic, 
   onToggleSoundEffects,
   onRestart,
-  onContinue 
+  onContinue,
+  onMenu
 }) => {
   if (!showSettings) return null;
 
@@ -47,6 +48,13 @@ const SettingsModal = ({
         {/* Buttons */}
         <div className={styles.buttonContainer}>
           <button 
+            className={styles.button}
+            onClick={onMenu}
+            onMouseEnter={() => playHoverSound()}
+          >
+            MENU
+          </button>
+          <button 
             className={`${styles.button} ${styles.restartButton}`}
             onClick={onRestart}
             onMouseEnter={() => playHoverSound()}
@@ -74,6 +82,7 @@ SettingsModal.propTypes = {
   onToggleSoundEffects: PropTypes.func.isRequired,
   onRestart: PropTypes.func.isRequired,
   onContinue: PropTypes.func.isRequired,
+  onMenu: PropTypes.func.isRequired,
 };
 
 export default SettingsModal;

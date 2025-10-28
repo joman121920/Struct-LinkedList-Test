@@ -260,22 +260,23 @@ class UserHeartsView(APIView):
     def post(self, request):
         """Endpoint to use a heart (decrement count)"""
         user = request.user
-        
-        # First check if user has hearts available
-        if user.hearts <= 0:
+        try:
+            hearts_to_use = int(request.data.get('hearts_to_use', 1))
+        except (TypeError, ValueError):
+            return Response({"error": "Invalid hearts_to_use value"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if hearts_to_use <= 0:
+            return Response({"error": "hearts_to_use must be positive"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if user.hearts < hearts_to_use:
             return Response(
-                {"error": "No hearts available", "hearts": 0}, 
+                {"error": "Not enough hearts available", "hearts": user.hearts},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        # Decrement heart count
-        user.hearts -= 1
-        
-        # Don't update last_heart_regen_time when using a heart
-        # This ensures the regeneration timer continues properly
+
+        user.hearts -= hearts_to_use
         user.save(update_fields=['hearts'])
         
-        # Return updated heart info
         serializer = UserHeartSerializer(user, context={'request': request})
         return Response(serializer.data)
     

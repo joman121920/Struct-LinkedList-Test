@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { collisionDetection } from "../../../CollisionDetection";
 import styles from "./InsertionNode.module.css";
 import tutorialStyles from "./TutorialScene.module.css";
+import { playTutorialBgMusic, stopTutorialBgMusic, playHitSound, playErrorSound, playKeyboardSound, playFirstClickSound } from "../../../Sounds.jsx";
 
 function TutorialScene({ scene, onContinue, onValueShoot }) {
   const [typedInstruction, setTypedInstruction] = useState("");
@@ -39,6 +40,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
       interval = setInterval(() => {
         idx++;
         setTypedInstruction(text.slice(0, idx));
+        // Play keyboard sound for each character typed
+        playKeyboardSound();
         if (idx >= text.length) {
           clearInterval(interval);
           isTypingRef.current = false;
@@ -52,22 +55,15 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   if (instructionStep === 0) runTypewriter(instructionText, 1, 3200);
   else if (instructionStep === 1) runTypewriter(secondText, null, 2000);
     else if (instructionStep === 2) {
-      // Immediately display the collision confirmation, then after 1s
-      // transition to the tail-phase so the second bullet logic becomes
-      // active and the tail instruction types out.
       setTypedInstruction(firstCollisionText);
       const proceedTimer = setTimeout(() => {
         setInsertionMode("after");
         setInstructionStep(4);
       }, 1000);
-      // ensure the timeout is cleared if the component unmounts or step
-      // changes before the timer fires.
       interval = proceedTimer;
     }
     else if (instructionStep === 4) runTypewriter(tailInstructionText, null, 2200);
     else if (instructionStep === 5) {
-      // After successful tail insertion we show the second collision text
-      // instantly for a short moment then show the specification for index 2.
       setTypedInstruction(secondCollisionText);
       setTimeout(() => setInstructionStep(6), 1000);
     }
@@ -85,6 +81,25 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const tutorialCirclesRef = useRef([]);
   const isTypingRef = useRef(false);
   const [firstShotDone, setFirstShotDone] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      stopTutorialBgMusic();
+    };
+
+    const handlePopState = () => {
+      stopTutorialBgMusic();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+      stopTutorialBgMusic();
+    };
+  }, []);
 
   useEffect(() => {
     if (scene !== "scene2") return;
@@ -312,18 +327,16 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               
               if (dist < 46) {
                 inserted = true;
-                // Determine effective insertion mode. Use the current user-selected
-                // insertionMode so scrolling immediately before shooting is honored.
                 const effectiveMode = insertionMode;
                 const isTargetHead = tutorialConnections.some(c => c.from === target.id) && !tutorialConnections.some(c => c.to === target.id);
 
-                // For the first shot, require that the user hit the head AND that
-                // their insertion mode is set to 'before'. We DO NOT force the mode.
                 let modeToUse = effectiveMode;
                 if (!firstShotDone) {
                   if (!isTargetHead) {
-                    // First shot must target the head — but show a hit/nudge first.
-                    // Create a temporary node to visually nudge the chain, then remove it.
+                    // Play error sound for hitting non-head on first shot
+                    playErrorSound();
+                    
+                    // Create temporary nudge node
                     const tempId = `temp_${Date.now()}`;
                     const tempCircle = {
                       id: tempId,
@@ -339,7 +352,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       nextAddress: NULL_POINTER,
                     };
 
-                    // Insert a temporary visual node (no connections) to show the hit/nudge
                     setTutorialCircles(prev => {
                       const targetIndex = prev.findIndex(c => c.id === target.id);
                       if (targetIndex === -1) return prev;
@@ -351,10 +363,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       try { return collisionDetection.updatePhysics(updatedCircles); } catch { return updatedCircles; }
                     });
 
-                    // Nudge velocities for visible effect
                     setTutorialCircles(prev => prev.map(c => c.id === target.id ? { ...c, velocityX: (c.velocityX || 0) + (updatedBullet.velocityX || 0) * 0.6, velocityY: (c.velocityY || 0) + (updatedBullet.velocityY || 0) * 0.6 } : c));
 
-                    // Remove the temporary node quickly so it doesn't persist and without creating any connections
                     setTimeout(() => {
                       setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
                     }, 120);
@@ -363,7 +373,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     break;
                   }
                   if (effectiveMode !== "before") {
-                    // User attempted to insert AFTER on the head for the first shot; same nudge behavior
+                    // Play error sound for using wrong mode (after instead of before)
+                    playErrorSound();
+                    
                     const tempId = `temp_${Date.now()}`;
                     const tempCircle = {
                       id: tempId,
@@ -377,7 +389,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       launchTime: Date.now(),
                     };
 
-                    // Insert a temporary visual node (no connections) to show the hit/nudge
                     setTutorialCircles(prev => {
                       const targetIndex = prev.findIndex(c => c.id === target.id);
                       if (targetIndex === -1) return prev;
@@ -389,10 +400,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       try { return collisionDetection.updatePhysics(updatedCircles); } catch { return updatedCircles; }
                     });
 
-                    // Nudge velocities for visible effect
                     setTutorialCircles(prev => prev.map(c => c.id === target.id ? { ...c, velocityX: (c.velocityX || 0) + (updatedBullet.velocityX || 0) * 0.6, velocityY: (c.velocityY || 0) + (updatedBullet.velocityY || 0) * 0.6 } : c));
 
-                    // Remove the temporary node quickly so it doesn't persist and without creating any connections
                     setTimeout(() => {
                       setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
                     }, 120);
@@ -401,19 +410,13 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     break;
                   }
                 }
-                // Determine effective insertion mode based on tutorial step and current mode
-                // let effectiveMode = insertionMode;
-                // if (instructionStep < 2) {
-                //   effectiveMode = "after"; // Force "after" for initial demonstration
-                // }
 
-                // If we're in the tail-phase of the tutorial (instructionStep 4)
-                // and the first-shot has already been completed, enforce that
-                // only hitting the tail with insertionMode 'after' will insert.
-                // Otherwise, show a quick nudge effect and discard the bullet.
                 const isTargetTail = tutorialConnections.some(c => c.to === target.id) && !tutorialConnections.some(c => c.from === target.id);
                 if (instructionStep === 4 && firstShotDone) {
                   if (!(isTargetTail && effectiveMode === "after")) {
+                    // Play error sound for invalid tail insertion
+                    playErrorSound();
+                    
                     const tempId = `temp_${Date.now()}`;
                     const tempCircle = {
                       id: tempId,
@@ -449,10 +452,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   }
                 }
 
-                // If we're in the specification phase (instructionStep 6) where
-                // the user must insert at index 2, enforce index-2-only insertion.
                 if (instructionStep === 6) {
-                  // Build ordered list from head using connections
                   const ordered = [];
                   const head = tutorialCirclesRef.current.find(c => tutorialConnections.some(conn => conn.from === c.id) && !tutorialConnections.some(conn => conn.to === c.id));
                   if (head) {
@@ -469,7 +469,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   }
                   const indexTwo = ordered[2];
                   if (!indexTwo || indexTwo.id !== target.id) {
-                    // invalid for index-2 phase: nudge and discard
+                    // Play error sound for wrong index insertion
+                    playErrorSound();
+                    
                     const tempId = `temp_${Date.now()}`;
                     const tempCircle = {
                       id: tempId,
@@ -504,6 +506,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     break;
                   }
                 }
+
+                // SUCCESSFUL INSERTION - Play hit sound and keyboard sound
+                playHitSound();
+                setTimeout(() => playKeyboardSound(), 200);
 
                 // Create new node
                 const newCircle = {
@@ -572,21 +578,17 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 // Update connections using the same logic as InsertionNode.jsx
                 setTutorialConnections(prev => {
                   if (modeToUse === "after") {
-                    // Find existing outgoing connection from target
                     const oldNextConn = prev.find(conn => conn.from === target.id);
                     const oldNextId = oldNextConn ? oldNextConn.to : null;
 
-                    // Remove old connection and create new ones
                     let updated = prev.filter(c => !(c.from === target.id && c.to === oldNextId));
                     
-                    // Add target -> newNode
                     updated.push({ 
                       id: `conn_${Date.now()}_a`, 
                       from: target.id, 
                       to: newCircle.id 
                     });
                     
-                    // Add newNode -> oldNext (if exists)
                     if (oldNextId) {
                       updated.push({ 
                         id: `conn_${Date.now()}_b`, 
@@ -597,14 +599,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     
                     return updated;
                   } else {
-                    // Insert before: find incoming connection to target
                     const incomingConn = prev.find(conn => conn.to === target.id);
                     const incomingFrom = incomingConn ? incomingConn.from : null;
 
-                    // Remove old connection and create new ones
                     let updated = prev.filter(c => !(c.from === incomingFrom && c.to === target.id));
                     
-                    // Add incoming -> newNode (if incoming exists)
                     if (incomingFrom) {
                       updated.push({ 
                         id: `conn_${Date.now()}_c`, 
@@ -613,7 +612,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                       });
                     }
                     
-                    // Add newNode -> target
                     updated.push({ 
                       id: `conn_${Date.now()}_d`, 
                       from: newCircle.id, 
@@ -624,15 +622,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   }
                 });
 
-                // If this was the first successful shot and it inserted, mark it done
                 if (!firstShotDone) setFirstShotDone(true);
 
-                // If this insertion happened during the index-2 specification
-                // phase (instructionStep 6) and the target matched the index-2
-                // node, show the 'Insertion Mastered' overlay so the player
-                // can proceed to the mission.
                 if (instructionStep === 6) {
-                  // Build ordered list from head to find index 2
                   const ordered = [];
                   const head = tutorialCirclesRef.current.find(c => tutorialConnections.some(conn => conn.from === c.id) && !tutorialConnections.some(conn => conn.to === c.id));
                   if (head) {
@@ -650,17 +642,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   const indexTwo = ordered[2];
                     if (indexTwo && indexTwo.id === target.id) {
                       setShowInsertionMastered(true);
-                      // Remove any on-screen instruction text while the overlay is visible
                       setTypedInstruction("");
                     }
                 }
 
-                // If this insertion occurred in the tail-phase and the target
-                // was the tail (inserting 'after' the tail), advance to the
-                // second-collision step so the tail-confirmation text shows,
-                // then the specification text will follow via the existing
-                // instruction effect. Otherwise show the first-collision
-                // feedback (step 2).
                 const isTargetTailNow = tutorialConnections.some(c => c.to === target.id) && !tutorialConnections.some(c => c.from === target.id);
                 if (instructionStep === 4 && isTargetTailNow && effectiveMode === "after") {
                   setInstructionStep(5);
@@ -700,6 +685,9 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     e => {
       if (scene !== "scene2" && scene !== "scene3") return;
       e.preventDefault();
+
+      // Play shoot sound
+      playFirstClickSound();
 
       const cannonTipX = window.innerWidth - 35;
       const cannonTipY = window.innerHeight - 1;
@@ -762,9 +750,17 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               <p>
                 In a linked list, you can insert a new node between existing nodes by updating the addresses. This allows the list to grow not only at the end, but also in specific positions.
               </p>
-              <p>Let’s insert a node and see how the chain adjusts!</p>
-              <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
-                Continue
+              <p>Let's insert a node and see how the chain adjusts!</p>
+              <button 
+                onClick={() => {
+                  playTutorialBgMusic();
+                  playFirstClickSound();
+                  playKeyboardSound();
+                  onContinue();
+                }} 
+                className={tutorialStyles.tutorialButton}
+              >
+                Let&apos;s Go!
               </button>
             </div>
           </div>
@@ -921,7 +917,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               <div className={tutorialStyles.tutorialContent}>
                 <h2>Insertion Mastered</h2>
                 <p>
-                  Well done! You’ve successfully practiced inserting nodes at the head, tail, and specific positions within a linked list. This shows how linked lists allow flexible data organization by adjusting pointers instead of shifting elements like in arrays.
+                  Well done! You've successfully practiced inserting nodes at the head, tail, and specific positions within a linked list. This shows how linked lists allow flexible data organization by adjusting pointers instead of shifting elements like in arrays.
                 </p>
                 <p>
                   Get ready to use this knowledge in the upcoming mission!
@@ -929,6 +925,8 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 <button
                   className={tutorialStyles.tutorialButton}
                   onClick={() => {
+                    playFirstClickSound();
+                    playKeyboardSound();
                     setShowInsertionMastered(false);
                     onContinue();
                   }}
@@ -967,7 +965,14 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 </ul>
               </div>
 
-              <button onClick={onContinue} className={tutorialStyles.tutorialButton}>
+              <button 
+                onClick={() => {
+                  playFirstClickSound();
+                  playKeyboardSound();
+                  onContinue();
+                }} 
+                className={tutorialStyles.tutorialButton}
+              >
                 Continue
               </button>
             </div>
