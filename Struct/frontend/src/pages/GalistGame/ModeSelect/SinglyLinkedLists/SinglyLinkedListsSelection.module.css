@@ -23,34 +23,21 @@
 .modeContent {
   position: relative;
   z-index: 1;
-  width: min(92vw, 880px);
   padding: 36px 28px 32px;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.75),
-      rgba(0, 0, 0, 0.6)
-    ),
-    radial-gradient(
-      circle at 20% 0%,
-      rgba(255, 255, 255, 0.06),
-      transparent 40%
-    ),
-    radial-gradient(
-      circle at 80% 120%,
-      rgba(255, 255, 255, 0.06),
-      transparent 40%
-    );
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 40px rgba(174, 8, 163, 0.25);
+  background: transparent;
   text-align: center;
 }
 
 /* Title and subtitle */
 .title {
-  font-size: clamp(28px, 4vw, 40px);
-  color: #fff;
-  margin-bottom: 6px;
+  font-family: 'Oxanium', sans-serif;
+  font-size: 36px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 40px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  letter-spacing: 1px;
 }
 
 .levelSubtitle {
@@ -61,50 +48,195 @@
   text-transform: uppercase;
 }
 
-/* Level cards grid */
+/* Level cards horizontal layout */
 .levelsRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
-  margin-bottom: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 40px;
+  width: 100%;
 }
 
 /* Level card style */
 .levelCard {
-  padding: 20px 22px;
-  border-radius: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.06);
+  position: relative;
+  width: 380px;
+  height: 380px;
+  padding: 30px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, 
+    rgba(0, 0, 0, 0.9) 0%, 
+    rgba(20, 20, 40, 0.9) 100%
+  );
   color: #fff;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
-  transition: transform 120ms ease, background-color 200ms ease,
-    box-shadow 200ms ease, border-color 200ms ease;
+  transition: all 0.3s ease;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  min-height: 120px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Starry background effect for level cards */
+.levelCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+    radial-gradient(1px 1px at 40px 70px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+    radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 160px 30px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 200px 90px, #fff, transparent),
+    radial-gradient(1px 1px at 240px 50px, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 280px 120px, rgba(255,255,255,0.9), transparent);
+  background-repeat: repeat;
+  background-size: 300px 120px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.levelCard:hover, .levelCard:focus {
+  transform: translateY(-8px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4),
+              0 0 30px rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.levelCard:hover::before {
+  opacity: 0.5;
+}
+
+/* Visualization container */
+.visualizationContainer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+/* Node styles */
+.node {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+              inset 0 1px 3px rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+/* Creation visualization */
+.creationVisualization {
+  width: 140px;
+  height: 100px;
   position: relative;
 }
-.levelCard:hover, .levelCard:focus {
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-  outline: none;
+
+.scatteredNodes {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Linking visualization */
+.linkingVisualization {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nodeChain {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.arrow {
+  font-size: 22px;
+  color: #ffffff;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Insertion visualization */
+.insertionVisualization {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.insertionContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.newNode {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+              inset 0 1px 3px rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+.downArrow {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Level info section */
+.levelInfo {
+  text-align: center;
+  z-index: 1;
+  position: relative;
 }
 
 /* Level number and title */
 .levelNumber {
-  font-size: 20px;
-  font-weight: 800;
+  font-family: 'Oxanium', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
   margin-bottom: 8px;
-  color: #6cf;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
+
 .levelTitle {
-  font-size: 14px;
-  color: #fff;
-  opacity: 0.9;
+  font-family: 'Oxanium', sans-serif;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 400;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 /* Arrow navigation row */
@@ -114,23 +246,109 @@
   align-items: center;
   gap: 32px;
 }
+
 .arrowBtn {
-  background: #222c38;
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  border: 2px solid #6cf;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  font-size: 2rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  width: 120px;
+  height: 50px;
+  font-size: 35px;
   cursor: pointer;
-  transition: background 0.15s, border 0.15s, color 0.15s;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.arrowBtn:hover, .arrowBtn:focus {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  outline: none;
+}
+
+.arrowBtn:active {
+  transform: scale(0.95);
+}
+
+/* Deletion visualization */
+.deletionVisualization {
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.arrowBtn:hover, .arrowBtn:focus {
-  background: #6cf;
-  color: #222c38;
-  border: 2.5px solid #fff;
-  outline: none;
+
+.deletedNode {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #555555 0%, #333333 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5),
+              inset 0 1px 3px rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  opacity: 0.6;
+  position: relative;
+}
+
+.deletedNode::after {
+  content: '✕';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ff4444;
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+/* Abstract Data Type visualization */
+.abstractVisualization {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.queueVisualization {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.queueLabel {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.queueElements {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.queueArrow {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
