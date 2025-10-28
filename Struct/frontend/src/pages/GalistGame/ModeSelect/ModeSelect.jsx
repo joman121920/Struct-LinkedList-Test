@@ -35,8 +35,7 @@ function ModeSelect({ onSelect }) {
       </button> */}
 
       <div className={styles.modeContent}>
-        <h2 className={styles.modeTitle}>Choose Mode</h2>
-        <p className={styles.modeSubtitle}>Select your linked list challenge</p>
+        <p className={styles.modeSubtitle}>Select Mode</p>
         <div className={styles.modeOptions}>
           <button
             className={styles.modeCard}
@@ -44,13 +43,20 @@ function ModeSelect({ onSelect }) {
                 playHoverSound();
             }}
             onClick={() => handleModeSelect("singly")}
-            
             aria-label="Singly Linked List"
           >
-            <div className={styles.modeCardTitle}>Singly Linked List</div>
-            <div className={styles.modeCardDesc}>
-              One-way pointers. Classic fundamentals.
+            <div className={styles.linkedListVisualization}>
+              <div className={styles.nodeChain}>
+                <div className={styles.node}>1</div>
+                <div className={styles.arrow}>→</div>
+                <div className={styles.node}>2</div>
+                <div className={styles.arrow}>→</div>
+                <div className={styles.node}>3</div>
+                <div className={styles.arrow}>→</div>
+                <div className={styles.node}>4</div>
+              </div>
             </div>
+            <div className={styles.modeCardTitle}>Singly Linked Lists</div>
           </button>
           <button
             className={styles.modeCard}
@@ -60,10 +66,18 @@ function ModeSelect({ onSelect }) {
             onClick={() => handleModeSelect("doubly")}
             aria-label="Doubly Linked List"
           >
-            <div className={styles.modeCardTitle}>Doubly Linked List</div>
-            <div className={styles.modeCardDesc}>
-              Prev and next pointers. Extra control.
+            <div className={styles.linkedListVisualization}>
+              <div className={styles.nodeChain}>
+                <div className={styles.node}>1</div>
+                <div className={styles.doubleArrow}>↔</div>
+                <div className={styles.node}>2</div>
+                <div className={styles.doubleArrow}>↔</div>
+                <div className={styles.node}>3</div>
+                <div className={styles.doubleArrow}>↔</div>
+                <div className={styles.node}>4</div>
+              </div>
             </div>
+            <div className={styles.modeCardTitle}>Doubly Linked Lists</div>
           </button>
         </div>
       </div>
