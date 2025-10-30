@@ -100,6 +100,10 @@ function GalistGameLinkingNode() {
   // Level completion modal state
   const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
 
+  // Hit node highlighting states
+  const [hitNodes, setHitNodes] = useState(new Set());
+  const [floatingTexts, setFloatingTexts] = useState([]);
+
   // Basic helper functions first
   const createConnection = useCallback((fromId, toId) => {
     const newConnection = {
@@ -283,6 +287,37 @@ function GalistGameLinkingNode() {
   // Close bullet modal
   const closeBulletModal = useCallback(() => {
     setShowBulletModal(false);
+  }, []);
+
+  // Function to highlight a node and show floating text for invalid insert
+  const highlightInvalidNode = useCallback((nodeId, nodePosition) => {
+    // Add node to hit nodes set
+    setHitNodes(prev => new Set([...prev, nodeId]));
+    
+    // Create floating text starting exactly at the node's center
+    const floatingText = {
+      id: Date.now(),
+      text: "Invalid Insert",
+      x: nodePosition.x,
+      y: nodePosition.y, // Start exactly at the node center
+      opacity: 1
+    };
+    
+    setFloatingTexts(prev => [...prev, floatingText]);
+    
+    // Remove highlight after 3 seconds
+    setTimeout(() => {
+      setHitNodes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(nodeId);
+        return newSet;
+      });
+    }, 3000);
+    
+    // Remove floating text after 2 seconds
+    setTimeout(() => {
+      setFloatingTexts(prev => prev.filter(text => text.id !== floatingText.id));
+    }, 2000);
   }, []);
 
   // Function to check if a circle is a head node (has outgoing connections but no incoming)
@@ -1140,6 +1175,19 @@ function GalistGameLinkingNode() {
                   // Play error sound for invalid connections (node deletion)
                   playErrorSound();
                   
+                  // Highlight the node that was hit (the one NOT being deleted)
+                  if (Array.isArray(shouldDeleteCircle)) {
+                    // Multiple circles being deleted - highlight remaining nodes
+                    const remainingCircles = [circle1, circle2].filter(c => !shouldDeleteCircle.includes(c.id));
+                    remainingCircles.forEach(node => {
+                      highlightInvalidNode(node.id, { x: node.x, y: node.y });
+                    });
+                  } else {
+                    // Single circle being deleted - highlight the other one
+                    const hitNode = shouldDeleteCircle === circle1.id ? circle2 : circle1;
+                    highlightInvalidNode(hitNode.id, { x: hitNode.x, y: hitNode.y });
+                  }
+                  
                   // Delete the specified circle(s)
                   if (Array.isArray(shouldDeleteCircle)) {
                     // Delete multiple circles
@@ -1219,6 +1267,7 @@ function GalistGameLinkingNode() {
     isTailNode,
     getChainOrder,
     startChainSuction,
+    highlightInvalidNode,
 
   ]);
 
@@ -1827,7 +1876,7 @@ function GalistGameLinkingNode() {
   return (
     <div
       key={circle.id}
-      className={`${styles.animatedCircle} ${suckingCircles.includes(circle.id) ? styles.beingSucked : ""}`}
+      className={`${styles.animatedCircle} ${suckingCircles.includes(circle.id) ? styles.beingSucked : ""} ${hitNodes.has(circle.id) ? styles.invalidHitNode : ""}`}
       style={{
         left: `${circle.x - 30}px`,
         top: `${circle.y - 30}px`,
@@ -1903,6 +1952,21 @@ function GalistGameLinkingNode() {
           </div>
         );
       })}
+
+      {/* Floating Invalid Insert texts */}
+      {floatingTexts.map((text) => (
+        <div
+          key={text.id}
+          className={styles.floatingText}
+          style={{
+            left: `${text.x}px`,
+            top: `${text.y}px`,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          Invalid Insert
+        </div>
+      ))}
 
 
       {/* {!showInstructionPopup && !showInstructionModal && blackHoles.map((blackHole) => (
