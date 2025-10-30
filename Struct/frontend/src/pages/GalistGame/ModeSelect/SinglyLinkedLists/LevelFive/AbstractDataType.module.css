@@ -1297,3 +1297,43 @@
     box-shadow: 0 0 30px rgba(255, 0, 0, 1), inset 0 0 30px rgba(255, 0, 0, 0.5);
   }
 }
+
+/* Invalid hit feedback styles */
+.invalidHitNode {
+  animation: invalidHitPulse 3s ease-out;
+  background-color: #ff4444 !important;
+}
+
+.floatingText {
+  color: #ff4444;
+  font-weight: bold;
+  font-size: 16px;
+  animation: floatUp 2s ease-out forwards;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+@keyframes invalidHitPulse {
+  0% {
+    background-color: #ff4444;
+    box-shadow: 0 0 20px #ff4444;
+  }
+  50% {
+    background-color: #ff6666;
+    box-shadow: 0 0 30px #ff4444;
+  }
+  100% {
+    background-color: inherit;
+    box-shadow: inherit;
+  }
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-60px);
+  }
+}

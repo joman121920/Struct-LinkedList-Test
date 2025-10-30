@@ -112,6 +112,36 @@ function GalistAbstractDataType() {
   const [showLevelCompleteModal, setShowLevelCompleteModal] = useState(false);
   const [isTransitioningExercise, setIsTransitioningExercise] = useState(false);
 
+  // Invalid hit feedback states
+  const [hitNodes, setHitNodes] = useState(new Set());
+  const [floatingTexts, setFloatingTexts] = useState([]);
+
+  // Function to highlight invalid node hits and show floating text
+  const highlightInvalidNode = useCallback((circle, errorMessage) => {
+    // Add to hit nodes set
+    setHitNodes(prev => new Set([...prev, circle.id]));
+    
+    // Create floating text at the exact center of the circle
+    const floatingText = {
+      id: Date.now(),
+      x: circle.x, // Exact center x
+      y: circle.y, // Exact center y  
+      text: errorMessage
+    };
+    
+    setFloatingTexts(prev => [...prev, floatingText]);
+    
+    // Remove highlight and floating text after 3 seconds
+    setTimeout(() => {
+      setHitNodes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(circle.id);
+        return newSet;
+      });
+      setFloatingTexts(prev => prev.filter(text => text.id !== floatingText.id));
+    }, 1000);
+  }, []);
+
   // Basic helper functions first
   const createConnection = useCallback((fromId, toId) => {
     const newConnection = {
@@ -1014,6 +1044,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
                       const targetId = target.id;
                       // Play error sound for incorrect dequeue attempt
                       playErrorSound();
+                      // Highlight the invalid target node with error message
+                      highlightInvalidNode(target, "Cannot delete node");
                       // Remove any connections referencing the bullet (defensive)
                       setConnections(prev => prev.filter(c => c.from !== bulletId && c.to !== bulletId));
                       // Remove the bullet and nudge the target by applying a small velocity from the bullet
@@ -1062,6 +1094,8 @@ const handleTutorialValueShoot = useCallback((mode) => {
                       } catch (e) {
                         console.warn("Error playing error sound:", e);
                       }
+                      // Highlight the invalid target node with error message
+                      highlightInvalidNode(target, "Cannot insert node");
                       // Defensive: remove any connections referencing the bullet
                       setConnections(prev => prev.filter(c => c.from !== bulletId && c.to !== bulletId));
                       // Remove the bullet and apply a small velocity to the target to simulate a nudge
@@ -1483,6 +1517,7 @@ const handleTutorialValueShoot = useCallback((mode) => {
     getChainOrder,
     startChainSuction,
     adtMode,
+    highlightInvalidNode,
   ]);
 
   // Handle connection removal when circles are sucked
@@ -1947,12 +1982,13 @@ const handleTutorialValueShoot = useCallback((mode) => {
         const isSmallBullet = !!circle.isDequeueBullet;
         const radius = isSmallBullet ? (circle._radius || 18) : 30;
         const sizePx = radius * 2;
+        const isHighlighted = hitNodes.has(circle.id);
         return (
           <div
             key={circle.id}
             className={`${styles.animatedCircle} ${
               suckingCircles.includes(circle.id) ? styles.beingSucked : ""
-            }`}
+            } ${isHighlighted ? styles.invalidHitNode : ""}`}
             style={{
               left: `${circle.x - radius}px`,
               top: `${circle.y - radius}px`,
@@ -2037,6 +2073,23 @@ const handleTutorialValueShoot = useCallback((mode) => {
         );
       })}
 
+      {/* Floating text for invalid hits */}
+      {floatingTexts.map((floatingText) => (
+        <div
+          key={floatingText.id}
+          className={styles.floatingText}
+          style={{
+            left: `${floatingText.x}px`,
+            top: `${floatingText.y}px`,
+            transform: 'translate(-50%, -50%)', // Center the text exactly on the coordinates
+            position: 'absolute',
+            pointerEvents: 'none',
+            zIndex: 1000
+          }}
+        >
+          {floatingText.text}
+        </div>
+      ))}
 
       <svg
         className={styles.connectionLines}
