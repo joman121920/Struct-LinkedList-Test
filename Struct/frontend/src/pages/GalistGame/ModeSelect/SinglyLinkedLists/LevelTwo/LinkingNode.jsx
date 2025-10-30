@@ -312,7 +312,7 @@ function GalistGameLinkingNode() {
         newSet.delete(nodeId);
         return newSet;
       });
-    }, 3000);
+    }, 1000);
     
     // Remove floating text after 2 seconds
     setTimeout(() => {

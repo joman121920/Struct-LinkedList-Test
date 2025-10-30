@@ -14,7 +14,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const instructionText =
     "Insertion happens where you aim. Hit a node and the new value is placed into the chain.";
   const secondText =
-    "Try adding a new head to the linked list. Scroll to switch direction.";
+    "Try adding a new head to the linked list. Scroll the mouse wheel to switch direction.";
   const firstCollisionText =
     "Great! You inserted a new head node.";
   const secondCollisionText =
@@ -22,7 +22,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const specificationText =
     "Now try inserting at index 2.";
   const tailInstructionText =
-    "Now try inserting a new tail. Scroll to switch direction.";
+    "Now try inserting a new tail. Scroll the mouse wheel to switch direction.";
 
 
   useEffect(() => {
@@ -88,6 +88,41 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
   const tutorialCirclesRef = useRef([]);
   const isTypingRef = useRef(false);
   const [firstShotDone, setFirstShotDone] = useState(false);
+  
+  // Hit node highlighting states
+  const [hitNodes, setHitNodes] = useState(new Set());
+  const [floatingTexts, setFloatingTexts] = useState([]);
+
+  // Function to highlight a node and show floating text for invalid insert
+  const highlightInvalidNode = useCallback((nodeId, nodePosition, message = "Invalid Insert") => {
+    // Add node to hit nodes set
+    setHitNodes(prev => new Set([...prev, nodeId]));
+    
+    // Create floating text starting exactly at the node's center
+    const floatingText = {
+      id: Date.now(),
+      text: message,
+      x: nodePosition.x,
+      y: nodePosition.y, // Start exactly at the node center
+      opacity: 1
+    };
+    
+    setFloatingTexts(prev => [...prev, floatingText]);
+    
+    // Remove highlight after 3 seconds
+    setTimeout(() => {
+      setHitNodes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(nodeId);
+        return newSet;
+      });
+    }, 1000);
+    
+    // Remove floating text after 2 seconds
+    setTimeout(() => {
+      setFloatingTexts(prev => prev.filter(text => text.id !== floatingText.id));
+    }, 2000);
+  }, []);
 
   useEffect(() => {
     if (scene !== "scene2") return;
@@ -310,79 +345,22 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 let modeToUse = effectiveMode;
                 if (!firstShotDone) {
                   if (!isTargetHead) {
-                    // First shot must target the head — but show a hit/nudge first.
-                    // Create a temporary node to visually nudge the chain, then remove it.
-                    const tempId = `temp_${Date.now()}`;
-                    const tempCircle = {
-                      id: tempId,
-                      x: target.x + (effectiveMode === "after" ? 46 : -46),
-                      y: target.y,
-                      value: bullet.value,
-                      address: bullet.address,
-                      velocityX: updatedBullet.velocityX * 0.3,
-                      velocityY: updatedBullet.velocityY * 0.3,
-                      isLaunched: true,
-                      launchTime: Date.now(),
-                    };
-
-                    // Insert a temporary visual node (no connections) to show the hit/nudge
-                    setTutorialCircles(prev => {
-                      const targetIndex = prev.findIndex(c => c.id === target.id);
-                      if (targetIndex === -1) return prev;
-                      const updatedCircles = [
-                        ...prev.slice(0, targetIndex + (effectiveMode === "after" ? 1 : 0)),
-                        tempCircle,
-                        ...prev.slice(targetIndex + (effectiveMode === "after" ? 1 : 0)),
-                      ];
-                      try { return collisionDetection.updatePhysics(updatedCircles); } catch { return updatedCircles; }
-                    });
-
+                    // First shot must target the head — highlight the hit node and show error message
+                    highlightInvalidNode(target.id, { x: target.x, y: target.y }, "Must Hit Head First");
+                    
                     // Nudge velocities for visible effect
                     setTutorialCircles(prev => prev.map(c => c.id === target.id ? { ...c, velocityX: (c.velocityX || 0) + (updatedBullet.velocityX || 0) * 0.6, velocityY: (c.velocityY || 0) + (updatedBullet.velocityY || 0) * 0.6 } : c));
-
-                    // Remove the temporary node quickly so it doesn't persist and without creating any connections
-                    setTimeout(() => {
-                      setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
-                    }, 120);
 
                     playErrorSound(); // Play error sound for invalid head target
                     onValueShoot?.("invalid_head");
                     break;
                   }
                   if (effectiveMode !== "before") {
-                    // User attempted to insert AFTER on the head for the first shot; same nudge behavior
-                    const tempId = `temp_${Date.now()}`;
-                    const tempCircle = {
-                      id: tempId,
-                      x: target.x + (effectiveMode === "after" ? 46 : -46),
-                      y: target.y,
-                      value: bullet.value,
-                      address: bullet.address,
-                      velocityX: updatedBullet.velocityX * 0.3,
-                      velocityY: updatedBullet.velocityY * 0.3,
-                      isLaunched: true,
-                      launchTime: Date.now(),
-                    };
-
-                    // Insert a temporary visual node (no connections) to show the hit/nudge
-                    setTutorialCircles(prev => {
-                      const targetIndex = prev.findIndex(c => c.id === target.id);
-                      if (targetIndex === -1) return prev;
-                      const updatedCircles = [
-                        ...prev.slice(0, targetIndex + (effectiveMode === "after" ? 1 : 0)),
-                        tempCircle,
-                        ...prev.slice(targetIndex + (effectiveMode === "after" ? 1 : 0)),
-                      ];
-                      try { return collisionDetection.updatePhysics(updatedCircles); } catch { return updatedCircles; }
-                    });
-
+                    // User attempted to insert AFTER on the head for the first shot; highlight and show error
+                    highlightInvalidNode(target.id, { x: target.x, y: target.y }, "Use 'Before' Mode");
+                    
                     // Nudge velocities for visible effect
                     setTutorialCircles(prev => prev.map(c => c.id === target.id ? { ...c, velocityX: (c.velocityX || 0) + (updatedBullet.velocityX || 0) * 0.6, velocityY: (c.velocityY || 0) + (updatedBullet.velocityY || 0) * 0.6 } : c));
-
-                    // Remove the temporary node quickly so it doesn't persist and without creating any connections
-                    setTimeout(() => {
-                      setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
-                    }, 120);
 
                     playErrorSound(); // Play error sound for wrong insertion mode
                     onValueShoot?.("must_use_before_for_head");
@@ -402,35 +380,11 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 const isTargetTail = tutorialConnections.some(c => c.to === target.id) && !tutorialConnections.some(c => c.from === target.id);
                 if (instructionStep === 4 && firstShotDone) {
                   if (!(isTargetTail && effectiveMode === "after")) {
-                    const tempId = `temp_${Date.now()}`;
-                    const tempCircle = {
-                      id: tempId,
-                      x: target.x + (effectiveMode === "after" ? 46 : -46),
-                      y: target.y,
-                      value: bullet.value,
-                      address: bullet.address,
-                      velocityX: updatedBullet.velocityX * 0.3,
-                      velocityY: updatedBullet.velocityY * 0.3,
-                      isLaunched: true,
-                      launchTime: Date.now(),
-                    };
-
-                    setTutorialCircles(prev => {
-                      const targetIndex = prev.findIndex(c => c.id === target.id);
-                      if (targetIndex === -1) return prev;
-                      const updatedCircles = [
-                        ...prev.slice(0, targetIndex + (effectiveMode === "after" ? 1 : 0)),
-                        tempCircle,
-                        ...prev.slice(targetIndex + (effectiveMode === "after" ? 1 : 0)),
-                      ];
-                      try { return collisionDetection.updatePhysics(updatedCircles); } catch { return updatedCircles; }
-                    });
+                    // Highlight invalid tail phase attempt
+                    const message = !isTargetTail ? "Hit Tail Node" : "Use 'After' Mode";
+                    highlightInvalidNode(target.id, { x: target.x, y: target.y }, message);
 
                     setTutorialCircles(prev => prev.map(c => c.id === target.id ? { ...c, velocityX: (c.velocityX || 0) + (updatedBullet.velocityX || 0) * 0.6, velocityY: (c.velocityY || 0) + (updatedBullet.velocityY || 0) * 0.6 } : c));
-
-                    setTimeout(() => {
-                      setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
-                    }, 120);
 
                     playErrorSound(); // Play error sound for invalid tail phase
                     onValueShoot?.("invalid_tail_phase");
@@ -458,36 +412,10 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                   }
                   const indexTwo = ordered[2];
                   if (!indexTwo || indexTwo.id !== target.id) {
-                    // invalid for index-2 phase: nudge and discard
-                    const tempId = `temp_${Date.now()}`;
-                    const tempCircle = {
-                      id: tempId,
-                      x: target.x + (effectiveMode === "after" ? 46 : -46),
-                      y: target.y,
-                      value: bullet.value,
-                      address: bullet.address,
-                      velocityX: updatedBullet.velocityX * 0.3,
-                      velocityY: updatedBullet.velocityY * 0.3,
-                      isLaunched: true,
-                      launchTime: Date.now(),
-                    };
-
-                    setTutorialCircles(prev => {
-                      const targetIndex = prev.findIndex(c => c.id === target.id);
-                      if (targetIndex === -1) return prev;
-                      const updatedCircles = [
-                        ...prev.slice(0, targetIndex + (effectiveMode === "after" ? 1 : 0)),
-                        tempCircle,
-                        ...prev.slice(targetIndex + (effectiveMode === "after" ? 1 : 0)),
-                      ];
-                      try { return collisionDetection.updatePhysics(updatedCircles); } catch { return updatedCircles; }
-                    });
+                    // invalid for index-2 phase: highlight and show error
+                    highlightInvalidNode(target.id, { x: target.x, y: target.y }, "Hit Index 2 Node");
 
                     setTutorialCircles(prev => prev.map(c => c.id === target.id ? { ...c, velocityX: (c.velocityX || 0) + (updatedBullet.velocityX || 0) * 0.6, velocityY: (c.velocityY || 0) + (updatedBullet.velocityY || 0) * 0.6 } : c));
-
-                    setTimeout(() => {
-                      setTutorialCircles(prev => prev.filter(c => c.id !== tempId));
-                    }, 120);
 
                     playErrorSound(); // Play error sound for invalid index 2 phase
                     onValueShoot?.("invalid_index2_phase");
@@ -684,7 +612,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
     };
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [scene, instructionStep, insertionMode, onValueShoot, tutorialConnections, firstShotDone]);
+  }, [scene, instructionStep, insertionMode, onValueShoot, tutorialConnections, firstShotDone, highlightInvalidNode]);
 
   const handleTutorialRightClick = useCallback(
     e => {
@@ -794,7 +722,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               {insertionMode === 'before' ? 'Before' : 'After'}
             </div>
             <span style={{ fontSize: "10px" }}>{cannonCircle.value}</span>
-            <span style={{ fontSize: "8px" }}>{cannonCircle.address}</span>
           </div>
         </div>
 
@@ -808,7 +735,7 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           return (
             <div
               key={circle.id}
-              className={styles.animatedCircle}
+              className={`${styles.animatedCircle} ${hitNodes.has(circle.id) ? styles.invalidHitNode : ""}`}
               style={{ left: `${circle.x - 30}px`, top: `${circle.y - 30}px`, cursor: "default" }}
             >
               <span className={styles.circleValue}>{circle.value}</span>
@@ -853,6 +780,21 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
           >
             <span className={styles.circleValue}>{bullet.value}</span>
             <span className={styles.circleAddress}>{bullet.address}</span>
+          </div>
+        ))}
+
+        {/* Floating Invalid Insert texts */}
+        {floatingTexts.map((text) => (
+          <div
+            key={text.id}
+            className={styles.floatingText}
+            style={{
+              left: `${text.x}px`,
+              top: `${text.y}px`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            {text.text}
           </div>
         ))}
 
