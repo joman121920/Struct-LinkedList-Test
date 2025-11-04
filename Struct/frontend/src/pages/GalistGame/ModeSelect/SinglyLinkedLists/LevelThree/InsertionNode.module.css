@@ -389,7 +389,7 @@
   text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
   box-shadow: 0 0 10px #004cff;
   transition: all 0.2s ease;
-  animation: pulse 1.5s infinite;
+  animation: pulse 2s infinite ease-in-out;
 }
 
 .cannonCircle:hover {
@@ -400,13 +400,19 @@
 
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 10px #004cff;
+    box-shadow: 0 0 20px #ffffff;
+  }
+  25% {
+    box-shadow: 0 0 30px #ffffff;
   }
   50% {
-    box-shadow: 0 0 20px #004cff;
+    box-shadow: 0 0 40px #ffffff;
+  }
+  75% {
+    box-shadow: 0 0 30px #ffffff;
   }
   100% {
-    box-shadow: 0 0 10px #004cff;
+    box-shadow: 0 0 20px #ffffff;
   }
 }
 

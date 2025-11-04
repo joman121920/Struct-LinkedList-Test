@@ -2285,13 +2285,15 @@ const handleTutorialValueShoot = useCallback((mode) => {
                     validationResult.isCorrect &&
                     exerciseKey === "exercise_one"
                   ) {
-                    loadExercise("exercise_two");
+                    // Use the safe transition helper so visuals and animation
+                    // frames are cleared properly before loading the next exercise.
+                    performTransitionToExercise("exercise_two");
                   } else if (
                     validationResult &&
                     validationResult.isCorrect &&
                     exerciseKey === "exercise_two"
                   ) {
-                    loadExercise("exercise_three");
+                    performTransitionToExercise("exercise_three");
                   }
                 }}
                 className={styles.continueButton}

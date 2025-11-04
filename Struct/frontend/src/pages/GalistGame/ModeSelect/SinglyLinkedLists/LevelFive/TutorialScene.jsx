@@ -868,7 +868,6 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                     <li><strong style={{color:'#ec0000ff'}}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 time&quot;.</li>
                     <li><strong style={{color:'#ec0000ff'}}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
                     <li><strong style={{color:'#ec0000ff'}}>Scoring:</strong> Earn points for each successful node creation</li>
-                    <li><strong style={{color:'#ec0000ff'}}>Obstacles:</strong> Watch out for the black hole, freshly created node that collides with it will be destroyed!</li>
                     <li><strong style={{color:'#ec0000ff'}}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
                   </ul>
                 </div>
