@@ -5,7 +5,7 @@ import shape3 from "../assets/shape3.png";
 import shape4 from "../assets/shape4.png";
 
 import design1 from "../assets/design1.png"; // Import design images
-import design2 from "../assets/design2.png";
+import design2 from "../assets/design2.png"; // a
 import design3 from "../assets/design3.png";
 import design4 from "../assets/design4.png";
 
