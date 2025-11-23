@@ -17,7 +17,7 @@ function GameMenu({ onStart }) {
 
   const handleCompetitiveMode = async () => {
     try {
-      await api.post("user/hearts/", { hearts_to_use: 2 });
+      await api.post("user/hearts/", { hearts_to_use: 1 });
     } catch (error) {
       alert(error.message || "Unable to start Competitive Mode. Check your hearts.");
       return;
