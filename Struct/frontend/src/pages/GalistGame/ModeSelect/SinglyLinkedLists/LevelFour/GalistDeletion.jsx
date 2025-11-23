@@ -4,6 +4,12 @@ import { useNavigate } from "react-router-dom";
 import styles from "./GalistDeletion.module.css";
 import { ExerciseManager } from "./GalistDeletionExercise.js";
 import TutorialScene from "./TutorialScene.jsx";
+import {
+  playDeletionBgMusic,
+  stopDeletionBgMusic,
+  playTutorialBgMusic,
+  stopTutorialBgMusic,
+} from "../../../Sounds.jsx";
 
 import LoadingScreen from "../../../LoadingScreen/LoadingScreen";
 
@@ -44,6 +50,31 @@ function MainGameComponent() {
   const deletedNodeKeysRef = useRef(new Set());
   // Track last passive auto-advance to avoid duplicate triggers
   const lastAutoAdvanceRef = useRef({ level: null, stage: -1 });
+  // BGM mute state (local to deletion gameplay)
+  const [bgmMuted, setBgmMuted] = useState(false);
+
+  // Background music: ensure deletion BGM is active when main game mounts
+  useEffect(() => {
+    try {
+      // Stop any tutorial music if still playing
+      stopTutorialBgMusic();
+      // Respect mute status
+      if (bgmMuted) {
+        stopDeletionBgMusic();
+      } else {
+        playDeletionBgMusic();
+      }
+    } catch {
+      /* noop */
+    }
+    return () => {
+      try {
+        stopDeletionBgMusic();
+      } catch {
+        /* noop */
+      }
+    };
+  }, [bgmMuted]);
 
   // --- NEW: Challenge Mode Features ---
   // Track which nodes each bullet has hit to create connections
@@ -1578,16 +1609,61 @@ function MainGameComponent() {
             fontSize: 12,
             cursor: currentExercise ? "pointer" : "not-allowed",
             fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             gap: 6,
-            boxShadow: '0 0 6px rgba(0,0,0,0.35)',
-            transition: 'background 0.2s, transform 0.15s',
+            boxShadow: "0 0 6px rgba(0,0,0,0.35)",
+            transition: "background 0.2s, transform 0.15s",
           }}
           title="Restart this level from the beginning (resets nodes, progress, drag + undo)"
         >
           🔄 Restart Level
+        </button>
+        {/* Mute/Unmute BGM toggle */}
+        <button
+          onClick={() => {
+            setBgmMuted((m) => {
+              const next = !m;
+              try {
+                if (next) {
+                  // Muting
+                  stopDeletionBgMusic();
+                  // Defensive: also stop tutorial BGM if somehow active
+                  stopTutorialBgMusic();
+                } else {
+                  // Unmuting
+                  playDeletionBgMusic();
+                }
+              } catch {
+                /* noop */
+              }
+              return next;
+            });
+          }}
+          style={{
+            width: "100%",
+            marginTop: 8,
+            background: bgmMuted ? "#222" : "#2a5",
+            color: bgmMuted ? "#bbb" : "#fff",
+            border: "1px solid #055",
+            borderRadius: 6,
+            padding: "6px 8px",
+            fontSize: 12,
+            cursor: "pointer",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            boxShadow: "0 0 6px rgba(0,0,0,0.35)",
+            transition: "background 0.2s, transform 0.15s",
+          }}
+          title={
+            bgmMuted ? "Turn background music on" : "Mute background music"
+          }
+        >
+          {bgmMuted ? "🔊 Unmute Background Music" : "🔇 Mute Background Music"}
         </button>
         {draggedOnceIdsRef.current.size >= MAX_DRAGS && (
           <div style={{ color: "#ff7777", fontSize: 11 }}>
@@ -2462,6 +2538,37 @@ function MainGameComponent() {
 function GalistGameDeletion() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentScene, setCurrentScene] = useState("scene1");
+
+  // Toggle tutorial vs deletion background music based on scene
+  useEffect(() => {
+    try {
+      if (
+        currentScene === "scene1" ||
+        currentScene === "scene2" ||
+        currentScene === "scene3" ||
+        currentScene === "scene4"
+      ) {
+        // In tutorial scenes: play tutorial BGM
+        stopDeletionBgMusic();
+        playTutorialBgMusic();
+      } else if (currentScene === "mainGame") {
+        // In main game: play deletion BGM
+        stopTutorialBgMusic();
+        playDeletionBgMusic();
+      }
+    } catch {
+      /* noop */
+    }
+    return () => {
+      // On unmount or scene switch, ensure no overlap persists
+      try {
+        stopTutorialBgMusic();
+        stopDeletionBgMusic();
+      } catch {
+        /* noop */
+      }
+    };
+  }, [currentScene]);
 
   const handleSceneTransition = () => {
     if (currentScene === "scene1") {
