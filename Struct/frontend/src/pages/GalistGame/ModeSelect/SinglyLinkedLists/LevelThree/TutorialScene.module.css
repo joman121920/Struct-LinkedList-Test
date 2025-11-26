@@ -136,6 +136,10 @@
 }
 
 
+/* When an li is display:flex the native marker may not show.
+   Use this helper to render a matching manual bullet for those items. */
+
+
 .gameInstructionsContent {
   color: #ffffff;
   height: 100%;
@@ -188,6 +192,29 @@
   color: #004cff;
   margin-right: 8px;
   font-weight: 700;
+}
+
+/* Support for hiding native list markers when desired. ::marker is
+   used when supported; fallback keeps list-style-position inside. */
+
+.noMarker::marker {
+  color: transparent;
+}
+
+/* When an li is display:flex the native marker may not show.
+   Use this helper to render a matching manual bullet for those items. */
+.withMarker {
+  position: relative;
+  padding-left: 28px; /* space for manual bullet */
+}
+.withMarker::before {
+  content: '•';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
 }
 
 

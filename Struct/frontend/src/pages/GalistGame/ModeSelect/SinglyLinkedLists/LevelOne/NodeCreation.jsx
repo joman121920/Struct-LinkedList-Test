@@ -1715,7 +1715,7 @@ function MainGameComponent() {
         <div className={styles.completionOverlay}>
           <div className={styles.completionPopup}>
             <div className={styles.completionContent}>
-              <h2 style={{ color: '#ff4444' }}>Mission Failed</h2>
+              <h2 style={{ color: '#f609e2' }}>Mission Failed</h2>
               <p style={{ color: '#fff', marginBottom: '70px', marginTop: '10px' }}>
                 You&apos;ve run out of bullets! Try again to complete the level.
               </p>

@@ -206,6 +206,27 @@
   font-weight: 700;
 }
 
+
+.noMarker::marker {
+  color: transparent;
+}
+
+/* Manual marker for flexed list items (renders a visible bullet)
+   Use on the Controls <li> when native markers are hidden by flex layout. */
+.Marker {
+  position: relative;
+  padding-left: 28px;
+}
+.Marker::before {
+  content: '•';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+}
+
 .gameInstructionsFooter {
   flex-shrink: 0;
   padding-top: 20px;

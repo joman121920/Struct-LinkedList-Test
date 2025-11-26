@@ -865,14 +865,19 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
               <h2>Game Instructions</h2>
 
               <div className={tutorialStyles.gameInstructionsBody}>
-                <ul>
-                  <li><strong>Objective:</strong> Insert nodes into the existing linked list to match the expected structure</li>
-                  <li><strong>Controls:</strong> Click the cannon to select bullets, right-click to shoot</li>
-                  <li><strong>Insertion Modes:</strong> Scroll wheel to switch between &quot;Before&quot; and &quot;After&quot; insertion</li>
-                  <li><strong>Strategy:</strong> Hit head/tail nodes to extend the list, hit middle nodes to insert between</li>
-                  <li><strong>Deletion:</strong> Click any node 5 times to remove it (bridges connections automatically)</li>
-                  <li><strong>Challenges:</strong> Avoid black holes and manage the 2-minute timer!</li>
-                  <li><strong>Portal:</strong> Complete chains get sucked into the portal for validation</li>
+                <ul className={styles.instructionList}>
+                <li className={tutorialStyles.Marker} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <strong style={{ minWidth: 40, color: '#004cff' }}>Controls:</strong>
+                    <ul style={{ margin: 0, paddingLeft: '22px', listStyleType: 'disc' }}>
+                      <li style={{ marginBottom: '6px' }}>Use your mouse to aim the cannon</li>
+                      <li style={{ marginBottom: '6px' }}>&apos; Right-click &apos; to shoot bullets</li>
+                      <li>Scroll the mouse wheel to change mode</li>
+                      <li>Click the circle at the middle of the cannon to change bullets</li>
+                      <li>Click the node 5 times to delete a node.</li>
+                    </ul>
+                </li>
+                  <li className={tutorialStyles.noMarker}><strong>Objective:</strong> Meet the expected linked list</li>
+                  <li className={tutorialStyles.noMarker}><strong>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
                 </ul>
               </div>
 
