@@ -472,7 +472,7 @@ function GalistGameInsertionNode() {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
       inactivityTimerRef.current = setTimeout(() => {
         setShowCannonHint(true);
-      }, 7000);
+      }, 8000);
     };
 
     // Only consider right-click (contextmenu / shooting) as activity

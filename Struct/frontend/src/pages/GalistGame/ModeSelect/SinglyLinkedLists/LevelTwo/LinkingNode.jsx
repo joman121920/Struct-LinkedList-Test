@@ -1439,7 +1439,7 @@ function GalistGameLinkingNode() {
     }
     inactivityTimerRef.current = setTimeout(() => {
       setShowCannonHint(true);
-    }, 3000);
+    }, 8000);
   }, [cannonCircle, cannonAngle]);
 
   useEffect(() => {
