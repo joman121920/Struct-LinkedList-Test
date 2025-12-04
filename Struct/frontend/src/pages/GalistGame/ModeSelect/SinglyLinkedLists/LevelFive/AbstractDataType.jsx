@@ -101,6 +101,11 @@ function GalistAbstractDataType() {
     address: Math.floor(Math.random() * 1000).toString() 
   });
 
+  // AFK / idle cannon hint state and timers (show hint only when not shooting)
+  const [showCannonHint, setShowCannonHint] = useState(false);
+  const inactivityTimerRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
+
   const [headCircleId, setHeadCircleId] = useState(null);
   const [tailCircleId, setTailCircleId] = useState(null);
 
@@ -1782,6 +1787,41 @@ const handleTutorialValueShoot = useCallback((mode) => {
     };
   }, [findConnectedCircles, circles, handleGlobalRightClick, showInstructionPopup]);
 
+  // Idle detection: only reset/hide on right-click (contextmenu). Show the hint after 5s when in enqueue mode.
+  useEffect(() => {
+    const resetTimer = () => {
+      lastActivityRef.current = Date.now();
+      setShowCannonHint(false);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      inactivityTimerRef.current = setTimeout(() => {
+        // Only show hint when in enqueue mode and the instruction/tutorial popup is closed
+        if (adtMode === 'enqueue' && !showInstructionPopup) {
+          setShowCannonHint(true);
+        }
+      }, 5000);
+    };
+
+    // Only right-click (contextmenu) should reset/hide the hint per request
+    const onContextMenu = () => {
+      // user is shooting (right-click) — hide the hint and reset timer
+      resetTimer();
+    };
+
+    document.addEventListener('contextmenu', onContextMenu);
+
+    // start the timer on mount
+    resetTimer();
+
+    return () => {
+      document.removeEventListener('contextmenu', onContextMenu);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [adtMode, showInstructionPopup]);
+
   // Helper: Get current linked list structure as array of {value, address}
   const getCurrentLinkedList = useCallback(() => {
     // Find head node (no incoming connection)
@@ -1973,8 +2013,17 @@ const handleTutorialValueShoot = useCallback((mode) => {
               {adtMode === 'dequeue' ? '' : cannonCircle.value}
             </span>
           </div>
+
+          {/* AFK hint inside the cannon container so it follows rotation */}
+          {adtMode === 'enqueue' && showCannonHint && (
+            <div className={styles.cannonHint} aria-hidden="true">
+              <div className={styles.cannonArrow} />
+            </div>
+          )}
         </div>
       )}
+
+      {/* external AFK block removed; the hint lives inside the cannon container now */}
 
       {circles.map((circle) => {
         const label = getCircleLabel(circle.id);

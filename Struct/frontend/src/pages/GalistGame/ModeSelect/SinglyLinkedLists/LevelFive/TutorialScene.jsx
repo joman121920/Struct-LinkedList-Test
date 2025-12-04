@@ -863,13 +863,20 @@ function TutorialScene({ scene, onContinue, onValueShoot }) {
                 </div>
 
                 <div className={tutorialStyles.gameInstructionsBody}>
-                  <ul>
-                    <li><strong style={{color:'#ec0000ff'}}>Objective:</strong> Meet the expected linked list</li>
-                    <li><strong style={{color:'#ec0000ff'}}>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets. Scroll to change mode. You can delete a node by clicking it &quot;5 time&quot;.</li>
-                    <li><strong style={{color:'#ec0000ff'}}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
-                    <li><strong style={{color:'#ec0000ff'}}>Scoring:</strong> Earn points for each successful node creation</li>
-                    <li><strong style={{color:'#ec0000ff'}}>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
-                  </ul>
+                  <ul className={styles.instructionList}>
+                <li className={tutorialStyles.noMarker} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <strong style={{ minWidth: 40, color: '#ec0000ff' }}>Controls:</strong>
+                    <ul style={{ margin: 0, paddingLeft: '22px', listStyleType: 'disc' }}>
+                      <li style={{ marginBottom: '6px' }}>Use your mouse to aim the cannon</li>
+                      <li style={{ marginBottom: '6px' }}>&apos; Right-click &apos; to shoot bullets</li>
+                      <li>Scroll the mouse wheel to change mode</li>
+                      <li>Click the circle at the middle of the cannon to change bullets</li>
+                      <li>Click the node 5 times to delete a node.</li>
+                    </ul>
+                </li>
+                  <li className={tutorialStyles.noMarker}><strong style={{color:'#ec0000ff'}}>Objective:</strong> Meet the expected linked list</li>
+                  <li className={tutorialStyles.noMarker}><strong style={{color:'#ec0000ff'}}>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
+                </ul>
                 </div>
 
                 <div className={tutorialStyles.gameInstructionsFooter}>

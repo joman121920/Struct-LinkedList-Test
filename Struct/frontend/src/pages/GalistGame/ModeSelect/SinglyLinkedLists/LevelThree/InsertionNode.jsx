@@ -102,6 +102,11 @@ function GalistGameInsertionNode() {
     address: Math.floor(Math.random() * 1000).toString() 
   });
 
+  // AFK / idle hint for the cannon circle (copied from LinkingNode)
+  const [showCannonHint, setShowCannonHint] = useState(false);
+  const inactivityTimerRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
+
   const [headCircleId, setHeadCircleId] = useState(null);
   const [tailCircleId, setTailCircleId] = useState(null);
 
@@ -456,6 +461,30 @@ function GalistGameInsertionNode() {
     return () => {
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
+  // AFK idle detector: show cannon hint after 5s of inactivity
+  useEffect(() => {
+    const resetIdle = () => {
+      lastActivityRef.current = Date.now();
+      setShowCannonHint(false);
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = setTimeout(() => {
+        setShowCannonHint(true);
+      }, 8000);
+    };
+
+    // Only consider right-click (contextmenu / shooting) as activity
+    const events = ["contextmenu"];
+    events.forEach((ev) => document.addEventListener(ev, resetIdle));
+
+    // start the timer
+    resetIdle();
+
+    return () => {
+      events.forEach((ev) => document.removeEventListener(ev, resetIdle));
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     };
   }, []);
 
@@ -1891,6 +1920,14 @@ function GalistGameInsertionNode() {
             <span style={{ fontSize: '14px' }}>
               {cannonCircle.value}
             </span>
+          </div>
+          {/* AFK hint: blinking arrow pointing to cannon circle */}
+          <div
+            className={styles.cannonHint}
+            style={{ display: showCannonHint ? 'flex' : 'none' }}
+            aria-hidden="true"
+          >
+            <div className={styles.cannonArrow} />
           </div>
         </div>
       )}

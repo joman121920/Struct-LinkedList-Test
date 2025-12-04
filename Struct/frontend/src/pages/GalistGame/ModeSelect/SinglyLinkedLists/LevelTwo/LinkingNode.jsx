@@ -104,6 +104,11 @@ function GalistGameLinkingNode() {
   const [hitNodes, setHitNodes] = useState(new Set());
   const [floatingTexts, setFloatingTexts] = useState([]);
 
+  // AFK / idle hint for the cannon circle
+  const [showCannonHint, setShowCannonHint] = useState(false);
+  const inactivityTimerRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
+
   // Basic helper functions first
   const createConnection = useCallback((fromId, toId) => {
     const newConnection = {
@@ -715,6 +720,35 @@ function GalistGameLinkingNode() {
       loadExercise(exerciseKey || "exercise_one");
     }
   }, [currentExercise, exerciseKey, loadExercise]);
+
+  // AFK idle detector: show cannon hint after 3s of inactivity
+  useEffect(() => {
+    const resetIdle = () => {
+      lastActivityRef.current = Date.now();
+      setShowCannonHint(false);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      inactivityTimerRef.current = setTimeout(() => {
+        setShowCannonHint(true);
+      }, 5000);
+    };
+
+    // Only consider right-click (contextmenu / shooting) as activity
+    // so moving the mouse doesn't hide the hint anymore
+    const events = ["contextmenu"];
+    events.forEach((ev) => document.addEventListener(ev, resetIdle));
+
+    // start the timer
+    resetIdle();
+
+    return () => {
+      events.forEach((ev) => document.removeEventListener(ev, resetIdle));
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, []);
 
   // (Removed unused getChainOrder for node creation)
 
@@ -1398,6 +1432,14 @@ function GalistGameLinkingNode() {
     } else {
   // ...existing code...
     }
+    // Hide cannon hint and reset inactivity timer when shooting
+    setShowCannonHint(false);
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    inactivityTimerRef.current = setTimeout(() => {
+      setShowCannonHint(true);
+    }, 8000);
   }, [cannonCircle, cannonAngle]);
 
   useEffect(() => {
@@ -1817,11 +1859,17 @@ function GalistGameLinkingNode() {
             <h2 className={styles.instructionTitle}>Game Instruction</h2>
             <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
               <ul className={styles.instructionList}>
+               <li style={{ display: 'flex', alignItems: 'flex-start' }}>
+                  <strong style={{ minWidth: 50, color: '#ff6bff' }}>Controls:</strong>
+                  <ul style={{ margin: 0, paddingLeft: '22px', listStyleType: 'disc' }}>
+                    <li style={{ marginBottom: '6px' }}>Use your mouse to aim the cannon</li>
+                    <li style={{ marginBottom: '6px' }}>&apos; Right-click &apos; to shoot bullets</li>
+                    <li>Click the circle at the middle of the cannon to change bullets</li>
+                    <li>Click the node 5 times to delete a node.</li>
+                  </ul>
+                </li> 
                 <li><strong>Objective:</strong> Meet the expected linked list</li>
-                <li><strong>Controls:</strong> Use your mouse to aim the cannon and right-click to shoot bullets, To change the bullets, Click the circle at the middle of the cannon.</li>
                 <li><strong>Levels:</strong> Complete 3 challenging levels with increasing difficulty</li>
-                <li><strong>Scoring:</strong> Earn points for each successful node creation</li>
-                <li><strong>Strategy:</strong> Plan your shots carefully - bullets bounce off walls!</li>
               </ul>
             </div>
 
@@ -1866,6 +1914,14 @@ function GalistGameLinkingNode() {
             <span style={{ fontSize: '14px' }}>
               {cannonCircle.value}
             </span>
+          </div>
+          {/* AFK hint: blinking arrow pointing to cannon circle */}
+          <div
+            className={styles.cannonHint}
+            style={{ display: showCannonHint ? 'flex' : 'none' }}
+            aria-hidden="true"
+          >
+            <div className={styles.cannonArrow} />
           </div>
         </div>
       )}
